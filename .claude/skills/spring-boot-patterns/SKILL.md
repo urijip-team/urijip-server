@@ -391,7 +391,7 @@ class UserControllerTest {
     @Autowired
     private MockMvc mockMvc;
 
-    @MockBean
+    @MockitoBean  // Spring Boot 4: @MockBean was removed
     private UserService userService;
 
     @Test
