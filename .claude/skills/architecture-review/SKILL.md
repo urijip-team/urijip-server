@@ -17,6 +17,16 @@ Analyze project structure at the macro level - packages, modules, layers, and bo
 
 ---
 
+## This Project
+
+This project is package-by-feature: `com.urijip.server.<domain>.{controller,service,repository,entity,dto}` plus `global/`. Review against that, not against hexagonal architecture.
+
+- Start every review with `./gradlew test --tests '*ArchitectureTest'`. It enforces the layer and domain-boundary rules; report its failures first.
+- JPA entities in `entity/` are the domain model by design. Do not flag JPA or Spring annotations in entities, and do not recommend ports/adapters or a separate persistence model.
+- Focus the manual review on what `ArchitectureTest` cannot see: business logic leaking into controllers, oversized services, a growing `global/`, and cross-domain coupling through services.
+
+---
+
 ## Quick Reference: Architecture Smells
 
 | Smell | Symptom | Impact |
