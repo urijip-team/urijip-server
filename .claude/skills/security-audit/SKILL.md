@@ -191,13 +191,9 @@ String safeJs = Encode.forJavaScript(userInput);
 String safeUrl = Encode.forUriComponent(userInput);
 ```
 
-**Maven dependency for OWASP Encoder:**
-```xml
-<dependency>
-    <groupId>org.owasp.encoder</groupId>
-    <artifactId>encoder</artifactId>
-    <version>1.2.3</version>
-</dependency>
+**Gradle dependency for OWASP Encoder** (use the latest version):
+```groovy
+implementation 'org.owasp.encoder:encoder:<latest>'
 ```
 
 ### Content Security Policy
@@ -431,39 +427,30 @@ Do not replace Spring Boot's auto-configured mapper with a hand-built `@Bean`; t
 
 ### OWASP Dependency Check
 
-**Maven:**
-```xml
-<plugin>
-    <groupId>org.owasp</groupId>
-    <artifactId>dependency-check-maven</artifactId>
-    <version>9.0.7</version>
-    <executions>
-        <execution>
-            <goals>
-                <goal>check</goal>
-            </goals>
-        </execution>
-    </executions>
-    <configuration>
-        <failBuildOnCVSS>7</failBuildOnCVSS>  <!-- Fail on high severity -->
-    </configuration>
-</plugin>
+**Gradle** (use the latest plugin version):
+```groovy
+plugins {
+    id 'org.owasp.dependencycheck' version '<latest>'
+}
+
+dependencyCheck {
+    failBuildOnCVSS = 7  // Fail on high severity
+}
 ```
 
 **Run:**
 ```bash
-mvn dependency-check:check
-# Report: target/dependency-check-report.html
+./gradlew dependencyCheckAnalyze
+# Report: build/reports/dependency-check-report.html
 ```
 
 ### Keep Dependencies Updated
 
-```bash
-# Check for updates
-mvn versions:display-dependency-updates
+Spring Boot's dependency management pins most library versions; upgrade the Boot plugin version first.
 
-# Update to latest
-mvn versions:use-latest-releases
+```bash
+# Check for updates (requires the com.github.ben-manes.versions plugin)
+./gradlew dependencyUpdates
 ```
 
 ---
