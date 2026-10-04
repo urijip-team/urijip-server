@@ -42,4 +42,56 @@ class ArchitectureTest {
 			.should().dependOnClassesThat().resideInAnyPackage("..controller..", "..service..")
 			.allowEmptyShould(true);
 
+	@ArchTest
+	static final ArchRule global_does_not_depend_on_domains = classes()
+			.that().resideInAPackage(ROOT + "global..")
+			.should(dependOnlyOnOwnDomainOrGlobal())
+			.allowEmptyShould(true);
+
+	@ArchTest
+	static final ArchRule repositories_are_used_only_within_their_domain = classes()
+			.that().resideInAPackage("..repository..")
+			.should(beAccessedOnlyFromOwnDomain())
+			.allowEmptyShould(true);
+
+	private static ArchCondition<JavaClass> beAccessedOnlyFromOwnDomain() {
+		return new ArchCondition<>("be accessed only from their own domain") {
+			@Override
+			public void check(JavaClass repository, ConditionEvents events) {
+				String domain = domainOf(repository);
+				for (Dependency dependency : repository.getDirectDependenciesToSelf()) {
+					JavaClass origin = dependency.getOriginClass();
+					if (!domain.equals(domainOf(origin))) {
+						events.add(SimpleConditionEvent.violated(dependency, dependency.getDescription()));
+					}
+				}
+			}
+		};
+	}
+
+	private static ArchCondition<JavaClass> dependOnlyOnOwnDomainOrGlobal() {
+		return new ArchCondition<>("not depend on domain packages") {
+			@Override
+			public void check(JavaClass globalClass, ConditionEvents events) {
+				for (Dependency dependency : globalClass.getDirectDependenciesFromSelf()) {
+					JavaClass target = dependency.getTargetClass();
+					if (target.getPackageName().startsWith(ROOT) && !domainOf(target).equals("global")) {
+						events.add(SimpleConditionEvent.violated(dependency, dependency.getDescription()));
+					}
+				}
+			}
+		};
+	}
+
+	/** {@code com.urijip.server.member.service} → {@code member}; classes outside a domain package → "". */
+	private static String domainOf(JavaClass javaClass) {
+		String packageName = javaClass.getPackageName();
+		if (!packageName.startsWith(ROOT)) {
+			return "";
+		}
+		String rest = packageName.substring(ROOT.length());
+		int dot = rest.indexOf('.');
+		return dot < 0 ? rest : rest.substring(0, dot);
+	}
+
 }
