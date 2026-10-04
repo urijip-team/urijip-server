@@ -322,9 +322,9 @@ public record ErrorResponse(String code, String message) {}
 # application.yml
 spring:
   datasource:
-    url: jdbc:postgresql://localhost:5432/mydb
-    username: ${DB_USER}
-    password: ${DB_PASSWORD}
+    url: ${DB_URL:jdbc:mysql://localhost:3306/urijip}
+    username: ${DB_USERNAME:urijip}
+    password: ${DB_PASSWORD:urijip}
   jpa:
     hibernate:
       ddl-auto: validate  # Never 'create' in production!
