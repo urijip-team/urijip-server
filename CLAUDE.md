@@ -26,3 +26,8 @@ urijip 서비스의 백엔드 서버. 기능 범위는 회원, 가족, 채팅, �
 - Jackson은 3 버전이다. 패키지가 `tools.jackson.*`이고, 매퍼를 직접 `@Bean`으로 만들지 말고 `spring.jackson.*` 속성으로 조정한다.
 - 퍼시스턴스와 검증은 `jakarta.*` 패키지를 쓴다. `javax.*`는 쓰지 않는다.
 - 웹 스타터 이름은 `spring-boot-starter-webmvc`다.
+
+## 데이터베이스
+
+- 접속 정보는 `DB_URL`, `DB_USERNAME`, `DB_PASSWORD` 환경변수로 주입하고, 없으면 로컬 Compose 값을 쓴다.
+- `ddl-auto: update`는 초기 개발용이다. 운영 배포 전에 마이그레이션 도구로 바꾼다.
