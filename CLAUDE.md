@@ -55,6 +55,13 @@ com.urijip.server
 └── global/          # config, 공통 예외·응답 등 도메인에 속하지 않는 것
 ```
 
+- 호출 방향은 `controller → service → repository`다. 컨트롤러는 리포지토리를 직접 쓰지 않는다.
+- 다른 도메인의 데이터가 필요하면 그 도메인의 `service`를 호출한다. 다른 도메인의 `repository`는 쓰지 않는다.
+- `global`은 도메인 패키지에 의존하지 않는다.
+- 엔티티를 API 응답으로 바로 내보내지 않고 `dto`로 변환한다.
+
+이 규칙은 `ArchitectureTest`(ArchUnit)가 검사한다. 새 도메인은 위 다섯 하위 패키지를 그대로 따른다.
+
 ## 커밋
 
 - 커밋과 푸시는 요청받았을 때만 한다.
