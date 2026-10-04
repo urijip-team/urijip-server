@@ -148,7 +148,7 @@ Inner layers MUST NOT know about outer layers.
 package com.example.domain.model;
 
 import org.springframework.data.jpa.repository.JpaRepository;  // Framework leak!
-import javax.persistence.Entity;  // JPA in domain!
+import jakarta.persistence.Entity;  // JPA in domain!
 
 @Entity
 public class User {
