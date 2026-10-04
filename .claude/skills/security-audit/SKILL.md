@@ -532,5 +532,3 @@ log.debug("Request body: {}", requestWithCreditCard);  // NEVER!
 ## Related Skills
 
 - `java-code-review` - General code review
-- `maven-dependency-audit` - Dependency vulnerability scanning
-- `logging-patterns` - Secure logging practices
