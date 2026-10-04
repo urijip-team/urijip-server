@@ -284,15 +284,17 @@ public class User {
 When reviewing architecture, examine:
 
 ```bash
+# Layer and domain-boundary rules (run first)
+./gradlew test --tests '*ArchitectureTest'
+
 # Package structure overview
 find src/main/java -type d | head -30
 
 # Largest packages (potential god packages)
 find src/main/java -name "*.java" | xargs dirname | sort | uniq -c | sort -rn | head -10
 
-# Check for framework imports in domain
-grep -r "import org.springframework" src/main/java/*/domain/ 2>/dev/null
-grep -r "import javax.persistence" src/main/java/*/domain/ 2>/dev/null
+# Cross-domain service calls (allowed, but watch for cycles such as member ↔ family)
+grep -rn "import com.urijip.server\.[a-z]*\.service" src/main/java/com/urijip/server/*/service/
 
 # Find circular dependencies (look for bidirectional imports)
 # Check if package A imports from B and B imports from A
