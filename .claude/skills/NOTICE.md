@@ -4,9 +4,11 @@ The following skills are adapted from [decebals/claude-code-java](https://github
 (commit `0d98fe9bd62923e819568ee1e041a1bf320f74d4`), licensed under the MIT License:
 
 - `api-contract-review`
+- `architecture-review`
 - `java-code-review`
 - `jpa-patterns`
 - `security-audit`
+- `spring-boot-patterns`
 - `test-quality`
 
 Changes from the original are tracked in this repository's git history.
