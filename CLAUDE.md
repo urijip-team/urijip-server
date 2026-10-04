@@ -17,3 +17,12 @@ urijip 서비스의 백엔드 서버. 기능 범위는 회원, 가족, 채팅, �
 ```
 
 테스트와 `bootRun` 모두 Docker가 실행 중이어야 한다.
+
+## Spring Boot 4 주의점
+
+학습 데이터의 상당수가 Boot 3 기준이라 아래를 틀리기 쉽다.
+
+- 테스트 목 객체는 `@MockitoBean`을 쓴다. `@MockBean`은 삭제됐다.
+- Jackson은 3 버전이다. 패키지가 `tools.jackson.*`이고, 매퍼를 직접 `@Bean`으로 만들지 말고 `spring.jackson.*` 속성으로 조정한다.
+- 퍼시스턴스와 검증은 `jakarta.*` 패키지를 쓴다. `javax.*`는 쓰지 않는다.
+- 웹 스타터 이름은 `spring-boot-starter-webmvc`다.
