@@ -15,33 +15,35 @@ Best practices and patterns for Spring Boot applications.
 
 ## Project Structure
 
+Package by domain. Every domain uses the same five sub-packages.
+
 ```
-src/main/java/com/example/myapp/
-├── MyAppApplication.java          # @SpringBootApplication
-├── config/                        # Configuration classes
-│   ├── SecurityConfig.java
-│   └── WebConfig.java
-├── controller/                    # REST controllers
-│   └── UserController.java
-├── service/                       # Business logic
-│   ├── UserService.java
-│   └── impl/
-│       └── UserServiceImpl.java
-├── repository/                    # Data access
-│   └── UserRepository.java
-├── model/                         # Entities
-│   └── User.java
-├── dto/                           # Data transfer objects
-│   ├── request/
-│   │   └── CreateUserRequest.java
-│   └── response/
-│       └── UserResponse.java
-├── exception/                     # Custom exceptions
-│   ├── ResourceNotFoundException.java
-│   └── GlobalExceptionHandler.java
-└── util/                          # Utilities
-    └── DateUtils.java
+src/main/java/com/urijip/server/
+├── UrijipServerApplication.java   # @SpringBootApplication
+├── member/                        # one package per domain: member, family, chat, schedule
+│   ├── controller/
+│   │   └── MemberController.java
+│   ├── service/
+│   │   └── MemberService.java
+│   ├── repository/
+│   │   └── MemberRepository.java
+│   ├── entity/
+│   │   └── Member.java
+│   └── dto/
+│       ├── CreateMemberRequest.java
+│       └── MemberResponse.java
+└── global/                        # cross-cutting code that belongs to no domain
+    ├── config/
+    │   └── WebConfig.java
+    └── exception/
+        ├── ResourceNotFoundException.java
+        └── GlobalExceptionHandler.java
 ```
+
+Boundaries (enforced by `ArchitectureTest`):
+- Controllers call services only; they never touch repositories or entities.
+- Another domain's data is reached through that domain's service, never its repository.
+- `global` never depends on a domain package.
 
 ---
 
