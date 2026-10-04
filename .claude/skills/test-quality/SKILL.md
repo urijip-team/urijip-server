@@ -44,6 +44,16 @@ assertEquals(PluginState.STARTED, plugin.getState()); // Less readable
 assertTrue(plugins.size() == 3); // Less descriptive failures
 ```
 
+### Testcontainers for integration tests
+Tests that need a database run against real MySQL via Testcontainers, never H2.
+Import the shared `TestcontainersConfiguration` instead of declaring a new container:
+```java
+@Import(TestcontainersConfiguration.class)
+@SpringBootTest
+class MemberServiceIntegrationTest { ... }
+```
+Docker must be running for `./gradlew test`.
+
 ## Test Structure (AAA Pattern)
 
 Always use Arrange-Act-Assert pattern:
