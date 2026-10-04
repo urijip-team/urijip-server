@@ -653,6 +653,4 @@ When reviewing JPA code, check:
 
 ## Related Skills
 
-- `spring-boot-patterns` - Spring Boot controller/service patterns
 - `java-code-review` - General code review checklist
-- `clean-code` - Code quality principles
