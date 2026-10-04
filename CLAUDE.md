@@ -36,3 +36,7 @@ urijip 서비스의 백엔드 서버. 기능 범위는 회원, 가족, 채팅, �
 
 - DB가 필요한 테스트는 `@Import(TestcontainersConfiguration.class)`로 실제 MySQL을 쓴다. H2는 쓰지 않는다.
 - 단언은 AssertJ(`assertThat`)를 쓴다.
+
+## 패키지 구조
+
+아직 정하지 않았다. 도메인별로 나눌지 계층별로 나눌지 결정되기 전에는 임의로 구조를 만들지 말고 먼저 물어본다.
