@@ -39,7 +39,21 @@ urijip 서비스의 백엔드 서버. 기능 범위는 회원, 가족, 채팅, �
 
 ## 패키지 구조
 
-아직 정하지 않았다. 도메인별로 나눌지 계층별로 나눌지 결정되기 전에는 임의로 구조를 만들지 말고 먼저 물어본다.
+도메인별로 나눈다.
+
+```
+com.urijip.server
+├── member/          # 도메인마다 같은 하위 구조
+│   ├── controller/
+│   ├── service/
+│   ├── repository/
+│   ├── entity/
+│   └── dto/
+├── family/
+├── chat/
+├── schedule/
+└── global/          # config, 공통 예외·응답 등 도메인에 속하지 않는 것
+```
 
 ## 커밋
 
