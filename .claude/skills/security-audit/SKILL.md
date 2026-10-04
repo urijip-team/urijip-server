@@ -399,39 +399,31 @@ application-local.yml
 ObjectInputStream ois = new ObjectInputStream(untrustedInput);
 Object obj = ois.readObject();  // Remote Code Execution risk!
 
-// ✅ GOOD: Use JSON with Jackson
-ObjectMapper mapper = new ObjectMapper();
-// Disable dangerous features
-mapper.disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES);
-mapper.activateDefaultTyping(
-    LaissezFaireSubTypeValidator.instance,
-    ObjectMapper.DefaultTyping.NON_FINAL
-);  // Be careful with polymorphic types!
-
-User user = mapper.readValue(json, User.class);
+// ✅ GOOD: Deserialize JSON into a concrete type with the Spring-managed mapper
+User user = jsonMapper.readValue(json, User.class);
 ```
 
 ### Jackson Security
 
+Spring Boot 4 uses Jackson 3 (`tools.jackson.*` packages). Default typing is off by default; keep it that way.
+
 ```java
-// ✅ Configure Jackson safely
-@Configuration
-public class JacksonConfig {
+// ❌ DANGEROUS: default typing lets the JSON choose which class to instantiate (gadget attacks)
+mapper.activateDefaultTyping(LaissezFaireSubTypeValidator.instance, DefaultTyping.NON_FINAL);
 
-    @Bean
-    public ObjectMapper objectMapper() {
-        ObjectMapper mapper = new ObjectMapper();
+// ❌ DANGEROUS: class names taken from the JSON
+@JsonTypeInfo(use = JsonTypeInfo.Id.CLASS)
 
-        // Prevent unknown properties exploitation
-        mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
-
-        // Don't allow class type in JSON (prevents gadget attacks)
-        mapper.deactivateDefaultTyping();
-
-        return mapper;
-    }
-}
+// ✅ GOOD: polymorphism limited to an explicit allow-list of subtypes
+@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+@JsonSubTypes({
+    @JsonSubTypes.Type(value = CardPayment.class, name = "card"),
+    @JsonSubTypes.Type(value = BankPayment.class, name = "bank")
+})
+public sealed interface Payment permits CardPayment, BankPayment {}
 ```
+
+Do not replace Spring Boot's auto-configured mapper with a hand-built `@Bean`; tune it with `spring.jackson.*` properties instead.
 
 ---
 
