@@ -429,13 +429,10 @@ class UserServiceTest {
 
 ### Integration Test
 ```java
+@Import(TestcontainersConfiguration.class)  // shared MySQL container
 @SpringBootTest
 @AutoConfigureMockMvc
-@Testcontainers
 class UserIntegrationTest {
-
-    @Container
-    static PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:15");
 
     @Autowired
     private MockMvc mockMvc;
