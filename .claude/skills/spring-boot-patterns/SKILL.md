@@ -132,25 +132,23 @@ public User getById(@PathVariable Long id) {
 public class UserService {
 
     private final UserRepository userRepository;
-    private final UserMapper userMapper;
 
     public List<UserResponse> findAll() {
         return userRepository.findAll().stream()
-            .map(userMapper::toResponse)
+            .map(UserResponse::from)
             .toList();
     }
 
     public UserResponse findById(Long id) {
         return userRepository.findById(id)
-            .map(userMapper::toResponse)
+            .map(UserResponse::from)
             .orElseThrow(() -> new ResourceNotFoundException("User", id));
     }
 
     @Transactional  // Write transaction
     public UserResponse create(CreateUserRequest request) {
-        User user = userMapper.toEntity(request);
-        User saved = userRepository.save(user);
-        return userMapper.toResponse(saved);
+        User saved = userRepository.save(request.toEntity());
+        return UserResponse.from(saved);
     }
 
     @Transactional
@@ -169,7 +167,7 @@ public class UserService {
 - `@Transactional(readOnly = true)` at class level
 - `@Transactional` for write methods
 - Throw domain exceptions, not generic ones
-- Use mappers (MapStruct) for entity ↔ DTO conversion
+- Convert entity ↔ DTO with methods on the DTO (`from`, `toEntity`); the conversion happens in the service
 
 ---
 
@@ -239,18 +237,21 @@ public record UserResponse(
 ) {}
 ```
 
-### MapStruct Mapper
+### Entity ↔ DTO Conversion
+No mapping library; the DTO owns its conversion.
 ```java
-@Mapper(componentModel = "spring")
-public interface UserMapper {
+public record CreateUserRequest(/* fields as above */) {
 
-    UserResponse toResponse(User entity);
+    public User toEntity() {
+        return new User(name, email, age);
+    }
+}
 
-    List<UserResponse> toResponseList(List<User> entities);
+public record UserResponse(Long id, String name, String email, LocalDateTime createdAt) {
 
-    @Mapping(target = "id", ignore = true)
-    @Mapping(target = "createdAt", ignore = true)
-    User toEntity(CreateUserRequest request);
+    public static UserResponse from(User user) {
+        return new UserResponse(user.getId(), user.getName(), user.getEmail(), user.getCreatedAt());
+    }
 }
 ```
 
@@ -412,9 +413,6 @@ class UserServiceTest {
 
     @Mock
     private UserRepository userRepository;
-
-    @Mock
-    private UserMapper userMapper;
 
     @InjectMocks
     private UserService userService;
