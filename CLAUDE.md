@@ -31,3 +31,8 @@ urijip 서비스의 백엔드 서버. 기능 범위는 회원, 가족, 채팅, �
 
 - 접속 정보는 `DB_URL`, `DB_USERNAME`, `DB_PASSWORD` 환경변수로 주입하고, 없으면 로컬 Compose 값을 쓴다.
 - `ddl-auto: update`는 초기 개발용이다. 운영 배포 전에 마이그레이션 도구로 바꾼다.
+
+## 테스트
+
+- DB가 필요한 테스트는 `@Import(TestcontainersConfiguration.class)`로 실제 MySQL을 쓴다. H2는 쓰지 않는다.
+- 단언은 AssertJ(`assertThat`)를 쓴다.
