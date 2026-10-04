@@ -489,39 +489,27 @@ void shouldRejectPluginWithMissingDependencies() {
 
 ## Integration with Coverage Tools
 
-### Maven configuration
-```xml
-<plugin>
-    <groupId>org.jacoco</groupId>
-    <artifactId>jacoco-maven-plugin</artifactId>
-    <version>0.8.11</version>
-    <executions>
-        <execution>
-            <goals>
-                <goal>prepare-agent</goal>
-            </goals>
-        </execution>
-        <execution>
-            <id>report</id>
-            <phase>test</phase>
-            <goals>
-                <goal>report</goal>
-            </goals>
-        </execution>
-    </executions>
-</plugin>
+### Gradle configuration
+```groovy
+plugins {
+    id 'jacoco'
+}
+
+tasks.named('jacocoTestReport') {
+    dependsOn tasks.named('test')
+}
 ```
 
 ### After test generation, suggest:
 ```bash
 # Run tests with coverage
-mvn clean test jacoco:report
+./gradlew test jacocoTestReport
 
 # View coverage report
-open target/site/jacoco/index.html
+open build/reports/jacoco/test/html/index.html
 
-# Check coverage threshold
-mvn verify # Fails if below configured threshold
+# Check coverage threshold (requires jacocoTestCoverageVerification rules)
+./gradlew jacocoTestCoverageVerification
 ```
 
 ## Quick Reference
