@@ -124,41 +124,28 @@ public User getById(@PathVariable Long id) {
 
 ## Service Patterns
 
-### Service Interface + Implementation
+### Service Class
 ```java
-// Interface
-public interface UserService {
-    List<UserResponse> findAll();
-    UserResponse findById(Long id);
-    UserResponse create(CreateUserRequest request);
-    UserResponse update(Long id, UpdateUserRequest request);
-    void delete(Long id);
-}
-
-// Implementation
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)  // Default read-only
-public class UserServiceImpl implements UserService {
+public class UserService {
 
     private final UserRepository userRepository;
     private final UserMapper userMapper;
 
-    @Override
     public List<UserResponse> findAll() {
         return userRepository.findAll().stream()
             .map(userMapper::toResponse)
             .toList();
     }
 
-    @Override
     public UserResponse findById(Long id) {
         return userRepository.findById(id)
             .map(userMapper::toResponse)
             .orElseThrow(() -> new ResourceNotFoundException("User", id));
     }
 
-    @Override
     @Transactional  // Write transaction
     public UserResponse create(CreateUserRequest request) {
         User user = userMapper.toEntity(request);
@@ -166,7 +153,6 @@ public class UserServiceImpl implements UserService {
         return userMapper.toResponse(saved);
     }
 
-    @Override
     @Transactional
     public void delete(Long id) {
         if (!userRepository.existsById(id)) {
@@ -179,7 +165,7 @@ public class UserServiceImpl implements UserService {
 
 ### Service Best Practices
 
-- Interface + Impl for testability
+- Concrete `@Service` classes; add an interface only when there are real multiple implementations (Mockito mocks classes fine)
 - `@Transactional(readOnly = true)` at class level
 - `@Transactional` for write methods
 - Throw domain exceptions, not generic ones
@@ -422,7 +408,7 @@ class UserControllerTest {
 ### Service Test
 ```java
 @ExtendWith(MockitoExtension.class)
-class UserServiceImplTest {
+class UserServiceTest {
 
     @Mock
     private UserRepository userRepository;
@@ -431,7 +417,7 @@ class UserServiceImplTest {
     private UserMapper userMapper;
 
     @InjectMocks
-    private UserServiceImpl userService;
+    private UserService userService;
 
     @Test
     void shouldThrowWhenUserNotFound() {
