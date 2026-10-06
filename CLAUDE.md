@@ -41,6 +41,19 @@ URL, 요청·응답 필드, 테이블·컬럼 이름은 API 명세서와 ERD를 
 - 웹 스타터 이름은 `spring-boot-starter-webmvc`다.
 - springdoc은 3.x가 Boot 4용이다. 2.x는 쓰지 않는다.
 
+## API 응답
+
+모든 응답은 `global/response/ApiResponse`로 감싼다. API 명세서의 공통 형식이다.
+
+```json
+{ "success": true, "data": { }, "error": null }
+{ "success": false, "data": null, "error": { "code": "FAMILY_NOT_MEMBER", "message": "해당 가족의 멤버가 아닙니다." } }
+```
+
+- 컨트롤러는 `ApiResponse.success(data)`를 반환한다.
+- 실패는 서비스에서 `new BusinessException(ErrorCode.X)`를 던진다. `GlobalExceptionHandler`가 응답으로 바꾼다. 컨트롤러에서 `try-catch`로 에러 응답을 만들지 않는다.
+- 새 에러는 `ErrorCode`에 추가한다. 이름과 HTTP 상태는 API 명세서의 에러 코드 표를 따른다.
+
 ## 데이터베이스
 
 - 접속 정보는 `DB_URL`, `DB_USERNAME`, `DB_PASSWORD` 환경변수로 주입하고, 없으면 로컬 Compose 값을 쓴다.
