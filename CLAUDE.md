@@ -67,6 +67,12 @@ URL, 요청·응답 필드, 테이블·컬럼 이름은 API 명세서와 ERD를 
 - `local`의 `ddl-auto: update`는 초기 개발용이다. 운영 배포 전에 마이그레이션 도구로 바꾼다.
 - `created_at`이 있는 엔티티는 `global/entity/BaseTimeEntity`를 상속한다. 시간을 직접 넣지 않는다.
 
+## 시간
+
+- 서버 기본 시간대는 `Asia/Seoul`이다. `UrijipServerApplication.main`에서 고정한다.
+- 엔티티의 시간은 `LocalDateTime`이다. 응답 날짜는 ISO-8601이고 Jackson 기본값이 이미 그렇다.
+- API 명세서의 `+09:00` 오프셋은 `LocalDateTime`으로는 붙지 않는다. 응답 DTO에서 `OffsetDateTime`으로 바꿔 내보낸다.
+
 ## 테스트
 
 - DB가 필요한 테스트는 `@Import(TestcontainersConfiguration.class)`로 실제 MySQL을 쓴다. H2는 쓰지 않는다.
