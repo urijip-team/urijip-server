@@ -39,6 +39,7 @@ URL, 요청·응답 필드, 테이블·컬럼 이름은 API 명세서와 ERD를 
 - Jackson은 3 버전이다. 패키지가 `tools.jackson.*`이고, 매퍼를 직접 `@Bean`으로 만들지 말고 `spring.jackson.*` 속성으로 조정한다.
 - 퍼시스턴스와 검증은 `jakarta.*` 패키지를 쓴다. `javax.*`는 쓰지 않는다.
 - 웹 스타터 이름은 `spring-boot-starter-webmvc`다.
+- springdoc은 3.x가 Boot 4용이다. 2.x는 쓰지 않는다.
 
 ## 데이터베이스
 
