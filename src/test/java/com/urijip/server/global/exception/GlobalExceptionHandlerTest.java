@@ -2,6 +2,7 @@ package com.urijip.server.global.exception;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.urijip.server.global.response.ApiResponse;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import org.junit.jupiter.api.Test;
@@ -25,17 +26,29 @@ class GlobalExceptionHandlerTest {
 	private MockMvcTester mvc;
 
 	@Test
+	void successWrapsDataWithNullError() {
+		MvcTestResult result = mvc.get().uri("/test/success").exchange();
+
+		assertThat(result).hasStatus(HttpStatus.OK);
+		assertThat(result).bodyJson().extractingPath("$.success").isEqualTo(true);
+		assertThat(result).bodyJson().extractingPath("$.data.name").isEqualTo("urijip");
+		assertThat(result).bodyJson().extractingPath("$.error").isNull();
+	}
+
+	@Test
 	void businessExceptionUsesStatusAndMessageOfErrorCode() {
 		MvcTestResult result = mvc.get().uri("/test/business").exchange();
 
 		assertThat(result).hasStatus(HttpStatus.BAD_REQUEST);
-		assertThat(result).bodyJson().extractingPath("$.code").isEqualTo("INVALID_INPUT");
-		assertThat(result).bodyJson().extractingPath("$.message").isEqualTo(ErrorCode.INVALID_INPUT.getMessage());
-		assertThat(result).bodyJson().extractingPath("$.errors").asArray().isEmpty();
+		assertThat(result).bodyJson().extractingPath("$.success").isEqualTo(false);
+		assertThat(result).bodyJson().extractingPath("$.data").isNull();
+		assertThat(result).bodyJson().extractingPath("$.error.code").isEqualTo("INVALID_INPUT");
+		assertThat(result).bodyJson().extractingPath("$.error.message")
+				.isEqualTo(ErrorCode.INVALID_INPUT.getMessage());
 	}
 
 	@Test
-	void validationFailureListsInvalidFields() {
+	void validationFailureNamesInvalidField() {
 		MvcTestResult result = mvc.post().uri("/test/validation")
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("""
@@ -44,9 +57,8 @@ class GlobalExceptionHandlerTest {
 				.exchange();
 
 		assertThat(result).hasStatus(HttpStatus.BAD_REQUEST);
-		assertThat(result).bodyJson().extractingPath("$.code").isEqualTo("INVALID_INPUT");
-		assertThat(result).bodyJson().extractingPath("$.errors[0].field").isEqualTo("name");
-		assertThat(result).bodyJson().extractingPath("$.errors[0].message").asString().isNotBlank();
+		assertThat(result).bodyJson().extractingPath("$.error.code").isEqualTo("INVALID_INPUT");
+		assertThat(result).bodyJson().extractingPath("$.error.message").asString().startsWith("name: ");
 	}
 
 	@Test
@@ -54,8 +66,8 @@ class GlobalExceptionHandlerTest {
 		MvcTestResult result = mvc.get().uri("/test/unexpected").exchange();
 
 		assertThat(result).hasStatus(HttpStatus.INTERNAL_SERVER_ERROR);
-		assertThat(result).bodyJson().extractingPath("$.code").isEqualTo("INTERNAL_SERVER_ERROR");
-		assertThat(result).bodyJson().extractingPath("$.message")
+		assertThat(result).bodyJson().extractingPath("$.error.code").isEqualTo("INTERNAL_SERVER_ERROR");
+		assertThat(result).bodyJson().extractingPath("$.error.message")
 				.isEqualTo(ErrorCode.INTERNAL_SERVER_ERROR.getMessage());
 	}
 
@@ -64,11 +76,17 @@ class GlobalExceptionHandlerTest {
 		MvcTestResult result = mvc.post().uri("/test/business").exchange();
 
 		assertThat(result).hasStatus(HttpStatus.METHOD_NOT_ALLOWED);
-		assertThat(result).bodyJson().extractingPath("$.code").isEqualTo("METHOD_NOT_ALLOWED");
+		assertThat(result).bodyJson().extractingPath("$.success").isEqualTo(false);
+		assertThat(result).bodyJson().extractingPath("$.error.code").isEqualTo("METHOD_NOT_ALLOWED");
 	}
 
 	@RestController
 	static class TestController {
+
+		@GetMapping("/test/success")
+		ApiResponse<TestRequest> success() {
+			return ApiResponse.success(new TestRequest("urijip"));
+		}
 
 		@GetMapping("/test/business")
 		void business() {
