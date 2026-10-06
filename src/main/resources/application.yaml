@@ -1,11 +1,11 @@
 spring:
   application:
     name: urijip-server
+  profiles:
+    default: local
   datasource:
     url: ${DB_URL:jdbc:mysql://localhost:3306/urijip}
     username: ${DB_USERNAME:urijip}
     password: ${DB_PASSWORD:urijip}
   jpa:
     open-in-view: false
-    hibernate:
-      ddl-auto: update
