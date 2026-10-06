@@ -2,6 +2,7 @@ package com.urijip.server.global.exception;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.urijip.server.global.config.SecurityConfig;
 import com.urijip.server.global.response.ApiResponse;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
@@ -19,7 +20,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
 @WebMvcTest(GlobalExceptionHandlerTest.TestController.class)
-@Import(GlobalExceptionHandlerTest.TestController.class)
+@Import({GlobalExceptionHandlerTest.TestController.class, SecurityConfig.class})
 class GlobalExceptionHandlerTest {
 
 	@Autowired
