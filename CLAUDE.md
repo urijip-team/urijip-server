@@ -100,8 +100,14 @@ com.urijip.server
 ├── family/
 ├── chat/
 ├── schedule/
-└── global/          # config, 공통 예외·응답 등 도메인에 속하지 않는 것
+└── global/          # 도메인에 속하지 않는 것
+    ├── config/      # 설정 클래스
+    ├── entity/      # BaseTimeEntity
+    ├── exception/   # ErrorCode, BusinessException, GlobalExceptionHandler
+    └── response/    # ApiResponse
 ```
+
+위치, SOS, 사진, 용돈 등 나머지 도메인도 만들 때 같은 구조로 패키지를 추가한다.
 
 - 호출 방향은 `controller → service → repository`다. 컨트롤러는 리포지토리를 직접 쓰지 않는다.
 - 다른 도메인의 데이터가 필요하면 그 도메인의 `service`를 호출한다. 다른 도메인의 `repository`는 쓰지 않는다.
