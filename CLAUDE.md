@@ -16,7 +16,8 @@ URL, 요청·응답 필드, 테이블·컬럼 이름은 API 명세서와 ERD를 
 ## 기술 스택
 
 - Java 25, Spring Boot 4.1, Gradle (Groovy DSL, wrapper 사용)
-- Spring Web MVC, Spring Data JPA, Validation, Actuator, Lombok
+- Spring Web MVC, Spring Data JPA, Spring Security, Validation, Actuator, Lombok
+- springdoc-openapi (Swagger UI)
 - MySQL 8.4 (로컬은 Docker Compose, 테스트는 Testcontainers)
 
 ## 명령
@@ -25,9 +26,10 @@ URL, 요청·응답 필드, 테이블·컬럼 이름은 API 명세서와 ERD를 
 ./gradlew build      # 컴파일 + 전체 테스트. 작업 완료 전에 반드시 통과시킨다
 ./gradlew test       # 테스트만
 ./gradlew bootRun    # 로컬 실행. compose.yaml의 MySQL이 자동으로 뜬다
+./gradlew bootRun --args='--spring.profiles.active=prod'   # 운영 프로파일로 실행
 ```
 
-테스트와 `bootRun` 모두 Docker가 실행 중이어야 한다.
+테스트와 `bootRun` 모두 Docker가 실행 중이어야 한다. 로컬 실행 후 `http://localhost:8080/swagger-ui.html`에서 API 문서를 본다.
 
 ## Spring Boot 4 주의점
 
