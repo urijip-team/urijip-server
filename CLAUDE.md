@@ -54,10 +54,18 @@ URL, 요청·응답 필드, 테이블·컬럼 이름은 API 명세서와 ERD를 
 - 실패는 서비스에서 `new BusinessException(ErrorCode.X)`를 던진다. `GlobalExceptionHandler`가 응답으로 바꾼다. 컨트롤러에서 `try-catch`로 에러 응답을 만들지 않는다.
 - 새 에러는 `ErrorCode`에 추가한다. 이름과 HTTP 상태는 API 명세서의 에러 코드 표를 따른다.
 
+## 설정과 프로파일
+
+- `application.yaml`은 공통 설정이다. 환경마다 달라지는 값은 `application-local.yaml`, `application-prod.yaml`에 둔다.
+- 프로파일을 지정하지 않으면 `local`이다. 테스트와 CI도 `local`로 돈다.
+- `prod`는 `ddl-auto: validate`이고 Swagger를 끈다. 운영 서버는 `SPRING_PROFILES_ACTIVE=prod`로 실행한다.
+- 설정 클래스는 `global/config`에 관심사별로 하나씩 둔다. `@EnableJpaAuditing` 같은 `@Enable...`을 `UrijipServerApplication`에 붙이지 않는다. `@WebMvcTest`가 깨진다.
+
 ## 데이터베이스
 
 - 접속 정보는 `DB_URL`, `DB_USERNAME`, `DB_PASSWORD` 환경변수로 주입하고, 없으면 로컬 Compose 값을 쓴다.
-- `ddl-auto: update`는 초기 개발용이다. 운영 배포 전에 마이그레이션 도구로 바꾼다.
+- `local`의 `ddl-auto: update`는 초기 개발용이다. 운영 배포 전에 마이그레이션 도구로 바꾼다.
+- `created_at`이 있는 엔티티는 `global/entity/BaseTimeEntity`를 상속한다. 시간을 직접 넣지 않는다.
 
 ## 테스트
 
