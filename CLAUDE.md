@@ -82,7 +82,8 @@ URL, 요청·응답 필드, 테이블·컬럼 이름은 API 명세서와 ERD를 
 ## 테스트
 
 - DB가 필요한 테스트는 `@Import(TestcontainersConfiguration.class)`로 실제 MySQL을 쓴다. H2는 쓰지 않는다.
-- 단언은 AssertJ(`assertThat`)를 쓴다.
+- `@WebMvcTest`는 `@Configuration` 클래스를 읽지 않는다. 컨트롤러 테스트에는 `SecurityConfig`를 `@Import`한다. 빠뜨리면 모든 요청이 401로 막힌다.
+- 단언은 AssertJ(`assertThat`)를 쓴다. MockMvc는 `MockMvcTester`를 쓴다.
 
 ## 패키지 구조
 
