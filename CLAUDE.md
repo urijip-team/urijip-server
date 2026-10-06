@@ -73,6 +73,12 @@ URL, 요청·응답 필드, 테이블·컬럼 이름은 API 명세서와 ERD를 
 - 엔티티의 시간은 `LocalDateTime`이다. 응답 날짜는 ISO-8601이고 Jackson 기본값이 이미 그렇다.
 - API 명세서의 `+09:00` 오프셋은 `LocalDateTime`으로는 붙지 않는다. 응답 DTO에서 `OffsetDateTime`으로 바꿔 내보낸다.
 
+## 보안
+
+- `global/config/SecurityConfig`는 지금 모든 요청을 허용하는 뼈대다. JWT 필터와 경로별 규칙은 로그인 기능을 만들 때 붙인다.
+- 인증은 JWT(Access 30분, Refresh 14일), 비밀번호는 BCrypt다. 앱 API는 `/api/...`, 관리자 API는 `/admin/...`(ADMIN만)이다.
+- 가족에 속한 데이터는 같은 가족 멤버만 조회·수정할 수 있다. `/api/families/{familyId}/...`는 요청자가 그 가족의 멤버인지 검사한다.
+
 ## 테스트
 
 - DB가 필요한 테스트는 `@Import(TestcontainersConfiguration.class)`로 실제 MySQL을 쓴다. H2는 쓰지 않는다.
