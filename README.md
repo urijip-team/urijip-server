@@ -41,3 +41,12 @@ cd urijip-server
 ```
 
 테스트는 Testcontainers로 실제 MySQL을 띄우므로 Docker가 필요합니다.
+
+## 프로파일
+
+| 프로파일 | 용도 | 특징 |
+| --- | --- | --- |
+| `local` (기본값) | 로컬 개발, 테스트, CI | 테이블 자동 생성(`ddl-auto: update`), Swagger 켜짐 |
+| `prod` | 운영 | 스키마 검증만(`ddl-auto: validate`), Swagger 꺼짐 |
+
+운영 프로파일로 실행하려면 `SPRING_PROFILES_ACTIVE=prod`를 지정합니다.
