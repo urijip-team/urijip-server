@@ -75,3 +75,9 @@ com.urijip.server
 ```
 
 호출 방향은 `controller → service → repository`입니다. 이 규칙은 `ArchitectureTest`가 검사합니다.
+
+## 작업 방식
+
+- `main`에 직접 커밋하지 않습니다. 작업마다 `<type>/<짧은-영문-이름>` 브랜치를 만들고 PR로 합칩니다.
+- 커밋 메시지와 PR 제목은 `<type>: <한국어 설명>` 형식입니다. type은 `feat`, `fix`, `refactor`, `test`, `docs`, `chore` 중 하나입니다.
+- PR을 올리면 CI가 `./gradlew build`를 돌립니다. 통과해야 합칩니다.
