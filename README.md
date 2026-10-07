@@ -28,3 +28,7 @@ cd urijip-server
 ```
 
 `bootRun`을 실행하면 `compose.yaml`의 MySQL 컨테이너가 자동으로 뜹니다. DB를 따로 설치하지 않아도 됩니다.
+
+## API 문서
+
+서버를 띄운 뒤 <http://localhost:8080/swagger-ui.html>에서 Swagger UI를 봅니다. 운영 프로파일에서는 꺼져 있습니다.
