@@ -8,3 +8,11 @@
 
 - [우리집 기능명세서 (초안)](https://app.notion.com/p/3edecd8444f881e89e9cedb53f2f6eaa): 개요, 공통 정책, 기능 목록
 - 하위 페이지: 역할별 업무 분담, API 명세서, ERD
+
+## 기술 스택
+
+- Java 25, Spring Boot 4.1, Gradle
+- Spring Web MVC, Spring Data JPA, Spring Security, Validation, Actuator
+- springdoc-openapi (Swagger UI)
+- MySQL 8.4
+- 테스트: JUnit 5, AssertJ, Testcontainers, ArchUnit
