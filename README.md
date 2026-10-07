@@ -50,3 +50,13 @@ cd urijip-server
 | `prod` | 운영 | 스키마 검증만(`ddl-auto: validate`), Swagger 꺼짐 |
 
 운영 프로파일로 실행하려면 `SPRING_PROFILES_ACTIVE=prod`를 지정합니다.
+
+## 환경변수
+
+지정하지 않으면 로컬 Compose의 MySQL 값을 씁니다.
+
+| 이름 | 설명 | 기본값 |
+| --- | --- | --- |
+| `DB_URL` | JDBC 접속 주소 | `jdbc:mysql://localhost:3306/urijip` |
+| `DB_USERNAME` | DB 사용자 | `urijip` |
+| `DB_PASSWORD` | DB 비밀번호 | `urijip` |
