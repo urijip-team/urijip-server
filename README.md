@@ -32,3 +32,12 @@ cd urijip-server
 ## API 문서
 
 서버를 띄운 뒤 <http://localhost:8080/swagger-ui.html>에서 Swagger UI를 봅니다. 운영 프로파일에서는 꺼져 있습니다.
+
+## 빌드와 테스트
+
+```bash
+./gradlew build   # 컴파일 + 전체 테스트
+./gradlew test    # 테스트만
+```
+
+테스트는 Testcontainers로 실제 MySQL을 띄우므로 Docker가 필요합니다.
