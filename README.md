@@ -1,3 +1,10 @@
 # urijip-server
 
 가족 안전 + 소통 앱 '우리집'의 백엔드 서버입니다. 모바일 앱(Flutter)과 관리자 웹(React)이 쓰는 모든 API를 담당합니다.
+
+## 기획서
+
+기능, API, DB 설계는 노션 기획서를 따릅니다.
+
+- [우리집 기능명세서 (초안)](https://app.notion.com/p/3edecd8444f881e89e9cedb53f2f6eaa): 개요, 공통 정책, 기능 목록
+- 하위 페이지: 역할별 업무 분담, API 명세서, ERD
