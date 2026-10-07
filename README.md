@@ -60,3 +60,18 @@ cd urijip-server
 | `DB_URL` | JDBC 접속 주소 | `jdbc:mysql://localhost:3306/urijip` |
 | `DB_USERNAME` | DB 사용자 | `urijip` |
 | `DB_PASSWORD` | DB 비밀번호 | `urijip` |
+
+## 패키지 구조
+
+도메인별로 나누고, 도메인마다 같은 하위 패키지를 둡니다.
+
+```
+com.urijip.server
+├── member/          # controller, service, repository, entity, dto
+├── family/
+├── chat/
+├── schedule/
+└── global/          # config, entity, exception, response
+```
+
+호출 방향은 `controller → service → repository`입니다. 이 규칙은 `ArchitectureTest`가 검사합니다.
