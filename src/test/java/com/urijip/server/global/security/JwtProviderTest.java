@@ -49,6 +49,14 @@ class JwtProviderTest {
 		assertErrorCode(() -> jwtProvider.parseAccessToken(token), ErrorCode.TOKEN_EXPIRED);
 	}
 
+	@Test
+	void expiredRefreshTokenIsRejectedAsTokenExpired() {
+		JwtProvider expired = provider(SECRET, Duration.ofMinutes(30), Duration.ofSeconds(-1));
+		String token = expired.createRefreshToken(1L);
+
+		assertErrorCode(() -> jwtProvider.parseRefreshToken(token), ErrorCode.TOKEN_EXPIRED);
+	}
+
 	private static JwtProvider provider(String secret, Duration accessExpiration, Duration refreshExpiration) {
 		return new JwtProvider(new JwtProperties(secret, accessExpiration, refreshExpiration));
 	}
