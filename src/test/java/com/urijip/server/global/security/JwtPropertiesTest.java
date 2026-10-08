@@ -23,4 +23,9 @@ class JwtPropertiesTest {
 		assertThat(jwtProperties.refreshExpiration()).isEqualTo(Duration.ofDays(14));
 	}
 
+	@Test
+	void secretIsLongEnoughForHs256() {
+		assertThat(jwtProperties.secret().getBytes()).hasSizeGreaterThanOrEqualTo(32);
+	}
+
 }
