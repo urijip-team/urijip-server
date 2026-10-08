@@ -49,6 +49,10 @@ public class JwtProvider {
 		return new AccessTokenClaims(Long.valueOf(claims.getSubject()), claims.get(ROLE_CLAIM, String.class));
 	}
 
+	public Long parseRefreshToken(String token) {
+		return Long.valueOf(parse(token, REFRESH).getSubject());
+	}
+
 	private JwtBuilder builder(Long userId, String type, Duration expiration) {
 		Instant now = Instant.now();
 		return Jwts.builder()
