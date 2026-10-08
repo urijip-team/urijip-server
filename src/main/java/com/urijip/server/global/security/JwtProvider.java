@@ -19,17 +19,24 @@ public class JwtProvider {
 	private static final String TYPE_CLAIM = "type";
 	private static final String ROLE_CLAIM = "role";
 	private static final String ACCESS = "access";
+	private static final String REFRESH = "refresh";
 
 	private final SecretKey key;
 	private final Duration accessExpiration;
+	private final Duration refreshExpiration;
 
 	public JwtProvider(JwtProperties properties) {
 		this.key = Keys.hmacShaKeyFor(properties.secret().getBytes(StandardCharsets.UTF_8));
 		this.accessExpiration = properties.accessExpiration();
+		this.refreshExpiration = properties.refreshExpiration();
 	}
 
 	public String createAccessToken(Long userId, String role) {
 		return builder(userId, ACCESS, accessExpiration).claim(ROLE_CLAIM, role).compact();
+	}
+
+	public String createRefreshToken(Long userId) {
+		return builder(userId, REFRESH, refreshExpiration).compact();
 	}
 
 	private JwtBuilder builder(Long userId, String type, Duration expiration) {
