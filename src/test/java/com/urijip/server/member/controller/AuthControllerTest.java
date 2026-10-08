@@ -93,6 +93,16 @@ class AuthControllerTest {
 		then(authService).should(never()).signup(any());
 	}
 
+	@Test
+	void signupWithShortPasswordExplainsMinimumLength() {
+		MvcTestResult result = signup("""
+				{"email": "mom@example.com", "password": "short", "name": "김엄마"}
+				""");
+
+		assertThat(result).bodyJson().extractingPath("$.error.message")
+				.isEqualTo("password: 8자 이상이어야 합니다");
+	}
+
 	private MvcTestResult signup(String body) {
 		return mvc.post().uri("/api/auth/signup")
 				.contentType(MediaType.APPLICATION_JSON)
