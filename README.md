@@ -71,7 +71,7 @@ com.urijip.server
 ├── family/
 ├── chat/
 ├── schedule/
-└── global/          # config, entity, exception, response
+└── global/          # config, entity, exception, response, security
 ```
 
 호출 방향은 `controller → service → repository`입니다. 이 규칙은 `ArchitectureTest`가 검사합니다.
