@@ -12,3 +12,4 @@ spring:
 
 jwt:
   access-expiration: 30m
+  refresh-expiration: 14d
