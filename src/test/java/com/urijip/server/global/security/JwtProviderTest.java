@@ -57,6 +57,15 @@ class JwtProviderTest {
 		assertErrorCode(() -> jwtProvider.parseRefreshToken(token), ErrorCode.TOKEN_EXPIRED);
 	}
 
+	@Test
+	void tokenSignedWithAnotherKeyIsInvalid() {
+		JwtProvider other = provider("another-secret-key-that-is-long-enough-9876543210",
+				Duration.ofMinutes(30), Duration.ofDays(14));
+		String token = other.createAccessToken(1L, "ADMIN");
+
+		assertErrorCode(() -> jwtProvider.parseAccessToken(token), ErrorCode.INVALID_TOKEN);
+	}
+
 	private static JwtProvider provider(String secret, Duration accessExpiration, Duration refreshExpiration) {
 		return new JwtProvider(new JwtProperties(secret, accessExpiration, refreshExpiration));
 	}
