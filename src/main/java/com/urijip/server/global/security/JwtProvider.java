@@ -8,7 +8,12 @@ import java.util.UUID;
 
 import javax.crypto.SecretKey;
 
+import com.urijip.server.global.exception.BusinessException;
+import com.urijip.server.global.exception.ErrorCode;
+import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.JwtBuilder;
+import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 import org.springframework.stereotype.Component;
@@ -48,6 +53,20 @@ public class JwtProvider {
 				.issuedAt(Date.from(now))
 				.expiration(Date.from(now.plus(expiration)))
 				.signWith(key);
+	}
+
+	private Claims parse(String token, String expectedType) {
+		try {
+			Claims claims = Jwts.parser().verifyWith(key).build().parseSignedClaims(token).getPayload();
+			if (!expectedType.equals(claims.get(TYPE_CLAIM, String.class))) {
+				throw new BusinessException(ErrorCode.INVALID_TOKEN);
+			}
+			return claims;
+		} catch (ExpiredJwtException ex) {
+			throw new BusinessException(ErrorCode.TOKEN_EXPIRED);
+		} catch (JwtException | IllegalArgumentException ex) {
+			throw new BusinessException(ErrorCode.INVALID_TOKEN);
+		}
 	}
 
 }
