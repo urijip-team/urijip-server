@@ -104,7 +104,8 @@ com.urijip.server
     ├── config/      # 설정 클래스
     ├── entity/      # BaseTimeEntity
     ├── exception/   # ErrorCode, BusinessException, GlobalExceptionHandler
-    └── response/    # ApiResponse
+    ├── response/    # ApiResponse
+    └── security/    # JWT 설정, 토큰 발급·검증
 ```
 
 위치, SOS, 사진, 용돈 등 나머지 도메인도 만들 때 같은 구조로 패키지를 추가한다.
