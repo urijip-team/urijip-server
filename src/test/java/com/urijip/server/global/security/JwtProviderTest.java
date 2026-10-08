@@ -22,6 +22,13 @@ class JwtProviderTest {
 		assertThat(claims.role()).isEqualTo("USER");
 	}
 
+	@Test
+	void refreshTokenCarriesUserId() {
+		String token = jwtProvider.createRefreshToken(1L);
+
+		assertThat(jwtProvider.parseRefreshToken(token)).isEqualTo(1L);
+	}
+
 	private static JwtProvider provider(String secret, Duration accessExpiration, Duration refreshExpiration) {
 		return new JwtProvider(new JwtProperties(secret, accessExpiration, refreshExpiration));
 	}
