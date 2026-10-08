@@ -9,6 +9,9 @@ import com.urijip.server.global.exception.BusinessException;
 import com.urijip.server.global.exception.ErrorCode;
 import org.assertj.core.api.ThrowableAssert.ThrowingCallable;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.NullAndEmptySource;
+import org.junit.jupiter.params.provider.ValueSource;
 
 class JwtProviderTest {
 
@@ -63,6 +66,13 @@ class JwtProviderTest {
 				Duration.ofMinutes(30), Duration.ofDays(14));
 		String token = other.createAccessToken(1L, "ADMIN");
 
+		assertErrorCode(() -> jwtProvider.parseAccessToken(token), ErrorCode.INVALID_TOKEN);
+	}
+
+	@ParameterizedTest
+	@NullAndEmptySource
+	@ValueSource(strings = {"not-a-token", "a.b.c"})
+	void malformedTokenIsInvalid(String token) {
 		assertErrorCode(() -> jwtProvider.parseAccessToken(token), ErrorCode.INVALID_TOKEN);
 	}
 
