@@ -9,3 +9,6 @@ spring:
     password: ${DB_PASSWORD:urijip}
   jpa:
     open-in-view: false
+
+jwt:
+  access-expiration: 30m
