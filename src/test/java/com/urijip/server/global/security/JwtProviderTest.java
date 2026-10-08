@@ -29,6 +29,14 @@ class JwtProviderTest {
 		assertThat(jwtProvider.parseRefreshToken(token)).isEqualTo(1L);
 	}
 
+	@Test
+	void refreshTokensDifferEvenForSameUser() {
+		String first = jwtProvider.createRefreshToken(1L);
+		String second = jwtProvider.createRefreshToken(1L);
+
+		assertThat(first).isNotEqualTo(second);
+	}
+
 	private static JwtProvider provider(String secret, Duration accessExpiration, Duration refreshExpiration) {
 		return new JwtProvider(new JwtProperties(secret, accessExpiration, refreshExpiration));
 	}
