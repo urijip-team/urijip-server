@@ -83,6 +83,13 @@ class JwtProviderTest {
 		assertErrorCode(() -> jwtProvider.parseAccessToken(token), ErrorCode.INVALID_TOKEN);
 	}
 
+	@Test
+	void accessTokenCannotBeUsedAsRefreshToken() {
+		String token = jwtProvider.createAccessToken(1L, "USER");
+
+		assertErrorCode(() -> jwtProvider.parseRefreshToken(token), ErrorCode.INVALID_TOKEN);
+	}
+
 	private static JwtProvider provider(String secret, Duration accessExpiration, Duration refreshExpiration) {
 		return new JwtProvider(new JwtProperties(secret, accessExpiration, refreshExpiration));
 	}
