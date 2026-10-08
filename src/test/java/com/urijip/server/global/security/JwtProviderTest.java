@@ -1,9 +1,13 @@
 package com.urijip.server.global.security;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.time.Duration;
 
+import com.urijip.server.global.exception.BusinessException;
+import com.urijip.server.global.exception.ErrorCode;
+import org.assertj.core.api.ThrowableAssert.ThrowingCallable;
 import org.junit.jupiter.api.Test;
 
 class JwtProviderTest {
@@ -37,8 +41,23 @@ class JwtProviderTest {
 		assertThat(first).isNotEqualTo(second);
 	}
 
+	@Test
+	void expiredAccessTokenIsRejectedAsTokenExpired() {
+		JwtProvider expired = provider(SECRET, Duration.ofSeconds(-1), Duration.ofDays(14));
+		String token = expired.createAccessToken(1L, "USER");
+
+		assertErrorCode(() -> jwtProvider.parseAccessToken(token), ErrorCode.TOKEN_EXPIRED);
+	}
+
 	private static JwtProvider provider(String secret, Duration accessExpiration, Duration refreshExpiration) {
 		return new JwtProvider(new JwtProperties(secret, accessExpiration, refreshExpiration));
+	}
+
+	private static void assertErrorCode(ThrowingCallable call, ErrorCode expected) {
+		assertThatThrownBy(call)
+				.isInstanceOf(BusinessException.class)
+				.extracting("errorCode")
+				.isEqualTo(expected);
 	}
 
 }
