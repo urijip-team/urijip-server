@@ -54,6 +54,12 @@ class SecurityConfigTest {
 		assertError(getWithToken("/api/test/me", "not-a-token"), HttpStatus.UNAUTHORIZED, "INVALID_TOKEN");
 	}
 
+	@Test
+	void refreshTokenIsUnauthorized() {
+		assertError(getWithToken("/api/test/me", jwtProvider.createRefreshToken(1L)),
+				HttpStatus.UNAUTHORIZED, "INVALID_TOKEN");
+	}
+
 	private MvcTestResult get(String uri) {
 		return mvc.get().uri(uri).exchange();
 	}
