@@ -1,14 +1,19 @@
 package com.urijip.server.member.service;
 
+import java.time.LocalDateTime;
+
 import com.urijip.server.global.exception.BusinessException;
 import com.urijip.server.global.exception.ErrorCode;
+import com.urijip.server.global.security.JwtProperties;
 import com.urijip.server.global.security.JwtProvider;
 import com.urijip.server.member.dto.request.LoginRequest;
 import com.urijip.server.member.dto.request.SignupRequest;
 import com.urijip.server.member.dto.response.LoginResponse;
 import com.urijip.server.member.dto.response.SignupResponse;
+import com.urijip.server.member.entity.RefreshToken;
 import com.urijip.server.member.entity.User;
 import com.urijip.server.member.entity.UserStatus;
+import com.urijip.server.member.repository.RefreshTokenRepository;
 import com.urijip.server.member.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -20,8 +25,10 @@ import org.springframework.transaction.annotation.Transactional;
 public class AuthService {
 
 	private final UserRepository userRepository;
+	private final RefreshTokenRepository refreshTokenRepository;
 	private final PasswordEncoder passwordEncoder;
 	private final JwtProvider jwtProvider;
+	private final JwtProperties jwtProperties;
 
 	@Transactional
 	public SignupResponse signup(SignupRequest request) {
@@ -49,6 +56,8 @@ public class AuthService {
 
 		String accessToken = jwtProvider.createAccessToken(user.getId(), user.getRole().name());
 		String refreshToken = jwtProvider.createRefreshToken(user.getId());
+		refreshTokenRepository.save(new RefreshToken(user, refreshToken,
+				LocalDateTime.now().plus(jwtProperties.refreshExpiration())));
 
 		return LoginResponse.of(accessToken, refreshToken, user, false);
 	}
