@@ -8,6 +8,8 @@ import com.urijip.server.global.response.ApiResponse;
 import com.urijip.server.global.security.JwtProperties;
 import com.urijip.server.global.security.JwtProvider;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
@@ -76,6 +78,14 @@ class SecurityConfigTest {
 	@Test
 	void adminPathWithoutTokenIsUnauthorized() {
 		assertError(get("/admin/test"), HttpStatus.UNAUTHORIZED, "INVALID_TOKEN");
+	}
+
+	// 테스트 컨트롤러에 없는 경로라 보안을 통과하면 404가 된다.
+	@ParameterizedTest
+	@ValueSource(strings = {"/api/auth/signup", "/api/auth/login", "/api/auth/reissue",
+			"/swagger-ui.html", "/swagger-ui/index.html", "/v3/api-docs", "/actuator/health"})
+	void publicPathPassesWithoutToken(String uri) {
+		assertThat(get(uri)).hasStatus(HttpStatus.NOT_FOUND);
 	}
 
 	private MvcTestResult get(String uri) {
