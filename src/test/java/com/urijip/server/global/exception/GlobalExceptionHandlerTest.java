@@ -2,12 +2,12 @@ package com.urijip.server.global.exception;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.urijip.server.global.config.SecurityConfig;
 import com.urijip.server.global.response.ApiResponse;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpStatus;
@@ -20,7 +20,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
 @WebMvcTest(GlobalExceptionHandlerTest.TestController.class)
-@Import({GlobalExceptionHandlerTest.TestController.class, SecurityConfig.class})
+@AutoConfigureMockMvc(addFilters = false)
+@Import(GlobalExceptionHandlerTest.TestController.class)
 class GlobalExceptionHandlerTest {
 
 	@Autowired
