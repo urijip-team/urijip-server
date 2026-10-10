@@ -223,6 +223,17 @@ class AuthServiceTest {
 				.isEqualTo(jwtProvider.parseRefreshToken(oldToken));
 	}
 
+	@Test
+	void reissueReplacesStoredRefreshToken() {
+		String oldToken = loginMom();
+
+		ReissueResponse response = authService.reissue(new ReissueRequest(oldToken));
+
+		assertThat(refreshTokenRepository.findAll())
+				.extracting(RefreshToken::getToken)
+				.containsExactly(response.refreshToken());
+	}
+
 	private String loginMom() {
 		signupMom();
 		return authService.login(new LoginRequest("mom@example.com", "password123")).refreshToken();
