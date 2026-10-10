@@ -92,6 +92,17 @@ class AuthServiceTest {
 		assertThat(jwtProvider.parseRefreshToken(response.refreshToken())).isEqualTo(mom.id());
 	}
 
+	@Test
+	void loginReturnsUserInfoWithoutFamily() {
+		SignupResponse mom = signupMom();
+
+		LoginResponse response = authService.login(new LoginRequest("mom@example.com", "password123"));
+
+		assertThat(response.user().id()).isEqualTo(mom.id());
+		assertThat(response.user().name()).isEqualTo("김엄마");
+		assertThat(response.user().hasFamily()).isFalse();
+	}
+
 	private SignupResponse signupMom() {
 		return authService.signup(new SignupRequest("mom@example.com", "password123", "김엄마"));
 	}
