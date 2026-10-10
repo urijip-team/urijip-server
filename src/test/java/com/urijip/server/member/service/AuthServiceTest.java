@@ -188,6 +188,17 @@ class AuthServiceTest {
 		assertThat(refreshTokenRepository.count()).isZero();
 	}
 
+	@Test
+	void loginRejectsWithdrawnUser() {
+		changeStatus(signupMom().id(), UserStatus.WITHDRAWN);
+
+		assertThatThrownBy(() -> authService.login(new LoginRequest("mom@example.com", "password123")))
+				.isInstanceOf(BusinessException.class)
+				.extracting("errorCode")
+				.isEqualTo(ErrorCode.LOGIN_FAILED);
+		assertThat(refreshTokenRepository.count()).isZero();
+	}
+
 	private SignupResponse signupMom() {
 		return authService.signup(new SignupRequest("mom@example.com", "password123", "김엄마"));
 	}
