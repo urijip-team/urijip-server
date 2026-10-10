@@ -9,6 +9,7 @@ import static org.mockito.Mockito.never;
 import com.urijip.server.global.config.SecurityConfig;
 import com.urijip.server.global.exception.BusinessException;
 import com.urijip.server.global.exception.ErrorCode;
+import com.urijip.server.global.security.JwtProvider;
 import com.urijip.server.member.dto.request.LoginRequest;
 import com.urijip.server.member.dto.request.ReissueRequest;
 import com.urijip.server.member.dto.request.SignupRequest;
@@ -35,6 +36,9 @@ class AuthControllerTest {
 
 	@Autowired
 	private MockMvcTester mvc;
+
+	@Autowired
+	private JwtProvider jwtProvider;
 
 	@MockitoBean
 	private AuthService authService;
@@ -239,6 +243,18 @@ class AuthControllerTest {
 		then(authService).should(never()).reissue(any());
 	}
 
+	@Test
+	void logoutReturnsOkWithoutData() {
+		MvcTestResult result = logout(1L, """
+				{"refreshToken": "refresh-token"}
+				""");
+
+		assertThat(result).hasStatusOk();
+		assertThat(result).bodyJson().extractingPath("$.success").isEqualTo(true);
+		assertThat(result).bodyJson().extractingPath("$.data").isNull();
+		assertThat(result).bodyJson().extractingPath("$.error").isNull();
+	}
+
 	private MvcTestResult signup(String body) {
 		return mvc.post().uri("/api/auth/signup")
 				.contentType(MediaType.APPLICATION_JSON)
@@ -255,6 +271,14 @@ class AuthControllerTest {
 
 	private MvcTestResult reissue(String body) {
 		return mvc.post().uri("/api/auth/reissue")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(body)
+				.exchange();
+	}
+
+	private MvcTestResult logout(Long userId, String body) {
+		return mvc.post().uri("/api/auth/logout")
+				.header("Authorization", "Bearer " + jwtProvider.createAccessToken(userId, "USER"))
 				.contentType(MediaType.APPLICATION_JSON)
 				.content(body)
 				.exchange();
