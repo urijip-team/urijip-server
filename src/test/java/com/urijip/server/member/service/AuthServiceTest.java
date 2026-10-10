@@ -142,6 +142,17 @@ class AuthServiceTest {
 		assertThat(refreshTokenRepository.count()).isEqualTo(2);
 	}
 
+	@Test
+	void loginRejectsUnknownEmail() {
+		signupMom();
+
+		assertThatThrownBy(() -> authService.login(new LoginRequest("dad@example.com", "password123")))
+				.isInstanceOf(BusinessException.class)
+				.extracting("errorCode")
+				.isEqualTo(ErrorCode.LOGIN_FAILED);
+		assertThat(refreshTokenRepository.count()).isZero();
+	}
+
 	private SignupResponse signupMom() {
 		return authService.signup(new SignupRequest("mom@example.com", "password123", "김엄마"));
 	}
