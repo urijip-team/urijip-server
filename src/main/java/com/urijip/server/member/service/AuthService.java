@@ -54,7 +54,7 @@ public class AuthService {
 		if (!passwordEncoder.matches(request.password(), user.getPassword())) {
 			throw new BusinessException(ErrorCode.LOGIN_FAILED);
 		}
-		validateStatus(user);
+		validateStatus(user, ErrorCode.LOGIN_FAILED);
 
 		String accessToken = jwtProvider.createAccessToken(user.getId(), user.getRole().name());
 		String refreshToken = issueRefreshToken(user);
@@ -68,6 +68,7 @@ public class AuthService {
 		RefreshToken saved = refreshTokenRepository.findByToken(request.refreshToken())
 				.orElseThrow(() -> new BusinessException(ErrorCode.INVALID_TOKEN));
 		User user = saved.getUser();
+		validateStatus(user, ErrorCode.INVALID_TOKEN);
 
 		refreshTokenRepository.delete(saved);
 		String accessToken = jwtProvider.createAccessToken(user.getId(), user.getRole().name());
@@ -83,9 +84,9 @@ public class AuthService {
 		return refreshToken;
 	}
 
-	private void validateStatus(User user) {
+	private void validateStatus(User user, ErrorCode withdrawnError) {
 		if (user.getStatus() == UserStatus.WITHDRAWN) {
-			throw new BusinessException(ErrorCode.LOGIN_FAILED);
+			throw new BusinessException(withdrawnError);
 		}
 		if (user.getStatus() == UserStatus.SUSPENDED) {
 			throw new BusinessException(ErrorCode.USER_SUSPENDED);
