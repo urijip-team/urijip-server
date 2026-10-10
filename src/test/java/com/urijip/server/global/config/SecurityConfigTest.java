@@ -65,6 +65,14 @@ class SecurityConfigTest {
 		assertError(getWithToken("/admin/test", jwtProvider.createAccessToken(1L, "USER")), HttpStatus.FORBIDDEN, "ACCESS_DENIED");
 	}
 
+	@Test
+	void adminReachesAdminPath() {
+		MvcTestResult result = getWithToken("/admin/test", jwtProvider.createAccessToken(2L, "ADMIN"));
+
+		assertThat(result).hasStatusOk();
+		assertThat(result).bodyJson().extractingPath("$.data").isEqualTo("admin");
+	}
+
 	private MvcTestResult get(String uri) {
 		return mvc.get().uri(uri).exchange();
 	}
