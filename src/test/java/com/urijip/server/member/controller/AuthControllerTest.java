@@ -279,6 +279,17 @@ class AuthControllerTest {
 		then(authService).should(never()).logout(any(), any());
 	}
 
+	@ParameterizedTest
+	@ValueSource(strings = {"{}", "{\"refreshToken\": \"\"}", "{\"refreshToken\": \" \"}"})
+	void logoutWithoutRefreshTokenReturnsBadRequest(String body) {
+		MvcTestResult result = logout(1L, body);
+
+		assertThat(result).hasStatus(HttpStatus.BAD_REQUEST);
+		assertThat(result).bodyJson().extractingPath("$.error.code").isEqualTo("INVALID_INPUT");
+		assertThat(result).bodyJson().extractingPath("$.error.message").asString().contains("refreshToken: ");
+		then(authService).should(never()).logout(any(), any());
+	}
+
 	private MvcTestResult signup(String body) {
 		return mvc.post().uri("/api/auth/signup")
 				.contentType(MediaType.APPLICATION_JSON)
