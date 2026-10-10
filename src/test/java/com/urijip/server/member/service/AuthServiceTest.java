@@ -301,6 +301,18 @@ class AuthServiceTest {
 				.isEqualTo(ErrorCode.USER_SUSPENDED);
 	}
 
+	@Test
+	void reissueRejectsWithdrawnUser() {
+		String oldToken = loginMom();
+
+		changeStatus(jwtProvider.parseRefreshToken(oldToken), UserStatus.WITHDRAWN);
+
+		assertThatThrownBy(() -> authService.reissue(new ReissueRequest(oldToken)))
+				.isInstanceOf(BusinessException.class)
+				.extracting("errorCode")
+				.isEqualTo(ErrorCode.INVALID_TOKEN);
+	}
+
 	private String loginMom() {
 		signupMom();
 		return authService.login(new LoginRequest("mom@example.com", "password123")).refreshToken();
