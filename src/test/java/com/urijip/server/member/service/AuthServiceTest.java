@@ -2,17 +2,25 @@ package com.urijip.server.member.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.within;
+
+import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
+import java.util.List;
 
 import com.urijip.server.TestcontainersConfiguration;
 import com.urijip.server.global.exception.BusinessException;
 import com.urijip.server.global.exception.ErrorCode;
 import com.urijip.server.global.security.AccessTokenClaims;
+import com.urijip.server.global.security.JwtProperties;
 import com.urijip.server.global.security.JwtProvider;
 import com.urijip.server.member.dto.request.LoginRequest;
 import com.urijip.server.member.dto.request.SignupRequest;
 import com.urijip.server.member.dto.response.LoginResponse;
 import com.urijip.server.member.dto.response.SignupResponse;
+import com.urijip.server.member.entity.RefreshToken;
 import com.urijip.server.member.entity.User;
+import com.urijip.server.member.repository.RefreshTokenRepository;
 import com.urijip.server.member.repository.UserRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -33,10 +41,16 @@ class AuthServiceTest {
 	private UserRepository userRepository;
 
 	@Autowired
+	private RefreshTokenRepository refreshTokenRepository;
+
+	@Autowired
 	private PasswordEncoder passwordEncoder;
 
 	@Autowired
 	private JwtProvider jwtProvider;
+
+	@Autowired
+	private JwtProperties jwtProperties;
 
 	@Test
 	void signupSavesUserWithEncodedPassword() {
@@ -101,6 +115,20 @@ class AuthServiceTest {
 		assertThat(response.user().id()).isEqualTo(mom.id());
 		assertThat(response.user().name()).isEqualTo("김엄마");
 		assertThat(response.user().hasFamily()).isFalse();
+	}
+
+	@Test
+	void loginSavesRefreshTokenWithExpiry() {
+		SignupResponse mom = signupMom();
+
+		LoginResponse response = authService.login(new LoginRequest("mom@example.com", "password123"));
+
+		List<RefreshToken> saved = refreshTokenRepository.findAll();
+		assertThat(saved).hasSize(1);
+		assertThat(saved.get(0).getToken()).isEqualTo(response.refreshToken());
+		assertThat(saved.get(0).getUser().getId()).isEqualTo(mom.id());
+		assertThat(saved.get(0).getExpiresAt()).isCloseTo(
+				LocalDateTime.now().plus(jwtProperties.refreshExpiration()), within(1, ChronoUnit.MINUTES));
 	}
 
 	private SignupResponse signupMom() {
