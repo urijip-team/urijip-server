@@ -6,6 +6,7 @@ import com.urijip.server.global.exception.ErrorCode;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockHttpServletResponse;
+import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
 class SecurityErrorResponseWriterTest {
@@ -22,6 +23,16 @@ class SecurityErrorResponseWriterTest {
 
 		assertThat(response.getStatus()).isEqualTo(401);
 		assertThat(response.getContentType()).startsWith(MediaType.APPLICATION_JSON_VALUE);
+	}
+
+	@Test
+	void writesBodyInCommonResponseFormat() throws Exception {
+		writer.write(response, ErrorCode.TOKEN_EXPIRED);
+
+		JsonNode body = jsonMapper.readTree(response.getContentAsString());
+		assertThat(body.get("success").asBoolean()).isFalse();
+		assertThat(body.get("data").isNull()).isTrue();
+		assertThat(body.get("error").get("code").asString()).isEqualTo("TOKEN_EXPIRED");
 	}
 
 }
