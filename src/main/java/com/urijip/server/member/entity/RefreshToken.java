@@ -35,4 +35,10 @@ public class RefreshToken {
 	@Column(nullable = false)
 	private LocalDateTime expiresAt;
 
+	public RefreshToken(User user, String token, LocalDateTime expiresAt) {
+		this.user = user;
+		this.token = token;
+		this.expiresAt = expiresAt;
+	}
+
 }
