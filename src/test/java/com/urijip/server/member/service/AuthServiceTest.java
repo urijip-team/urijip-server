@@ -20,6 +20,7 @@ import com.urijip.server.member.dto.response.LoginResponse;
 import com.urijip.server.member.dto.response.SignupResponse;
 import com.urijip.server.member.entity.RefreshToken;
 import com.urijip.server.member.entity.User;
+import com.urijip.server.member.entity.UserStatus;
 import com.urijip.server.member.repository.RefreshTokenRepository;
 import com.urijip.server.member.repository.UserRepository;
 import org.junit.jupiter.api.Test;
@@ -27,6 +28,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.transaction.annotation.Transactional;
 
 @SpringBootTest
@@ -164,8 +166,25 @@ class AuthServiceTest {
 		assertThat(refreshTokenRepository.count()).isZero();
 	}
 
+	@Test
+	void loginRejectsSuspendedUser() {
+		changeStatus(signupMom().id(), UserStatus.SUSPENDED);
+
+		assertThatThrownBy(() -> authService.login(new LoginRequest("mom@example.com", "password123")))
+				.isInstanceOf(BusinessException.class)
+				.extracting("errorCode")
+				.isEqualTo(ErrorCode.USER_SUSPENDED);
+		assertThat(refreshTokenRepository.count()).isZero();
+	}
+
 	private SignupResponse signupMom() {
 		return authService.signup(new SignupRequest("mom@example.com", "password123", "김엄마"));
+	}
+
+	private void changeStatus(Long userId, UserStatus status) {
+		User user = userRepository.findById(userId).orElseThrow();
+		ReflectionTestUtils.setField(user, "status", status);
+		userRepository.flush();
 	}
 
 }
