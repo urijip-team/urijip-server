@@ -10,8 +10,10 @@ import com.urijip.server.global.config.SecurityConfig;
 import com.urijip.server.global.exception.BusinessException;
 import com.urijip.server.global.exception.ErrorCode;
 import com.urijip.server.member.dto.request.LoginRequest;
+import com.urijip.server.member.dto.request.ReissueRequest;
 import com.urijip.server.member.dto.request.SignupRequest;
 import com.urijip.server.member.dto.response.LoginResponse;
+import com.urijip.server.member.dto.response.ReissueResponse;
 import com.urijip.server.member.dto.response.SignupResponse;
 import com.urijip.server.member.service.AuthService;
 import org.junit.jupiter.api.Test;
@@ -170,6 +172,22 @@ class AuthControllerTest {
 		then(authService).should(never()).login(any());
 	}
 
+	@Test
+	void reissueReturnsNewTokens() {
+		given(authService.reissue(new ReissueRequest("old-refresh-token")))
+				.willReturn(new ReissueResponse("new-access-token", "new-refresh-token"));
+
+		MvcTestResult result = reissue("""
+				{"refreshToken": "old-refresh-token"}
+				""");
+
+		assertThat(result).hasStatusOk();
+		assertThat(result).bodyJson().extractingPath("$.success").isEqualTo(true);
+		assertThat(result).bodyJson().extractingPath("$.data.accessToken").isEqualTo("new-access-token");
+		assertThat(result).bodyJson().extractingPath("$.data.refreshToken").isEqualTo("new-refresh-token");
+		assertThat(result).bodyJson().extractingPath("$.error").isNull();
+	}
+
 	private MvcTestResult signup(String body) {
 		return mvc.post().uri("/api/auth/signup")
 				.contentType(MediaType.APPLICATION_JSON)
@@ -179,6 +197,13 @@ class AuthControllerTest {
 
 	private MvcTestResult login(String body) {
 		return mvc.post().uri("/api/auth/login")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(body)
+				.exchange();
+	}
+
+	private MvcTestResult reissue(String body) {
+		return mvc.post().uri("/api/auth/reissue")
 				.contentType(MediaType.APPLICATION_JSON)
 				.content(body)
 				.exchange();
