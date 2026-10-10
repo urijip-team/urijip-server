@@ -1,5 +1,6 @@
 package com.urijip.server.member.entity;
 
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
@@ -25,5 +26,8 @@ public class RefreshToken {
 	@ManyToOne(fetch = FetchType.LAZY)
 	@JoinColumn(name = "user_id", nullable = false)
 	private User user;
+
+	@Column(nullable = false, unique = true, length = 512)
+	private String token;
 
 }
