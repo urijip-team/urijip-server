@@ -153,6 +153,17 @@ class AuthServiceTest {
 		assertThat(refreshTokenRepository.count()).isZero();
 	}
 
+	@Test
+	void loginRejectsWrongPassword() {
+		signupMom();
+
+		assertThatThrownBy(() -> authService.login(new LoginRequest("mom@example.com", "wrong-password")))
+				.isInstanceOf(BusinessException.class)
+				.extracting("errorCode")
+				.isEqualTo(ErrorCode.LOGIN_FAILED);
+		assertThat(refreshTokenRepository.count()).isZero();
+	}
+
 	private SignupResponse signupMom() {
 		return authService.signup(new SignupRequest("mom@example.com", "password123", "김엄마"));
 	}
