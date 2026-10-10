@@ -139,6 +139,20 @@ class AuthControllerTest {
 		assertThat(result).bodyJson().extractingPath("$.error.code").isEqualTo("LOGIN_FAILED");
 	}
 
+	@Test
+	void loginWithSuspendedUserReturnsForbidden() {
+		given(authService.login(any())).willThrow(new BusinessException(ErrorCode.USER_SUSPENDED));
+
+		MvcTestResult result = login("""
+				{"email": "mom@example.com", "password": "password123"}
+				""");
+
+		assertThat(result).hasStatus(HttpStatus.FORBIDDEN);
+		assertThat(result).bodyJson().extractingPath("$.success").isEqualTo(false);
+		assertThat(result).bodyJson().extractingPath("$.data").isNull();
+		assertThat(result).bodyJson().extractingPath("$.error.code").isEqualTo("USER_SUSPENDED");
+	}
+
 	private MvcTestResult signup(String body) {
 		return mvc.post().uri("/api/auth/signup")
 				.contentType(MediaType.APPLICATION_JSON)
