@@ -6,7 +6,11 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import com.urijip.server.TestcontainersConfiguration;
 import com.urijip.server.global.exception.BusinessException;
 import com.urijip.server.global.exception.ErrorCode;
+import com.urijip.server.global.security.AccessTokenClaims;
+import com.urijip.server.global.security.JwtProvider;
+import com.urijip.server.member.dto.request.LoginRequest;
 import com.urijip.server.member.dto.request.SignupRequest;
+import com.urijip.server.member.dto.response.LoginResponse;
 import com.urijip.server.member.dto.response.SignupResponse;
 import com.urijip.server.member.entity.User;
 import com.urijip.server.member.repository.UserRepository;
@@ -30,6 +34,9 @@ class AuthServiceTest {
 
 	@Autowired
 	private PasswordEncoder passwordEncoder;
+
+	@Autowired
+	private JwtProvider jwtProvider;
 
 	@Test
 	void signupSavesUserWithEncodedPassword() {
@@ -63,6 +70,21 @@ class AuthServiceTest {
 				.extracting("errorCode")
 				.isEqualTo(ErrorCode.EMAIL_DUPLICATED);
 		assertThat(userRepository.count()).isEqualTo(1);
+	}
+
+	@Test
+	void loginReturnsAccessTokenOfUser() {
+		SignupResponse mom = signupMom();
+
+		LoginResponse response = authService.login(new LoginRequest("mom@example.com", "password123"));
+
+		AccessTokenClaims claims = jwtProvider.parseAccessToken(response.accessToken());
+		assertThat(claims.userId()).isEqualTo(mom.id());
+		assertThat(claims.role()).isEqualTo("USER");
+	}
+
+	private SignupResponse signupMom() {
+		return authService.signup(new SignupRequest("mom@example.com", "password123", "김엄마"));
 	}
 
 }
