@@ -264,6 +264,16 @@ class AuthServiceTest {
 				.isEqualTo(ErrorCode.INVALID_TOKEN);
 	}
 
+	@Test
+	void reissueRejectsAccessToken() {
+		String accessToken = jwtProvider.createAccessToken(signupMom().id(), "USER");
+
+		assertThatThrownBy(() -> authService.reissue(new ReissueRequest(accessToken)))
+				.isInstanceOf(BusinessException.class)
+				.extracting("errorCode")
+				.isEqualTo(ErrorCode.INVALID_TOKEN);
+	}
+
 	private String loginMom() {
 		signupMom();
 		return authService.login(new LoginRequest("mom@example.com", "password123")).refreshToken();
