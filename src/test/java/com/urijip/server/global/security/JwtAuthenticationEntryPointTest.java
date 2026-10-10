@@ -34,6 +34,14 @@ class JwtAuthenticationEntryPointTest {
 		assertThat(response.getStatus()).isEqualTo(401);
 	}
 
+	@Test
+	void invalidTokenGetsInvalidToken() throws Exception {
+		request.setAttribute(JwtAuthenticationFilter.ERROR_CODE_ATTRIBUTE, ErrorCode.INVALID_TOKEN);
+
+		assertThat(errorCode()).isEqualTo("INVALID_TOKEN");
+		assertThat(response.getStatus()).isEqualTo(401);
+	}
+
 	private String errorCode() throws Exception {
 		entryPoint.commence(request, response, new InsufficientAuthenticationException("unauthenticated"));
 		return jsonMapper.readTree(response.getContentAsString()).get("error").get("code").asString();
