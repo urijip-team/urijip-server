@@ -153,6 +153,23 @@ class AuthControllerTest {
 		assertThat(result).bodyJson().extractingPath("$.error.code").isEqualTo("USER_SUSPENDED");
 	}
 
+	@ParameterizedTest
+	@CsvSource(delimiter = '|', textBlock = """
+			email    | {"email": "not-an-email", "password": "password123"}
+			email    | {"email": "", "password": "password123"}
+			email    | {"password": "password123"}
+			password | {"email": "mom@example.com", "password": " "}
+			password | {"email": "mom@example.com"}
+			""")
+	void loginWithInvalidInputReturnsBadRequest(String field, String body) {
+		MvcTestResult result = login(body);
+
+		assertThat(result).hasStatus(HttpStatus.BAD_REQUEST);
+		assertThat(result).bodyJson().extractingPath("$.error.code").isEqualTo("INVALID_INPUT");
+		assertThat(result).bodyJson().extractingPath("$.error.message").asString().contains(field + ": ");
+		then(authService).should(never()).login(any());
+	}
+
 	private MvcTestResult signup(String body) {
 		return mvc.post().uri("/api/auth/signup")
 				.contentType(MediaType.APPLICATION_JSON)
