@@ -93,6 +93,11 @@ class SecurityConfigTest {
 		assertThat(getWithToken("/api/auth/login", expiredToken())).hasStatus(HttpStatus.NOT_FOUND);
 	}
 
+	@Test
+	void unknownPathWithoutTokenIsUnauthorized() {
+		assertError(get("/api/unknown"), HttpStatus.UNAUTHORIZED, "INVALID_TOKEN");
+	}
+
 	private MvcTestResult get(String uri) {
 		return mvc.get().uri(uri).exchange();
 	}
