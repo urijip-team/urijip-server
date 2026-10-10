@@ -88,6 +88,11 @@ class SecurityConfigTest {
 		assertThat(get(uri)).hasStatus(HttpStatus.NOT_FOUND);
 	}
 
+	@Test
+	void publicPathPassesEvenWithInvalidToken() {
+		assertThat(getWithToken("/api/auth/login", expiredToken())).hasStatus(HttpStatus.NOT_FOUND);
+	}
+
 	private MvcTestResult get(String uri) {
 		return mvc.get().uri(uri).exchange();
 	}
