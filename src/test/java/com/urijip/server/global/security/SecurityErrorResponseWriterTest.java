@@ -35,4 +35,12 @@ class SecurityErrorResponseWriterTest {
 		assertThat(body.get("error").get("code").asString()).isEqualTo("TOKEN_EXPIRED");
 	}
 
+	@Test
+	void writesKoreanMessageWithoutBreaking() throws Exception {
+		writer.write(response, ErrorCode.TOKEN_EXPIRED);
+
+		JsonNode body = jsonMapper.readTree(response.getContentAsByteArray());
+		assertThat(body.get("error").get("message").asString()).isEqualTo("토큰이 만료되었습니다");
+	}
+
 }
