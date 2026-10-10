@@ -16,6 +16,7 @@ import com.urijip.server.global.security.AccessTokenClaims;
 import com.urijip.server.global.security.JwtProperties;
 import com.urijip.server.global.security.JwtProvider;
 import com.urijip.server.member.dto.request.LoginRequest;
+import com.urijip.server.member.dto.request.LogoutRequest;
 import com.urijip.server.member.dto.request.ReissueRequest;
 import com.urijip.server.member.dto.request.SignupRequest;
 import com.urijip.server.member.dto.response.LoginResponse;
@@ -311,6 +312,15 @@ class AuthServiceTest {
 				.isInstanceOf(BusinessException.class)
 				.extracting("errorCode")
 				.isEqualTo(ErrorCode.INVALID_TOKEN);
+	}
+
+	@Test
+	void logoutDeletesRefreshToken() {
+		String token = loginMom();
+
+		authService.logout(jwtProvider.parseRefreshToken(token), new LogoutRequest(token));
+
+		assertThat(refreshTokenRepository.count()).isZero();
 	}
 
 	private String loginMom() {
