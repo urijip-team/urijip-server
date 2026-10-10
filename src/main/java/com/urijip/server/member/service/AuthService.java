@@ -8,6 +8,7 @@ import com.urijip.server.member.dto.request.SignupRequest;
 import com.urijip.server.member.dto.response.LoginResponse;
 import com.urijip.server.member.dto.response.SignupResponse;
 import com.urijip.server.member.entity.User;
+import com.urijip.server.member.entity.UserStatus;
 import com.urijip.server.member.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -44,11 +45,21 @@ public class AuthService {
 		if (!passwordEncoder.matches(request.password(), user.getPassword())) {
 			throw new BusinessException(ErrorCode.LOGIN_FAILED);
 		}
+		validateStatus(user);
 
 		String accessToken = jwtProvider.createAccessToken(user.getId(), user.getRole().name());
 		String refreshToken = jwtProvider.createRefreshToken(user.getId());
 
 		return LoginResponse.of(accessToken, refreshToken, user, false);
+	}
+
+	private void validateStatus(User user) {
+		if (user.getStatus() == UserStatus.WITHDRAWN) {
+			throw new BusinessException(ErrorCode.LOGIN_FAILED);
+		}
+		if (user.getStatus() == UserStatus.SUSPENDED) {
+			throw new BusinessException(ErrorCode.USER_SUSPENDED);
+		}
 	}
 
 }
