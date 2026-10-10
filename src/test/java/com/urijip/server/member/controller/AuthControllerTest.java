@@ -11,6 +11,7 @@ import com.urijip.server.global.exception.BusinessException;
 import com.urijip.server.global.exception.ErrorCode;
 import com.urijip.server.global.security.JwtProvider;
 import com.urijip.server.member.dto.request.LoginRequest;
+import com.urijip.server.member.dto.request.LogoutRequest;
 import com.urijip.server.member.dto.request.ReissueRequest;
 import com.urijip.server.member.dto.request.SignupRequest;
 import com.urijip.server.member.dto.response.LoginResponse;
@@ -253,6 +254,15 @@ class AuthControllerTest {
 		assertThat(result).bodyJson().extractingPath("$.success").isEqualTo(true);
 		assertThat(result).bodyJson().extractingPath("$.data").isNull();
 		assertThat(result).bodyJson().extractingPath("$.error").isNull();
+	}
+
+	@Test
+	void logoutPassesUserIdOfAccessToken() {
+		logout(7L, """
+				{"refreshToken": "refresh-token"}
+				""");
+
+		then(authService).should().logout(7L, new LogoutRequest("refresh-token"));
 	}
 
 	private MvcTestResult signup(String body) {
