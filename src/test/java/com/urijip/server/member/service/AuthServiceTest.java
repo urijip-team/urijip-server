@@ -212,6 +212,17 @@ class AuthServiceTest {
 		assertThat(claims.role()).isEqualTo("USER");
 	}
 
+	@Test
+	void reissueReturnsNewRefreshToken() {
+		String oldToken = loginMom();
+
+		ReissueResponse response = authService.reissue(new ReissueRequest(oldToken));
+
+		assertThat(response.refreshToken()).isNotEqualTo(oldToken);
+		assertThat(jwtProvider.parseRefreshToken(response.refreshToken()))
+				.isEqualTo(jwtProvider.parseRefreshToken(oldToken));
+	}
+
 	private String loginMom() {
 		signupMom();
 		return authService.login(new LoginRequest("mom@example.com", "password123")).refreshToken();
