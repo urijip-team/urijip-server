@@ -85,4 +85,11 @@ class RefreshTokenRepositoryTest {
 				.isEqualTo(saved.getId());
 	}
 
+	@Test
+	void findByTokenReturnsEmptyForUnknownToken() {
+		refreshTokenRepository.saveAndFlush(new RefreshToken(user, "token-1", EXPIRES_AT));
+
+		assertThat(refreshTokenRepository.findByToken("token-2")).isEmpty();
+	}
+
 }
