@@ -15,8 +15,10 @@ import com.urijip.server.global.security.AccessTokenClaims;
 import com.urijip.server.global.security.JwtProperties;
 import com.urijip.server.global.security.JwtProvider;
 import com.urijip.server.member.dto.request.LoginRequest;
+import com.urijip.server.member.dto.request.ReissueRequest;
 import com.urijip.server.member.dto.request.SignupRequest;
 import com.urijip.server.member.dto.response.LoginResponse;
+import com.urijip.server.member.dto.response.ReissueResponse;
 import com.urijip.server.member.dto.response.SignupResponse;
 import com.urijip.server.member.entity.RefreshToken;
 import com.urijip.server.member.entity.User;
@@ -197,6 +199,22 @@ class AuthServiceTest {
 				.extracting("errorCode")
 				.isEqualTo(ErrorCode.LOGIN_FAILED);
 		assertThat(refreshTokenRepository.count()).isZero();
+	}
+
+	@Test
+	void reissueReturnsAccessTokenOfUser() {
+		String oldToken = loginMom();
+
+		ReissueResponse response = authService.reissue(new ReissueRequest(oldToken));
+
+		AccessTokenClaims claims = jwtProvider.parseAccessToken(response.accessToken());
+		assertThat(claims.userId()).isEqualTo(userRepository.findByEmail("mom@example.com").orElseThrow().getId());
+		assertThat(claims.role()).isEqualTo("USER");
+	}
+
+	private String loginMom() {
+		signupMom();
+		return authService.login(new LoginRequest("mom@example.com", "password123")).refreshToken();
 	}
 
 	private SignupResponse signupMom() {
