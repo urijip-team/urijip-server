@@ -334,6 +334,18 @@ class AuthServiceTest {
 				.isEqualTo(ErrorCode.INVALID_TOKEN);
 	}
 
+	@Test
+	void logoutKeepsTokensOfOtherDevices() {
+		String token = loginMom();
+		String otherDevice = authService.login(new LoginRequest("mom@example.com", "password123")).refreshToken();
+
+		authService.logout(jwtProvider.parseRefreshToken(token), new LogoutRequest(token));
+
+		assertThat(refreshTokenRepository.findAll())
+				.extracting(RefreshToken::getToken)
+				.containsExactly(otherDevice);
+	}
+
 	private String loginMom() {
 		signupMom();
 		return authService.login(new LoginRequest("mom@example.com", "password123")).refreshToken();
