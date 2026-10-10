@@ -246,6 +246,16 @@ class AuthServiceTest {
 				.isEqualTo(ErrorCode.INVALID_TOKEN);
 	}
 
+	@Test
+	void reissueRejectsTokenThatWasNeverStored() {
+		String notStored = jwtProvider.createRefreshToken(signupMom().id());
+
+		assertThatThrownBy(() -> authService.reissue(new ReissueRequest(notStored)))
+				.isInstanceOf(BusinessException.class)
+				.extracting("errorCode")
+				.isEqualTo(ErrorCode.INVALID_TOKEN);
+	}
+
 	private String loginMom() {
 		signupMom();
 		return authService.login(new LoginRequest("mom@example.com", "password123")).refreshToken();
