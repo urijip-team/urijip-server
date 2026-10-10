@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.within;
 
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
@@ -272,6 +273,20 @@ class AuthServiceTest {
 				.isInstanceOf(BusinessException.class)
 				.extracting("errorCode")
 				.isEqualTo(ErrorCode.INVALID_TOKEN);
+	}
+
+	@Test
+	void reissueRejectsExpiredToken() {
+		User user = userRepository.findById(signupMom().id()).orElseThrow();
+		JwtProvider expiredProvider = new JwtProvider(new JwtProperties(jwtProperties.secret(),
+				jwtProperties.accessExpiration(), Duration.ofSeconds(-1)));
+		String expired = expiredProvider.createRefreshToken(user.getId());
+		refreshTokenRepository.saveAndFlush(new RefreshToken(user, expired, LocalDateTime.now().minusSeconds(1)));
+
+		assertThatThrownBy(() -> authService.reissue(new ReissueRequest(expired)))
+				.isInstanceOf(BusinessException.class)
+				.extracting("errorCode")
+				.isEqualTo(ErrorCode.TOKEN_EXPIRED);
 	}
 
 	private String loginMom() {
