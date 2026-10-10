@@ -5,6 +5,7 @@ import com.urijip.server.global.security.JwtAuthenticationEntryPoint;
 import com.urijip.server.global.security.JwtAuthenticationFilter;
 import com.urijip.server.global.security.JwtProvider;
 import com.urijip.server.global.security.SecurityErrorResponseWriter;
+import jakarta.servlet.DispatcherType;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
@@ -23,6 +24,12 @@ import tools.jackson.databind.ObjectMapper;
 @Import({JwtConfig.class, JwtProvider.class})
 public class SecurityConfig {
 
+	private static final String[] PUBLIC_PATHS = {
+			"/api/auth/signup", "/api/auth/login", "/api/auth/reissue",
+			"/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**",
+			"/actuator/health"
+	};
+
 	@Bean
 	public SecurityFilterChain securityFilterChain(HttpSecurity http, JwtProvider jwtProvider,
 			ObjectMapper objectMapper) throws Exception {
@@ -33,7 +40,10 @@ public class SecurityConfig {
 				.formLogin(AbstractHttpConfigurer::disable)
 				.httpBasic(AbstractHttpConfigurer::disable)
 				.sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-				.authorizeHttpRequests(auth -> auth.anyRequest().permitAll())
+				.authorizeHttpRequests(auth -> auth
+						.dispatcherTypeMatchers(DispatcherType.ERROR).permitAll()
+						.requestMatchers(PUBLIC_PATHS).permitAll()
+						.anyRequest().authenticated())
 				.exceptionHandling(handling -> handling
 						.authenticationEntryPoint(new JwtAuthenticationEntryPoint(responseWriter))
 						.accessDeniedHandler(new JwtAccessDeniedHandler(responseWriter)))
