@@ -83,6 +83,15 @@ class AuthServiceTest {
 		assertThat(claims.role()).isEqualTo("USER");
 	}
 
+	@Test
+	void loginReturnsRefreshTokenOfUser() {
+		SignupResponse mom = signupMom();
+
+		LoginResponse response = authService.login(new LoginRequest("mom@example.com", "password123"));
+
+		assertThat(jwtProvider.parseRefreshToken(response.refreshToken())).isEqualTo(mom.id());
+	}
+
 	private SignupResponse signupMom() {
 		return authService.signup(new SignupRequest("mom@example.com", "password123", "김엄마"));
 	}
