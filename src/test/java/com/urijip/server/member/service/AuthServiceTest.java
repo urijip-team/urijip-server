@@ -356,6 +356,15 @@ class AuthServiceTest {
 		assertThat(refreshTokenRepository.count()).isEqualTo(1);
 	}
 
+	@Test
+	void logoutWithUnknownTokenDoesNothing() {
+		String token = loginMom();
+
+		authService.logout(jwtProvider.parseRefreshToken(token), new LogoutRequest("unknown-token"));
+
+		assertThat(refreshTokenRepository.count()).isEqualTo(1);
+	}
+
 	private String loginMom() {
 		signupMom();
 		return authService.login(new LoginRequest("mom@example.com", "password123")).refreshToken();
