@@ -47,4 +47,13 @@ class RefreshTokenRepositoryTest {
 		assertThat(saved.getExpiresAt()).isEqualTo(EXPIRES_AT);
 	}
 
+	@Test
+	void tokenLongerThanDefaultColumnLengthIsSaved() {
+		String longToken = "a".repeat(400);
+
+		RefreshToken saved = refreshTokenRepository.saveAndFlush(new RefreshToken(user, longToken, EXPIRES_AT));
+
+		assertThat(saved.getToken()).hasSize(400);
+	}
+
 }
