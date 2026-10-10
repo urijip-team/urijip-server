@@ -73,6 +73,11 @@ class SecurityConfigTest {
 		assertThat(result).bodyJson().extractingPath("$.data").isEqualTo("admin");
 	}
 
+	@Test
+	void adminPathWithoutTokenIsUnauthorized() {
+		assertError(get("/admin/test"), HttpStatus.UNAUTHORIZED, "INVALID_TOKEN");
+	}
+
 	private MvcTestResult get(String uri) {
 		return mvc.get().uri(uri).exchange();
 	}
