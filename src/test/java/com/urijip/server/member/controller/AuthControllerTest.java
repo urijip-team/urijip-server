@@ -125,6 +125,20 @@ class AuthControllerTest {
 		assertThat(result).bodyJson().extractingPath("$.error").isNull();
 	}
 
+	@Test
+	void loginWithWrongCredentialsReturnsUnauthorized() {
+		given(authService.login(any())).willThrow(new BusinessException(ErrorCode.LOGIN_FAILED));
+
+		MvcTestResult result = login("""
+				{"email": "mom@example.com", "password": "password123"}
+				""");
+
+		assertThat(result).hasStatus(HttpStatus.UNAUTHORIZED);
+		assertThat(result).bodyJson().extractingPath("$.success").isEqualTo(false);
+		assertThat(result).bodyJson().extractingPath("$.data").isNull();
+		assertThat(result).bodyJson().extractingPath("$.error.code").isEqualTo("LOGIN_FAILED");
+	}
+
 	private MvcTestResult signup(String body) {
 		return mvc.post().uri("/api/auth/signup")
 				.contentType(MediaType.APPLICATION_JSON)
