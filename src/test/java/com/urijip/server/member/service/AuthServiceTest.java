@@ -289,6 +289,18 @@ class AuthServiceTest {
 				.isEqualTo(ErrorCode.TOKEN_EXPIRED);
 	}
 
+	@Test
+	void reissueRejectsSuspendedUser() {
+		String oldToken = loginMom();
+
+		changeStatus(jwtProvider.parseRefreshToken(oldToken), UserStatus.SUSPENDED);
+
+		assertThatThrownBy(() -> authService.reissue(new ReissueRequest(oldToken)))
+				.isInstanceOf(BusinessException.class)
+				.extracting("errorCode")
+				.isEqualTo(ErrorCode.USER_SUSPENDED);
+	}
+
 	private String loginMom() {
 		signupMom();
 		return authService.login(new LoginRequest("mom@example.com", "password123")).refreshToken();
