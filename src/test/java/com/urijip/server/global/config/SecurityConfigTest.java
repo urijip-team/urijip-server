@@ -2,6 +2,8 @@ package com.urijip.server.global.config;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.time.Duration;
+
 import com.urijip.server.global.response.ApiResponse;
 import com.urijip.server.global.security.JwtProperties;
 import com.urijip.server.global.security.JwtProvider;
@@ -42,12 +44,23 @@ class SecurityConfigTest {
 		assertThat(result).bodyJson().extractingPath("$.data").isEqualTo(1);
 	}
 
+	@Test
+	void expiredTokenIsUnauthorizedAsTokenExpired() {
+		assertError(getWithToken("/api/test/me", expiredToken()), HttpStatus.UNAUTHORIZED, "TOKEN_EXPIRED");
+	}
+
 	private MvcTestResult get(String uri) {
 		return mvc.get().uri(uri).exchange();
 	}
 
 	private MvcTestResult getWithToken(String uri, String token) {
 		return mvc.get().uri(uri).header("Authorization", "Bearer " + token).exchange();
+	}
+
+	private String expiredToken() {
+		JwtProvider expired = new JwtProvider(new JwtProperties(jwtProperties.secret(),
+				Duration.ofSeconds(-1), jwtProperties.refreshExpiration()));
+		return expired.createAccessToken(1L, "USER");
 	}
 
 	private static void assertError(MvcTestResult result, HttpStatus status, String code) {
