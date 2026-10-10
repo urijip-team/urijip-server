@@ -19,6 +19,7 @@ import com.urijip.server.member.service.AuthService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
@@ -225,6 +226,17 @@ class AuthControllerTest {
 		assertThat(result).hasStatus(HttpStatus.FORBIDDEN);
 		assertThat(result).bodyJson().extractingPath("$.success").isEqualTo(false);
 		assertThat(result).bodyJson().extractingPath("$.error.code").isEqualTo("USER_SUSPENDED");
+	}
+
+	@ParameterizedTest
+	@ValueSource(strings = {"{}", "{\"refreshToken\": \"\"}", "{\"refreshToken\": \" \"}"})
+	void reissueWithoutTokenReturnsBadRequest(String body) {
+		MvcTestResult result = reissue(body);
+
+		assertThat(result).hasStatus(HttpStatus.BAD_REQUEST);
+		assertThat(result).bodyJson().extractingPath("$.error.code").isEqualTo("INVALID_INPUT");
+		assertThat(result).bodyJson().extractingPath("$.error.message").asString().contains("refreshToken: ");
+		then(authService).should(never()).reissue(any());
 	}
 
 	private MvcTestResult signup(String body) {
