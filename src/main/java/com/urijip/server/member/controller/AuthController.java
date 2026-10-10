@@ -2,8 +2,10 @@ package com.urijip.server.member.controller;
 
 import com.urijip.server.global.response.ApiResponse;
 import com.urijip.server.member.dto.request.LoginRequest;
+import com.urijip.server.member.dto.request.ReissueRequest;
 import com.urijip.server.member.dto.request.SignupRequest;
 import com.urijip.server.member.dto.response.LoginResponse;
+import com.urijip.server.member.dto.response.ReissueResponse;
 import com.urijip.server.member.dto.response.SignupResponse;
 import com.urijip.server.member.service.AuthService;
 import jakarta.validation.Valid;
@@ -31,6 +33,11 @@ public class AuthController {
 	@PostMapping("/login")
 	public ApiResponse<LoginResponse> login(@Valid @RequestBody LoginRequest request) {
 		return ApiResponse.success(authService.login(request));
+	}
+
+	@PostMapping("/reissue")
+	public ApiResponse<ReissueResponse> reissue(@Valid @RequestBody ReissueRequest request) {
+		return ApiResponse.success(authService.reissue(request));
 	}
 
 }

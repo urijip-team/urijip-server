@@ -7,8 +7,10 @@ import com.urijip.server.global.exception.ErrorCode;
 import com.urijip.server.global.security.JwtProperties;
 import com.urijip.server.global.security.JwtProvider;
 import com.urijip.server.member.dto.request.LoginRequest;
+import com.urijip.server.member.dto.request.ReissueRequest;
 import com.urijip.server.member.dto.request.SignupRequest;
 import com.urijip.server.member.dto.response.LoginResponse;
+import com.urijip.server.member.dto.response.ReissueResponse;
 import com.urijip.server.member.dto.response.SignupResponse;
 import com.urijip.server.member.entity.RefreshToken;
 import com.urijip.server.member.entity.User;
@@ -52,19 +54,39 @@ public class AuthService {
 		if (!passwordEncoder.matches(request.password(), user.getPassword())) {
 			throw new BusinessException(ErrorCode.LOGIN_FAILED);
 		}
-		validateStatus(user);
+		validateStatus(user, ErrorCode.LOGIN_FAILED);
 
 		String accessToken = jwtProvider.createAccessToken(user.getId(), user.getRole().name());
-		String refreshToken = jwtProvider.createRefreshToken(user.getId());
-		refreshTokenRepository.save(new RefreshToken(user, refreshToken,
-				LocalDateTime.now().plus(jwtProperties.refreshExpiration())));
+		String refreshToken = issueRefreshToken(user);
 
 		return LoginResponse.of(accessToken, refreshToken, user, false);
 	}
 
-	private void validateStatus(User user) {
+	@Transactional
+	public ReissueResponse reissue(ReissueRequest request) {
+		jwtProvider.parseRefreshToken(request.refreshToken());
+		RefreshToken saved = refreshTokenRepository.findByToken(request.refreshToken())
+				.orElseThrow(() -> new BusinessException(ErrorCode.INVALID_TOKEN));
+		User user = saved.getUser();
+		validateStatus(user, ErrorCode.INVALID_TOKEN);
+
+		refreshTokenRepository.delete(saved);
+		String accessToken = jwtProvider.createAccessToken(user.getId(), user.getRole().name());
+		String refreshToken = issueRefreshToken(user);
+
+		return new ReissueResponse(accessToken, refreshToken);
+	}
+
+	private String issueRefreshToken(User user) {
+		String refreshToken = jwtProvider.createRefreshToken(user.getId());
+		refreshTokenRepository.save(new RefreshToken(user, refreshToken,
+				LocalDateTime.now().plus(jwtProperties.refreshExpiration())));
+		return refreshToken;
+	}
+
+	private void validateStatus(User user, ErrorCode withdrawnError) {
 		if (user.getStatus() == UserStatus.WITHDRAWN) {
-			throw new BusinessException(ErrorCode.LOGIN_FAILED);
+			throw new BusinessException(withdrawnError);
 		}
 		if (user.getStatus() == UserStatus.SUSPENDED) {
 			throw new BusinessException(ErrorCode.USER_SUSPENDED);

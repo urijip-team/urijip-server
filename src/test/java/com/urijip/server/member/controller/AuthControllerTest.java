@@ -10,13 +10,16 @@ import com.urijip.server.global.config.SecurityConfig;
 import com.urijip.server.global.exception.BusinessException;
 import com.urijip.server.global.exception.ErrorCode;
 import com.urijip.server.member.dto.request.LoginRequest;
+import com.urijip.server.member.dto.request.ReissueRequest;
 import com.urijip.server.member.dto.request.SignupRequest;
 import com.urijip.server.member.dto.response.LoginResponse;
+import com.urijip.server.member.dto.response.ReissueResponse;
 import com.urijip.server.member.dto.response.SignupResponse;
 import com.urijip.server.member.service.AuthService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
@@ -170,6 +173,72 @@ class AuthControllerTest {
 		then(authService).should(never()).login(any());
 	}
 
+	@Test
+	void reissueReturnsNewTokens() {
+		given(authService.reissue(new ReissueRequest("old-refresh-token")))
+				.willReturn(new ReissueResponse("new-access-token", "new-refresh-token"));
+
+		MvcTestResult result = reissue("""
+				{"refreshToken": "old-refresh-token"}
+				""");
+
+		assertThat(result).hasStatusOk();
+		assertThat(result).bodyJson().extractingPath("$.success").isEqualTo(true);
+		assertThat(result).bodyJson().extractingPath("$.data.accessToken").isEqualTo("new-access-token");
+		assertThat(result).bodyJson().extractingPath("$.data.refreshToken").isEqualTo("new-refresh-token");
+		assertThat(result).bodyJson().extractingPath("$.error").isNull();
+	}
+
+	@Test
+	void reissueWithExpiredTokenReturnsUnauthorized() {
+		given(authService.reissue(any())).willThrow(new BusinessException(ErrorCode.TOKEN_EXPIRED));
+
+		MvcTestResult result = reissue("""
+				{"refreshToken": "old-refresh-token"}
+				""");
+
+		assertThat(result).hasStatus(HttpStatus.UNAUTHORIZED);
+		assertThat(result).bodyJson().extractingPath("$.success").isEqualTo(false);
+		assertThat(result).bodyJson().extractingPath("$.error.code").isEqualTo("TOKEN_EXPIRED");
+	}
+
+	@Test
+	void reissueWithInvalidTokenReturnsUnauthorized() {
+		given(authService.reissue(any())).willThrow(new BusinessException(ErrorCode.INVALID_TOKEN));
+
+		MvcTestResult result = reissue("""
+				{"refreshToken": "old-refresh-token"}
+				""");
+
+		assertThat(result).hasStatus(HttpStatus.UNAUTHORIZED);
+		assertThat(result).bodyJson().extractingPath("$.success").isEqualTo(false);
+		assertThat(result).bodyJson().extractingPath("$.error.code").isEqualTo("INVALID_TOKEN");
+	}
+
+	@Test
+	void reissueWithSuspendedUserReturnsForbidden() {
+		given(authService.reissue(any())).willThrow(new BusinessException(ErrorCode.USER_SUSPENDED));
+
+		MvcTestResult result = reissue("""
+				{"refreshToken": "old-refresh-token"}
+				""");
+
+		assertThat(result).hasStatus(HttpStatus.FORBIDDEN);
+		assertThat(result).bodyJson().extractingPath("$.success").isEqualTo(false);
+		assertThat(result).bodyJson().extractingPath("$.error.code").isEqualTo("USER_SUSPENDED");
+	}
+
+	@ParameterizedTest
+	@ValueSource(strings = {"{}", "{\"refreshToken\": \"\"}", "{\"refreshToken\": \" \"}"})
+	void reissueWithoutTokenReturnsBadRequest(String body) {
+		MvcTestResult result = reissue(body);
+
+		assertThat(result).hasStatus(HttpStatus.BAD_REQUEST);
+		assertThat(result).bodyJson().extractingPath("$.error.code").isEqualTo("INVALID_INPUT");
+		assertThat(result).bodyJson().extractingPath("$.error.message").asString().contains("refreshToken: ");
+		then(authService).should(never()).reissue(any());
+	}
+
 	private MvcTestResult signup(String body) {
 		return mvc.post().uri("/api/auth/signup")
 				.contentType(MediaType.APPLICATION_JSON)
@@ -179,6 +248,13 @@ class AuthControllerTest {
 
 	private MvcTestResult login(String body) {
 		return mvc.post().uri("/api/auth/login")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(body)
+				.exchange();
+	}
+
+	private MvcTestResult reissue(String body) {
+		return mvc.post().uri("/api/auth/reissue")
 				.contentType(MediaType.APPLICATION_JSON)
 				.content(body)
 				.exchange();

@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.within;
 
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
@@ -15,8 +16,10 @@ import com.urijip.server.global.security.AccessTokenClaims;
 import com.urijip.server.global.security.JwtProperties;
 import com.urijip.server.global.security.JwtProvider;
 import com.urijip.server.member.dto.request.LoginRequest;
+import com.urijip.server.member.dto.request.ReissueRequest;
 import com.urijip.server.member.dto.request.SignupRequest;
 import com.urijip.server.member.dto.response.LoginResponse;
+import com.urijip.server.member.dto.response.ReissueResponse;
 import com.urijip.server.member.dto.response.SignupResponse;
 import com.urijip.server.member.entity.RefreshToken;
 import com.urijip.server.member.entity.User;
@@ -197,6 +200,122 @@ class AuthServiceTest {
 				.extracting("errorCode")
 				.isEqualTo(ErrorCode.LOGIN_FAILED);
 		assertThat(refreshTokenRepository.count()).isZero();
+	}
+
+	@Test
+	void reissueReturnsAccessTokenOfUser() {
+		String oldToken = loginMom();
+
+		ReissueResponse response = authService.reissue(new ReissueRequest(oldToken));
+
+		AccessTokenClaims claims = jwtProvider.parseAccessToken(response.accessToken());
+		assertThat(claims.userId()).isEqualTo(userRepository.findByEmail("mom@example.com").orElseThrow().getId());
+		assertThat(claims.role()).isEqualTo("USER");
+	}
+
+	@Test
+	void reissueReturnsNewRefreshToken() {
+		String oldToken = loginMom();
+
+		ReissueResponse response = authService.reissue(new ReissueRequest(oldToken));
+
+		assertThat(response.refreshToken()).isNotEqualTo(oldToken);
+		assertThat(jwtProvider.parseRefreshToken(response.refreshToken()))
+				.isEqualTo(jwtProvider.parseRefreshToken(oldToken));
+	}
+
+	@Test
+	void reissueReplacesStoredRefreshToken() {
+		String oldToken = loginMom();
+
+		ReissueResponse response = authService.reissue(new ReissueRequest(oldToken));
+
+		assertThat(refreshTokenRepository.findAll())
+				.extracting(RefreshToken::getToken)
+				.containsExactly(response.refreshToken());
+	}
+
+	@Test
+	void reissueRejectsAlreadyUsedToken() {
+		String oldToken = loginMom();
+
+		authService.reissue(new ReissueRequest(oldToken));
+
+		assertThatThrownBy(() -> authService.reissue(new ReissueRequest(oldToken)))
+				.isInstanceOf(BusinessException.class)
+				.extracting("errorCode")
+				.isEqualTo(ErrorCode.INVALID_TOKEN);
+	}
+
+	@Test
+	void reissueRejectsTokenThatWasNeverStored() {
+		String notStored = jwtProvider.createRefreshToken(signupMom().id());
+
+		assertThatThrownBy(() -> authService.reissue(new ReissueRequest(notStored)))
+				.isInstanceOf(BusinessException.class)
+				.extracting("errorCode")
+				.isEqualTo(ErrorCode.INVALID_TOKEN);
+	}
+
+	@Test
+	void reissueRejectsMalformedToken() {
+		assertThatThrownBy(() -> authService.reissue(new ReissueRequest("not-a-token")))
+				.isInstanceOf(BusinessException.class)
+				.extracting("errorCode")
+				.isEqualTo(ErrorCode.INVALID_TOKEN);
+	}
+
+	@Test
+	void reissueRejectsAccessToken() {
+		String accessToken = jwtProvider.createAccessToken(signupMom().id(), "USER");
+
+		assertThatThrownBy(() -> authService.reissue(new ReissueRequest(accessToken)))
+				.isInstanceOf(BusinessException.class)
+				.extracting("errorCode")
+				.isEqualTo(ErrorCode.INVALID_TOKEN);
+	}
+
+	@Test
+	void reissueRejectsExpiredToken() {
+		User user = userRepository.findById(signupMom().id()).orElseThrow();
+		JwtProvider expiredProvider = new JwtProvider(new JwtProperties(jwtProperties.secret(),
+				jwtProperties.accessExpiration(), Duration.ofSeconds(-1)));
+		String expired = expiredProvider.createRefreshToken(user.getId());
+		refreshTokenRepository.saveAndFlush(new RefreshToken(user, expired, LocalDateTime.now().minusSeconds(1)));
+
+		assertThatThrownBy(() -> authService.reissue(new ReissueRequest(expired)))
+				.isInstanceOf(BusinessException.class)
+				.extracting("errorCode")
+				.isEqualTo(ErrorCode.TOKEN_EXPIRED);
+	}
+
+	@Test
+	void reissueRejectsSuspendedUser() {
+		String oldToken = loginMom();
+
+		changeStatus(jwtProvider.parseRefreshToken(oldToken), UserStatus.SUSPENDED);
+
+		assertThatThrownBy(() -> authService.reissue(new ReissueRequest(oldToken)))
+				.isInstanceOf(BusinessException.class)
+				.extracting("errorCode")
+				.isEqualTo(ErrorCode.USER_SUSPENDED);
+	}
+
+	@Test
+	void reissueRejectsWithdrawnUser() {
+		String oldToken = loginMom();
+
+		changeStatus(jwtProvider.parseRefreshToken(oldToken), UserStatus.WITHDRAWN);
+
+		assertThatThrownBy(() -> authService.reissue(new ReissueRequest(oldToken)))
+				.isInstanceOf(BusinessException.class)
+				.extracting("errorCode")
+				.isEqualTo(ErrorCode.INVALID_TOKEN);
+	}
+
+	private String loginMom() {
+		signupMom();
+		return authService.login(new LoginRequest("mom@example.com", "password123")).refreshToken();
 	}
 
 	private SignupResponse signupMom() {
