@@ -60,6 +60,11 @@ class SecurityConfigTest {
 				HttpStatus.UNAUTHORIZED, "INVALID_TOKEN");
 	}
 
+	@Test
+	void userIsForbiddenFromAdminPath() {
+		assertError(getWithToken("/admin/test", jwtProvider.createAccessToken(1L, "USER")), HttpStatus.FORBIDDEN, "ACCESS_DENIED");
+	}
+
 	private MvcTestResult get(String uri) {
 		return mvc.get().uri(uri).exchange();
 	}
