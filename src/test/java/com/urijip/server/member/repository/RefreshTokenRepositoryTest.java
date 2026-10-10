@@ -1,6 +1,7 @@
 package com.urijip.server.member.repository;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.time.LocalDateTime;
 
@@ -13,6 +14,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
 import org.springframework.context.annotation.Import;
+import org.springframework.dao.DataIntegrityViolationException;
 
 @DataJpaTest
 @Import({TestcontainersConfiguration.class, JpaAuditingConfig.class})
@@ -62,6 +64,15 @@ class RefreshTokenRepositoryTest {
 		refreshTokenRepository.saveAndFlush(new RefreshToken(user, "token-2", EXPIRES_AT));
 
 		assertThat(refreshTokenRepository.count()).isEqualTo(2);
+	}
+
+	@Test
+	void duplicatedTokenIsRejectedByUniqueConstraint() {
+		refreshTokenRepository.saveAndFlush(new RefreshToken(user, "token-1", EXPIRES_AT));
+
+		assertThatThrownBy(() -> refreshTokenRepository
+				.saveAndFlush(new RefreshToken(user, "token-1", EXPIRES_AT)))
+				.isInstanceOf(DataIntegrityViolationException.class);
 	}
 
 }
