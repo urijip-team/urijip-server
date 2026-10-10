@@ -214,6 +214,19 @@ class AuthControllerTest {
 		assertThat(result).bodyJson().extractingPath("$.error.code").isEqualTo("INVALID_TOKEN");
 	}
 
+	@Test
+	void reissueWithSuspendedUserReturnsForbidden() {
+		given(authService.reissue(any())).willThrow(new BusinessException(ErrorCode.USER_SUSPENDED));
+
+		MvcTestResult result = reissue("""
+				{"refreshToken": "old-refresh-token"}
+				""");
+
+		assertThat(result).hasStatus(HttpStatus.FORBIDDEN);
+		assertThat(result).bodyJson().extractingPath("$.success").isEqualTo(false);
+		assertThat(result).bodyJson().extractingPath("$.error.code").isEqualTo("USER_SUSPENDED");
+	}
+
 	private MvcTestResult signup(String body) {
 		return mvc.post().uri("/api/auth/signup")
 				.contentType(MediaType.APPLICATION_JSON)
