@@ -56,4 +56,12 @@ class RefreshTokenRepositoryTest {
 		assertThat(saved.getToken()).hasSize(400);
 	}
 
+	@Test
+	void oneUserCanHaveSeveralTokens() {
+		refreshTokenRepository.saveAndFlush(new RefreshToken(user, "token-1", EXPIRES_AT));
+		refreshTokenRepository.saveAndFlush(new RefreshToken(user, "token-2", EXPIRES_AT));
+
+		assertThat(refreshTokenRepository.count()).isEqualTo(2);
+	}
+
 }
