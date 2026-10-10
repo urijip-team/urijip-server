@@ -41,6 +41,15 @@ class JwtAuthenticationFilterTest {
 		assertThat(filterChain.getRequest()).isSameAs(request);
 	}
 
+	@Test
+	void requestWithoutTokenPassesUnauthenticated() throws Exception {
+		doFilter(null);
+
+		assertThat(authentication()).isNull();
+		assertThat(request.getAttribute(JwtAuthenticationFilter.ERROR_CODE_ATTRIBUTE)).isNull();
+		assertThat(filterChain.getRequest()).isSameAs(request);
+	}
+
 	private void doFilter(String authorization) throws Exception {
 		if (authorization != null) {
 			request.addHeader("Authorization", authorization);
