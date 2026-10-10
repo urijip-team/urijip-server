@@ -188,6 +188,19 @@ class AuthControllerTest {
 		assertThat(result).bodyJson().extractingPath("$.error").isNull();
 	}
 
+	@Test
+	void reissueWithExpiredTokenReturnsUnauthorized() {
+		given(authService.reissue(any())).willThrow(new BusinessException(ErrorCode.TOKEN_EXPIRED));
+
+		MvcTestResult result = reissue("""
+				{"refreshToken": "old-refresh-token"}
+				""");
+
+		assertThat(result).hasStatus(HttpStatus.UNAUTHORIZED);
+		assertThat(result).bodyJson().extractingPath("$.success").isEqualTo(false);
+		assertThat(result).bodyJson().extractingPath("$.error.code").isEqualTo("TOKEN_EXPIRED");
+	}
+
 	private MvcTestResult signup(String body) {
 		return mvc.post().uri("/api/auth/signup")
 				.contentType(MediaType.APPLICATION_JSON)
