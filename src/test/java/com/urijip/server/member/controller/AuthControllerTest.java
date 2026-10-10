@@ -265,6 +265,20 @@ class AuthControllerTest {
 		then(authService).should().logout(7L, new LogoutRequest("refresh-token"));
 	}
 
+	@Test
+	void logoutWithoutAccessTokenReturnsUnauthorized() {
+		MvcTestResult result = mvc.post().uri("/api/auth/logout")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("""
+						{"refreshToken": "refresh-token"}
+						""")
+				.exchange();
+
+		assertThat(result).hasStatus(HttpStatus.UNAUTHORIZED);
+		assertThat(result).bodyJson().extractingPath("$.error.code").isEqualTo("INVALID_TOKEN");
+		then(authService).should(never()).logout(any(), any());
+	}
+
 	private MvcTestResult signup(String body) {
 		return mvc.post().uri("/api/auth/signup")
 				.contentType(MediaType.APPLICATION_JSON)
