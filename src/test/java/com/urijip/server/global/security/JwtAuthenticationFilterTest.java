@@ -50,6 +50,15 @@ class JwtAuthenticationFilterTest {
 		assertThat(filterChain.getRequest()).isSameAs(request);
 	}
 
+	@Test
+	void nonBearerHeaderIsIgnored() throws Exception {
+		doFilter("Basic " + jwtProvider.createAccessToken(1L, "USER"));
+
+		assertThat(authentication()).isNull();
+		assertThat(request.getAttribute(JwtAuthenticationFilter.ERROR_CODE_ATTRIBUTE)).isNull();
+		assertThat(filterChain.getRequest()).isSameAs(request);
+	}
+
 	private void doFilter(String authorization) throws Exception {
 		if (authorization != null) {
 			request.addHeader("Authorization", authorization);
