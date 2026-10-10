@@ -34,8 +34,20 @@ class SecurityConfigTest {
 		assertError(get("/api/test/me"), HttpStatus.UNAUTHORIZED, "INVALID_TOKEN");
 	}
 
+	@Test
+	void validTokenReachesControllerWithUserId() {
+		MvcTestResult result = getWithToken("/api/test/me", jwtProvider.createAccessToken(1L, "USER"));
+
+		assertThat(result).hasStatusOk();
+		assertThat(result).bodyJson().extractingPath("$.data").isEqualTo(1);
+	}
+
 	private MvcTestResult get(String uri) {
 		return mvc.get().uri(uri).exchange();
+	}
+
+	private MvcTestResult getWithToken(String uri, String token) {
+		return mvc.get().uri(uri).header("Authorization", "Bearer " + token).exchange();
 	}
 
 	private static void assertError(MvcTestResult result, HttpStatus status, String code) {
