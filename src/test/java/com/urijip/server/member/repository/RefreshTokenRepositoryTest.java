@@ -75,4 +75,14 @@ class RefreshTokenRepositoryTest {
 				.isInstanceOf(DataIntegrityViolationException.class);
 	}
 
+	@Test
+	void findByTokenReturnsSavedToken() {
+		RefreshToken saved = refreshTokenRepository.saveAndFlush(new RefreshToken(user, "token-1", EXPIRES_AT));
+
+		assertThat(refreshTokenRepository.findByToken("token-1"))
+				.get()
+				.extracting(RefreshToken::getId)
+				.isEqualTo(saved.getId());
+	}
+
 }
