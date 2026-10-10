@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import java.time.Duration;
 
+import com.urijip.server.global.exception.ErrorCode;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.mock.web.MockFilterChain;
@@ -56,6 +57,16 @@ class JwtAuthenticationFilterTest {
 
 		assertThat(authentication()).isNull();
 		assertThat(request.getAttribute(JwtAuthenticationFilter.ERROR_CODE_ATTRIBUTE)).isNull();
+		assertThat(filterChain.getRequest()).isSameAs(request);
+	}
+
+	@Test
+	void invalidTokenRecordsInvalidToken() throws Exception {
+		doFilter("Bearer not-a-token");
+
+		assertThat(authentication()).isNull();
+		assertThat(request.getAttribute(JwtAuthenticationFilter.ERROR_CODE_ATTRIBUTE))
+				.isEqualTo(ErrorCode.INVALID_TOKEN);
 		assertThat(filterChain.getRequest()).isSameAs(request);
 	}
 
