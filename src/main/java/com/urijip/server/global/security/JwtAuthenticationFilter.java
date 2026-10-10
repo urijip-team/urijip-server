@@ -3,6 +3,7 @@ package com.urijip.server.global.security;
 import java.io.IOException;
 import java.util.List;
 
+import com.urijip.server.global.exception.BusinessException;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -18,6 +19,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
 @RequiredArgsConstructor
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
+	public static final String ERROR_CODE_ATTRIBUTE = "jwtErrorCode";
 	private static final String BEARER_PREFIX = "Bearer ";
 
 	private final JwtProvider jwtProvider;
@@ -27,7 +29,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 			FilterChain filterChain) throws ServletException, IOException {
 		String token = resolveToken(request);
 		if (token != null) {
-			authenticate(token);
+			authenticate(token, request);
 		}
 		filterChain.doFilter(request, response);
 	}
@@ -40,11 +42,15 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 		return header.substring(BEARER_PREFIX.length());
 	}
 
-	private void authenticate(String token) {
-		AccessTokenClaims claims = jwtProvider.parseAccessToken(token);
-		Authentication authentication = new UsernamePasswordAuthenticationToken(claims.userId(), null,
-				List.of(new SimpleGrantedAuthority("ROLE_" + claims.role())));
-		SecurityContextHolder.getContext().setAuthentication(authentication);
+	private void authenticate(String token, HttpServletRequest request) {
+		try {
+			AccessTokenClaims claims = jwtProvider.parseAccessToken(token);
+			Authentication authentication = new UsernamePasswordAuthenticationToken(claims.userId(), null,
+					List.of(new SimpleGrantedAuthority("ROLE_" + claims.role())));
+			SecurityContextHolder.getContext().setAuthentication(authentication);
+		} catch (BusinessException ex) {
+			request.setAttribute(ERROR_CODE_ATTRIBUTE, ex.getErrorCode());
+		}
 	}
 
 }
