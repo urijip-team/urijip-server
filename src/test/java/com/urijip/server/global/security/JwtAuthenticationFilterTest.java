@@ -70,6 +70,16 @@ class JwtAuthenticationFilterTest {
 		assertThat(filterChain.getRequest()).isSameAs(request);
 	}
 
+	@Test
+	void expiredTokenRecordsTokenExpired() throws Exception {
+		doFilter("Bearer " + provider(Duration.ofSeconds(-1)).createAccessToken(1L, "USER"));
+
+		assertThat(authentication()).isNull();
+		assertThat(request.getAttribute(JwtAuthenticationFilter.ERROR_CODE_ATTRIBUTE))
+				.isEqualTo(ErrorCode.TOKEN_EXPIRED);
+		assertThat(filterChain.getRequest()).isSameAs(request);
+	}
+
 	private void doFilter(String authorization) throws Exception {
 		if (authorization != null) {
 			request.addHeader("Authorization", authorization);
