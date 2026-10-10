@@ -7,8 +7,10 @@ import com.urijip.server.global.exception.ErrorCode;
 import com.urijip.server.global.security.JwtProperties;
 import com.urijip.server.global.security.JwtProvider;
 import com.urijip.server.member.dto.request.LoginRequest;
+import com.urijip.server.member.dto.request.ReissueRequest;
 import com.urijip.server.member.dto.request.SignupRequest;
 import com.urijip.server.member.dto.response.LoginResponse;
+import com.urijip.server.member.dto.response.ReissueResponse;
 import com.urijip.server.member.dto.response.SignupResponse;
 import com.urijip.server.member.entity.RefreshToken;
 import com.urijip.server.member.entity.User;
@@ -58,6 +60,20 @@ public class AuthService {
 		String refreshToken = issueRefreshToken(user);
 
 		return LoginResponse.of(accessToken, refreshToken, user, false);
+	}
+
+	@Transactional
+	public ReissueResponse reissue(ReissueRequest request) {
+		jwtProvider.parseRefreshToken(request.refreshToken());
+		RefreshToken saved = refreshTokenRepository.findByToken(request.refreshToken())
+				.orElseThrow(() -> new BusinessException(ErrorCode.INVALID_TOKEN));
+		User user = saved.getUser();
+
+		refreshTokenRepository.delete(saved);
+		String accessToken = jwtProvider.createAccessToken(user.getId(), user.getRole().name());
+		String refreshToken = issueRefreshToken(user);
+
+		return new ReissueResponse(accessToken, refreshToken);
 	}
 
 	private String issueRefreshToken(User user) {
