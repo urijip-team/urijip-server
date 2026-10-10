@@ -80,6 +80,16 @@ class JwtAuthenticationFilterTest {
 		assertThat(filterChain.getRequest()).isSameAs(request);
 	}
 
+	@Test
+	void refreshTokenIsNotAcceptedAsAccessToken() throws Exception {
+		doFilter("Bearer " + jwtProvider.createRefreshToken(1L));
+
+		assertThat(authentication()).isNull();
+		assertThat(request.getAttribute(JwtAuthenticationFilter.ERROR_CODE_ATTRIBUTE))
+				.isEqualTo(ErrorCode.INVALID_TOKEN);
+		assertThat(filterChain.getRequest()).isSameAs(request);
+	}
+
 	private void doFilter(String authorization) throws Exception {
 		if (authorization != null) {
 			request.addHeader("Authorization", authorization);
