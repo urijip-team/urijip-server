@@ -131,6 +131,17 @@ class AuthServiceTest {
 				LocalDateTime.now().plus(jwtProperties.refreshExpiration()), within(1, ChronoUnit.MINUTES));
 	}
 
+	@Test
+	void loginTwiceSavesTwoDifferentRefreshTokens() {
+		signupMom();
+
+		LoginResponse first = authService.login(new LoginRequest("mom@example.com", "password123"));
+		LoginResponse second = authService.login(new LoginRequest("mom@example.com", "password123"));
+
+		assertThat(first.refreshToken()).isNotEqualTo(second.refreshToken());
+		assertThat(refreshTokenRepository.count()).isEqualTo(2);
+	}
+
 	private SignupResponse signupMom() {
 		return authService.signup(new SignupRequest("mom@example.com", "password123", "김엄마"));
 	}
