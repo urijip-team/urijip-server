@@ -2,6 +2,7 @@ package com.urijip.server.member.controller;
 
 import com.urijip.server.global.response.ApiResponse;
 import com.urijip.server.member.dto.request.LoginRequest;
+import com.urijip.server.member.dto.request.LogoutRequest;
 import com.urijip.server.member.dto.request.ReissueRequest;
 import com.urijip.server.member.dto.request.SignupRequest;
 import com.urijip.server.member.dto.response.LoginResponse;
@@ -11,6 +12,7 @@ import com.urijip.server.member.service.AuthService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -33,6 +35,13 @@ public class AuthController {
 	@PostMapping("/login")
 	public ApiResponse<LoginResponse> login(@Valid @RequestBody LoginRequest request) {
 		return ApiResponse.success(authService.login(request));
+	}
+
+	@PostMapping("/logout")
+	public ApiResponse<Void> logout(@AuthenticationPrincipal Long userId,
+			@Valid @RequestBody LogoutRequest request) {
+		authService.logout(userId, request);
+		return ApiResponse.success(null);
 	}
 
 	@PostMapping("/reissue")
