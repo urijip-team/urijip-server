@@ -55,11 +55,16 @@ public class AuthService {
 		validateStatus(user);
 
 		String accessToken = jwtProvider.createAccessToken(user.getId(), user.getRole().name());
+		String refreshToken = issueRefreshToken(user);
+
+		return LoginResponse.of(accessToken, refreshToken, user, false);
+	}
+
+	private String issueRefreshToken(User user) {
 		String refreshToken = jwtProvider.createRefreshToken(user.getId());
 		refreshTokenRepository.save(new RefreshToken(user, refreshToken,
 				LocalDateTime.now().plus(jwtProperties.refreshExpiration())));
-
-		return LoginResponse.of(accessToken, refreshToken, user, false);
+		return refreshToken;
 	}
 
 	private void validateStatus(User user) {
