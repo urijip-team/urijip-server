@@ -1,5 +1,7 @@
 package com.urijip.server.member.entity;
 
+import java.time.LocalDateTime;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
@@ -29,5 +31,8 @@ public class RefreshToken {
 
 	@Column(nullable = false, unique = true, length = 512)
 	private String token;
+
+	@Column(nullable = false)
+	private LocalDateTime expiresAt;
 
 }
