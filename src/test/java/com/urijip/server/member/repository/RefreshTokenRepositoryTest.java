@@ -1,0 +1,50 @@
+package com.urijip.server.member.repository;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+import java.time.LocalDateTime;
+
+import com.urijip.server.TestcontainersConfiguration;
+import com.urijip.server.global.config.JpaAuditingConfig;
+import com.urijip.server.member.entity.RefreshToken;
+import com.urijip.server.member.entity.User;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
+import org.springframework.context.annotation.Import;
+
+@DataJpaTest
+@Import({TestcontainersConfiguration.class, JpaAuditingConfig.class})
+class RefreshTokenRepositoryTest {
+
+	private static final LocalDateTime EXPIRES_AT = LocalDateTime.of(2026, 10, 24, 12, 0);
+
+	@Autowired
+	private RefreshTokenRepository refreshTokenRepository;
+
+	@Autowired
+	private UserRepository userRepository;
+
+	private User user;
+
+	@BeforeEach
+	void setUp() {
+		user = userRepository.saveAndFlush(User.builder()
+				.email("mom@example.com")
+				.password("encoded-password")
+				.name("김엄마")
+				.build());
+	}
+
+	@Test
+	void savedTokenKeepsUserTokenAndExpiry() {
+		RefreshToken saved = refreshTokenRepository.saveAndFlush(new RefreshToken(user, "token-1", EXPIRES_AT));
+
+		assertThat(saved.getId()).isNotNull();
+		assertThat(saved.getUser().getId()).isEqualTo(user.getId());
+		assertThat(saved.getToken()).isEqualTo("token-1");
+		assertThat(saved.getExpiresAt()).isEqualTo(EXPIRES_AT);
+	}
+
+}
