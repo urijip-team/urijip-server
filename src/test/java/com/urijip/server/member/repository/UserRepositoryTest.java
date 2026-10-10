@@ -48,6 +48,23 @@ class UserRepositoryTest {
 				.isInstanceOf(DataIntegrityViolationException.class);
 	}
 
+	@Test
+	void findByEmailReturnsSavedUser() {
+		User saved = userRepository.saveAndFlush(user("mom@example.com"));
+
+		assertThat(userRepository.findByEmail("mom@example.com"))
+				.get()
+				.extracting(User::getId)
+				.isEqualTo(saved.getId());
+	}
+
+	@Test
+	void findByEmailReturnsEmptyForUnknownEmail() {
+		userRepository.saveAndFlush(user("mom@example.com"));
+
+		assertThat(userRepository.findByEmail("dad@example.com")).isEmpty();
+	}
+
 	private static User user(String email) {
 		return User.builder()
 				.email(email)

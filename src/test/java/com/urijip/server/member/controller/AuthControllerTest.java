@@ -9,7 +9,9 @@ import static org.mockito.Mockito.never;
 import com.urijip.server.global.config.SecurityConfig;
 import com.urijip.server.global.exception.BusinessException;
 import com.urijip.server.global.exception.ErrorCode;
+import com.urijip.server.member.dto.request.LoginRequest;
 import com.urijip.server.member.dto.request.SignupRequest;
+import com.urijip.server.member.dto.response.LoginResponse;
 import com.urijip.server.member.dto.response.SignupResponse;
 import com.urijip.server.member.service.AuthService;
 import org.junit.jupiter.api.Test;
@@ -103,8 +105,80 @@ class AuthControllerTest {
 				.isEqualTo("password: 8자 이상이어야 합니다");
 	}
 
+	@Test
+	void loginReturnsTokensAndUser() {
+		given(authService.login(new LoginRequest("mom@example.com", "password123")))
+				.willReturn(new LoginResponse("access-token", "refresh-token",
+						new LoginResponse.UserInfo(1L, "김엄마", false)));
+
+		MvcTestResult result = login("""
+				{"email": "mom@example.com", "password": "password123"}
+				""");
+
+		assertThat(result).hasStatusOk();
+		assertThat(result).bodyJson().extractingPath("$.success").isEqualTo(true);
+		assertThat(result).bodyJson().extractingPath("$.data.accessToken").isEqualTo("access-token");
+		assertThat(result).bodyJson().extractingPath("$.data.refreshToken").isEqualTo("refresh-token");
+		assertThat(result).bodyJson().extractingPath("$.data.user.id").isEqualTo(1);
+		assertThat(result).bodyJson().extractingPath("$.data.user.name").isEqualTo("김엄마");
+		assertThat(result).bodyJson().extractingPath("$.data.user.hasFamily").isEqualTo(false);
+		assertThat(result).bodyJson().extractingPath("$.error").isNull();
+	}
+
+	@Test
+	void loginWithWrongCredentialsReturnsUnauthorized() {
+		given(authService.login(any())).willThrow(new BusinessException(ErrorCode.LOGIN_FAILED));
+
+		MvcTestResult result = login("""
+				{"email": "mom@example.com", "password": "password123"}
+				""");
+
+		assertThat(result).hasStatus(HttpStatus.UNAUTHORIZED);
+		assertThat(result).bodyJson().extractingPath("$.success").isEqualTo(false);
+		assertThat(result).bodyJson().extractingPath("$.data").isNull();
+		assertThat(result).bodyJson().extractingPath("$.error.code").isEqualTo("LOGIN_FAILED");
+	}
+
+	@Test
+	void loginWithSuspendedUserReturnsForbidden() {
+		given(authService.login(any())).willThrow(new BusinessException(ErrorCode.USER_SUSPENDED));
+
+		MvcTestResult result = login("""
+				{"email": "mom@example.com", "password": "password123"}
+				""");
+
+		assertThat(result).hasStatus(HttpStatus.FORBIDDEN);
+		assertThat(result).bodyJson().extractingPath("$.success").isEqualTo(false);
+		assertThat(result).bodyJson().extractingPath("$.data").isNull();
+		assertThat(result).bodyJson().extractingPath("$.error.code").isEqualTo("USER_SUSPENDED");
+	}
+
+	@ParameterizedTest
+	@CsvSource(delimiter = '|', textBlock = """
+			email    | {"email": "not-an-email", "password": "password123"}
+			email    | {"email": "", "password": "password123"}
+			email    | {"password": "password123"}
+			password | {"email": "mom@example.com", "password": " "}
+			password | {"email": "mom@example.com"}
+			""")
+	void loginWithInvalidInputReturnsBadRequest(String field, String body) {
+		MvcTestResult result = login(body);
+
+		assertThat(result).hasStatus(HttpStatus.BAD_REQUEST);
+		assertThat(result).bodyJson().extractingPath("$.error.code").isEqualTo("INVALID_INPUT");
+		assertThat(result).bodyJson().extractingPath("$.error.message").asString().contains(field + ": ");
+		then(authService).should(never()).login(any());
+	}
+
 	private MvcTestResult signup(String body) {
 		return mvc.post().uri("/api/auth/signup")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(body)
+				.exchange();
+	}
+
+	private MvcTestResult login(String body) {
+		return mvc.post().uri("/api/auth/login")
 				.contentType(MediaType.APPLICATION_JSON)
 				.content(body)
 				.exchange();
