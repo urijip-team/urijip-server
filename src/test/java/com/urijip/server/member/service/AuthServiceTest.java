@@ -346,6 +346,16 @@ class AuthServiceTest {
 				.containsExactly(otherDevice);
 	}
 
+	@Test
+	void logoutIgnoresTokenOfAnotherUser() {
+		String token = loginMom();
+		Long dadId = authService.signup(new SignupRequest("dad@example.com", "password123", "김아빠")).id();
+
+		authService.logout(dadId, new LogoutRequest(token));
+
+		assertThat(refreshTokenRepository.count()).isEqualTo(1);
+	}
+
 	private String loginMom() {
 		signupMom();
 		return authService.login(new LoginRequest("mom@example.com", "password123")).refreshToken();
