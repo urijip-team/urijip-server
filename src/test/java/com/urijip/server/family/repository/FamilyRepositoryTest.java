@@ -1,6 +1,7 @@
 package com.urijip.server.family.repository;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.urijip.server.TestcontainersConfiguration;
 import com.urijip.server.family.entity.Family;
@@ -13,6 +14,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
 import org.springframework.context.annotation.Import;
+import org.springframework.dao.DataIntegrityViolationException;
 
 @DataJpaTest
 @Import({TestcontainersConfiguration.class, JpaAuditingConfig.class})
@@ -55,6 +57,14 @@ class FamilyRepositoryTest {
 
 		assertThat(familyRepository.existsByInviteCode("A3K9P2")).isTrue();
 		assertThat(familyRepository.existsByInviteCode("ZZZZZZ")).isFalse();
+	}
+
+	@Test
+	void duplicatedInviteCodeIsRejectedByUniqueConstraint() {
+		familyRepository.saveAndFlush(family("A3K9P2"));
+
+		assertThatThrownBy(() -> familyRepository.saveAndFlush(family("A3K9P2")))
+				.isInstanceOf(DataIntegrityViolationException.class);
 	}
 
 	private Family family(String inviteCode) {
