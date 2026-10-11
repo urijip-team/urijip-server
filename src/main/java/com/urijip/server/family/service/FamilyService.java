@@ -45,6 +45,11 @@ public class FamilyService {
 		return FamilyResponse.from(family);
 	}
 
+	@Transactional(readOnly = true)
+	public boolean hasFamily(Long userId) {
+		return familyMemberRepository.existsByUserId(userId);
+	}
+
 	private String newInviteCode() {
 		String code = inviteCodeGenerator.generate();
 		while (familyRepository.existsByInviteCode(code)) {
