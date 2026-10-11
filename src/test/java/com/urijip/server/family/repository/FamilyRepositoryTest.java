@@ -15,6 +15,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.jdbc.core.JdbcTemplate;
 
 @DataJpaTest
 @Import({TestcontainersConfiguration.class, JpaAuditingConfig.class})
@@ -25,6 +26,9 @@ class FamilyRepositoryTest {
 
 	@Autowired
 	private UserRepository userRepository;
+
+	@Autowired
+	private JdbcTemplate jdbcTemplate;
 
 	private User owner;
 
@@ -65,6 +69,16 @@ class FamilyRepositoryTest {
 
 		assertThatThrownBy(() -> familyRepository.saveAndFlush(family("A3K9P2")))
 				.isInstanceOf(DataIntegrityViolationException.class);
+	}
+
+	@Test
+	void inviteCodeColumnIsSixCharacters() {
+		String columnType = jdbcTemplate.queryForObject("""
+				select column_type from information_schema.columns
+				where table_schema = database() and table_name = 'families' and column_name = 'invite_code'
+				""", String.class);
+
+		assertThat(columnType).isEqualTo("char(6)");
 	}
 
 	private Family family(String inviteCode) {
