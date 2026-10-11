@@ -1,5 +1,6 @@
 package com.urijip.server.family.entity;
 
+import com.urijip.server.member.entity.User;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
@@ -25,5 +26,9 @@ public class FamilyMember {
 	@ManyToOne(fetch = FetchType.LAZY)
 	@JoinColumn(name = "family_id", nullable = false)
 	private Family family;
+
+	@ManyToOne(fetch = FetchType.LAZY)
+	@JoinColumn(name = "user_id", nullable = false)
+	private User user;
 
 }
