@@ -6,7 +6,9 @@ import com.urijip.server.TestcontainersConfiguration;
 import com.urijip.server.family.dto.request.FamilyCreateRequest;
 import com.urijip.server.family.dto.response.FamilyResponse;
 import com.urijip.server.family.entity.Family;
+import com.urijip.server.family.entity.FamilyRole;
 import com.urijip.server.family.entity.FamilyStatus;
+import com.urijip.server.family.repository.FamilyMemberRepository;
 import com.urijip.server.family.repository.FamilyRepository;
 import com.urijip.server.member.entity.User;
 import com.urijip.server.member.repository.UserRepository;
@@ -27,6 +29,9 @@ class FamilyServiceTest {
 
 	@Autowired
 	private FamilyRepository familyRepository;
+
+	@Autowired
+	private FamilyMemberRepository familyMemberRepository;
 
 	@Autowired
 	private UserRepository userRepository;
@@ -55,6 +60,17 @@ class FamilyServiceTest {
 		assertThat(saved.getOwner().getId()).isEqualTo(mom.getId());
 		assertThat(saved.getStatus()).isEqualTo(FamilyStatus.ACTIVE);
 		assertThat(saved.getInviteCode()).isEqualTo(response.inviteCode());
+	}
+
+	@Test
+	void createRegistersCreatorAsOwnerMember() {
+		FamilyResponse response = familyService.create(mom.getId(), new FamilyCreateRequest("김씨네"));
+
+		assertThat(familyMemberRepository.findAll()).singleElement().satisfies(member -> {
+			assertThat(member.getFamily().getId()).isEqualTo(response.id());
+			assertThat(member.getUser().getId()).isEqualTo(mom.getId());
+			assertThat(member.getRole()).isEqualTo(FamilyRole.OWNER);
+		});
 	}
 
 	private User saveUser(String email, String name) {
