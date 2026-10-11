@@ -2,6 +2,7 @@ package com.urijip.server.member.service;
 
 import java.time.LocalDateTime;
 
+import com.urijip.server.family.service.FamilyService;
 import com.urijip.server.global.exception.BusinessException;
 import com.urijip.server.global.exception.ErrorCode;
 import com.urijip.server.global.security.JwtProperties;
@@ -32,6 +33,7 @@ public class AuthService {
 	private final PasswordEncoder passwordEncoder;
 	private final JwtProvider jwtProvider;
 	private final JwtProperties jwtProperties;
+	private final FamilyService familyService;
 
 	@Transactional
 	public SignupResponse signup(SignupRequest request) {
@@ -60,7 +62,7 @@ public class AuthService {
 		String accessToken = jwtProvider.createAccessToken(user.getId(), user.getRole().name());
 		String refreshToken = issueRefreshToken(user);
 
-		return LoginResponse.of(accessToken, refreshToken, user, false);
+		return LoginResponse.of(accessToken, refreshToken, user, familyService.hasFamily(user.getId()));
 	}
 
 	@Transactional
