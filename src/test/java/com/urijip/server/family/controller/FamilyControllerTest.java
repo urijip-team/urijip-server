@@ -2,6 +2,7 @@ package com.urijip.server.family.controller;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.then;
 
 import com.urijip.server.family.dto.request.FamilyCreateRequest;
 import com.urijip.server.family.dto.response.FamilyResponse;
@@ -46,6 +47,15 @@ class FamilyControllerTest {
 		assertThat(result).bodyJson().extractingPath("$.data.name").isEqualTo("김씨네");
 		assertThat(result).bodyJson().extractingPath("$.data.inviteCode").isEqualTo("A3K9P2");
 		assertThat(result).bodyJson().extractingPath("$.error").isNull();
+	}
+
+	@Test
+	void createPassesUserIdOfAccessToken() {
+		create(7L, """
+				{"name": "김씨네"}
+				""");
+
+		then(familyService).should().create(7L, new FamilyCreateRequest("김씨네"));
 	}
 
 	private MvcTestResult create(Long userId, String body) {
