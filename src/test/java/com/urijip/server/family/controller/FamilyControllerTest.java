@@ -10,6 +10,8 @@ import com.urijip.server.family.dto.request.FamilyCreateRequest;
 import com.urijip.server.family.dto.response.FamilyResponse;
 import com.urijip.server.family.service.FamilyService;
 import com.urijip.server.global.config.SecurityConfig;
+import com.urijip.server.global.exception.BusinessException;
+import com.urijip.server.global.exception.ErrorCode;
 import com.urijip.server.global.security.JwtProvider;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -72,6 +74,20 @@ class FamilyControllerTest {
 		assertThat(result).hasStatus(HttpStatus.UNAUTHORIZED);
 		assertThat(result).bodyJson().extractingPath("$.error.code").isEqualTo("INVALID_TOKEN");
 		then(familyService).should(never()).create(any(), any());
+	}
+
+	@Test
+	void createByUserWhoAlreadyHasFamilyReturnsConflict() {
+		given(familyService.create(any(), any()))
+				.willThrow(new BusinessException(ErrorCode.ALREADY_FAMILY_MEMBER));
+
+		MvcTestResult result = create(1L, """
+				{"name": "김씨네"}
+				""");
+
+		assertThat(result).hasStatus(HttpStatus.CONFLICT);
+		assertThat(result).bodyJson().extractingPath("$.success").isEqualTo(false);
+		assertThat(result).bodyJson().extractingPath("$.error.code").isEqualTo("ALREADY_FAMILY_MEMBER");
 	}
 
 	private MvcTestResult create(Long userId, String body) {
