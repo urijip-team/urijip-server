@@ -64,6 +64,19 @@ class AdminAuthControllerTest {
 		assertThat(result).bodyJson().extractingPath("$.error.code").isEqualTo("LOGIN_FAILED");
 	}
 
+	@Test
+	void loginBySuspendedAdminReturnsForbidden() {
+		given(authService.adminLogin(any())).willThrow(new BusinessException(ErrorCode.USER_SUSPENDED));
+
+		MvcTestResult result = login("""
+				{"email": "admin@example.com", "password": "password123"}
+				""");
+
+		assertThat(result).hasStatus(HttpStatus.FORBIDDEN);
+		assertThat(result).bodyJson().extractingPath("$.success").isEqualTo(false);
+		assertThat(result).bodyJson().extractingPath("$.error.code").isEqualTo("USER_SUSPENDED");
+	}
+
 	private MvcTestResult login(String body) {
 		return mvc.post().uri("/admin/auth/login")
 				.contentType(MediaType.APPLICATION_JSON)
