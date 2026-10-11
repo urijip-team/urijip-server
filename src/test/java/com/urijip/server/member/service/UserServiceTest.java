@@ -1,8 +1,11 @@
 package com.urijip.server.member.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.urijip.server.TestcontainersConfiguration;
+import com.urijip.server.global.exception.BusinessException;
+import com.urijip.server.global.exception.ErrorCode;
 import com.urijip.server.member.entity.User;
 import com.urijip.server.member.repository.UserRepository;
 import org.junit.jupiter.api.Test;
@@ -34,6 +37,14 @@ class UserServiceTest {
 
 		assertThat(found.getId()).isEqualTo(saved.getId());
 		assertThat(found.getEmail()).isEqualTo("mom@example.com");
+	}
+
+	@Test
+	void getUserRejectsUnknownId() {
+		assertThatThrownBy(() -> userService.getUser(999_999L))
+				.isInstanceOf(BusinessException.class)
+				.extracting("errorCode")
+				.isEqualTo(ErrorCode.USER_NOT_FOUND);
 	}
 
 }
