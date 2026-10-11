@@ -416,6 +416,17 @@ class AuthServiceTest {
 				.containsExactly(response.refreshToken());
 	}
 
+	@Test
+	void adminLoginRejectsUserWhoIsNotAdmin() {
+		signupMom();
+
+		assertThatThrownBy(() -> authService.adminLogin(new LoginRequest("mom@example.com", "password123")))
+				.isInstanceOf(BusinessException.class)
+				.extracting("errorCode")
+				.isEqualTo(ErrorCode.LOGIN_FAILED);
+		assertThat(refreshTokenRepository.count()).isZero();
+	}
+
 	private Long signupAdmin() {
 		User user = userRepository.findById(signupMom().id()).orElseThrow();
 		ReflectionTestUtils.setField(user, "role", Role.ADMIN);
