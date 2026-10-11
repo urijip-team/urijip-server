@@ -52,11 +52,7 @@ public class AuthService {
 
 	@Transactional
 	public LoginResponse login(LoginRequest request) {
-		User user = userRepository.findByEmail(request.email())
-				.orElseThrow(() -> new BusinessException(ErrorCode.LOGIN_FAILED));
-		if (!passwordEncoder.matches(request.password(), user.getPassword())) {
-			throw new BusinessException(ErrorCode.LOGIN_FAILED);
-		}
+		User user = findByCredentials(request);
 		validateStatus(user, ErrorCode.LOGIN_FAILED);
 
 		String accessToken = jwtProvider.createAccessToken(user.getId(), user.getRole().name());
@@ -83,6 +79,15 @@ public class AuthService {
 	@Transactional
 	public void logout(Long userId, LogoutRequest request) {
 		refreshTokenRepository.deleteByTokenAndUserId(request.refreshToken(), userId);
+	}
+
+	private User findByCredentials(LoginRequest request) {
+		User user = userRepository.findByEmail(request.email())
+				.orElseThrow(() -> new BusinessException(ErrorCode.LOGIN_FAILED));
+		if (!passwordEncoder.matches(request.password(), user.getPassword())) {
+			throw new BusinessException(ErrorCode.LOGIN_FAILED);
+		}
+		return user;
 	}
 
 	private String issueRefreshToken(User user) {
