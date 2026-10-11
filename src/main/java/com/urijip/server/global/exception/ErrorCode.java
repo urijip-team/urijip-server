@@ -15,6 +15,7 @@ public enum ErrorCode {
 	ACCESS_DENIED(HttpStatus.FORBIDDEN, "접근 권한이 없습니다"),
 	USER_SUSPENDED(HttpStatus.FORBIDDEN, "정지된 계정입니다"),
 	USER_NOT_FOUND(HttpStatus.NOT_FOUND, "존재하지 않는 회원입니다"),
+	INVITE_CODE_NOT_FOUND(HttpStatus.NOT_FOUND, "존재하지 않는 초대 코드입니다"),
 	EMAIL_DUPLICATED(HttpStatus.CONFLICT, "이미 가입된 이메일입니다"),
 	ALREADY_FAMILY_MEMBER(HttpStatus.CONFLICT, "이미 가족에 참여하고 있습니다"),
 	INTERNAL_SERVER_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "서버 오류가 발생했습니다");
