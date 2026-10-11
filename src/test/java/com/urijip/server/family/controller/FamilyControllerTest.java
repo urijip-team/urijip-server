@@ -7,6 +7,7 @@ import static org.mockito.BDDMockito.then;
 import static org.mockito.Mockito.never;
 
 import com.urijip.server.family.dto.request.FamilyCreateRequest;
+import com.urijip.server.family.dto.request.FamilyJoinRequest;
 import com.urijip.server.family.dto.response.FamilyResponse;
 import com.urijip.server.family.service.FamilyService;
 import com.urijip.server.global.config.SecurityConfig;
@@ -119,8 +120,33 @@ class FamilyControllerTest {
 		assertThat(result).hasStatus(HttpStatus.CREATED);
 	}
 
+	@Test
+	void joinReturnsOkWithFamily() {
+		given(familyService.join(2L, new FamilyJoinRequest("A3K9P2")))
+				.willReturn(new FamilyResponse(3L, "김씨네", "A3K9P2"));
+
+		MvcTestResult result = join(2L, """
+				{"inviteCode": "A3K9P2"}
+				""");
+
+		assertThat(result).hasStatusOk();
+		assertThat(result).bodyJson().extractingPath("$.success").isEqualTo(true);
+		assertThat(result).bodyJson().extractingPath("$.data.id").isEqualTo(3);
+		assertThat(result).bodyJson().extractingPath("$.data.name").isEqualTo("김씨네");
+		assertThat(result).bodyJson().extractingPath("$.data.inviteCode").isEqualTo("A3K9P2");
+		assertThat(result).bodyJson().extractingPath("$.error").isNull();
+	}
+
 	private MvcTestResult create(Long userId, String body) {
 		return mvc.post().uri("/api/families")
+				.header("Authorization", "Bearer " + jwtProvider.createAccessToken(userId, "USER"))
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(body)
+				.exchange();
+	}
+
+	private MvcTestResult join(Long userId, String body) {
+		return mvc.post().uri("/api/families/join")
 				.header("Authorization", "Bearer " + jwtProvider.createAccessToken(userId, "USER"))
 				.contentType(MediaType.APPLICATION_JSON)
 				.content(body)
