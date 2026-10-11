@@ -13,4 +13,9 @@ class InviteCodeGeneratorTest {
 		assertThat(generator.generate()).hasSize(6);
 	}
 
+	@RepeatedTest(20)
+	void codeUsesOnlyUppercaseLettersAndDigitsThatAreEasyToRead() {
+		assertThat(generator.generate()).matches("[A-HJ-NP-Z2-9]{6}");
+	}
+
 }
