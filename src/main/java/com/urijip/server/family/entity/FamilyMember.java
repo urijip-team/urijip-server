@@ -1,7 +1,10 @@
 package com.urijip.server.family.entity;
 
 import com.urijip.server.member.entity.User;
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -32,5 +35,9 @@ public class FamilyMember {
 	@ManyToOne(fetch = FetchType.LAZY)
 	@JoinColumn(name = "user_id", nullable = false)
 	private User user;
+
+	@Enumerated(EnumType.STRING)
+	@Column(nullable = false)
+	private FamilyRole role;
 
 }
