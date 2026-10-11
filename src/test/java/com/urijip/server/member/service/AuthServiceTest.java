@@ -10,6 +10,8 @@ import java.time.temporal.ChronoUnit;
 import java.util.List;
 
 import com.urijip.server.TestcontainersConfiguration;
+import com.urijip.server.family.dto.request.FamilyCreateRequest;
+import com.urijip.server.family.service.FamilyService;
 import com.urijip.server.global.exception.BusinessException;
 import com.urijip.server.global.exception.ErrorCode;
 import com.urijip.server.global.security.AccessTokenClaims;
@@ -42,6 +44,9 @@ class AuthServiceTest {
 
 	@Autowired
 	private AuthService authService;
+
+	@Autowired
+	private FamilyService familyService;
 
 	@Autowired
 	private UserRepository userRepository;
@@ -121,6 +126,16 @@ class AuthServiceTest {
 		assertThat(response.user().id()).isEqualTo(mom.id());
 		assertThat(response.user().name()).isEqualTo("김엄마");
 		assertThat(response.user().hasFamily()).isFalse();
+	}
+
+	@Test
+	void loginReturnsHasFamilyForUserInFamily() {
+		SignupResponse mom = signupMom();
+		familyService.create(mom.id(), new FamilyCreateRequest("김씨네"));
+
+		LoginResponse response = authService.login(new LoginRequest("mom@example.com", "password123"));
+
+		assertThat(response.user().hasFamily()).isTrue();
 	}
 
 	@Test
