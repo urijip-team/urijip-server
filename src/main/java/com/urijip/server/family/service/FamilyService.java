@@ -7,6 +7,8 @@ import com.urijip.server.family.entity.FamilyMember;
 import com.urijip.server.family.entity.FamilyRole;
 import com.urijip.server.family.repository.FamilyMemberRepository;
 import com.urijip.server.family.repository.FamilyRepository;
+import com.urijip.server.global.exception.BusinessException;
+import com.urijip.server.global.exception.ErrorCode;
 import com.urijip.server.member.entity.User;
 import com.urijip.server.member.service.UserService;
 import lombok.RequiredArgsConstructor;
@@ -24,6 +26,9 @@ public class FamilyService {
 
 	@Transactional
 	public FamilyResponse create(Long userId, FamilyCreateRequest request) {
+		if (familyMemberRepository.existsByUserId(userId)) {
+			throw new BusinessException(ErrorCode.ALREADY_FAMILY_MEMBER);
+		}
 		User owner = userService.getUser(userId);
 
 		Family family = familyRepository.save(Family.builder()
