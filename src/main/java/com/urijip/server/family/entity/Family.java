@@ -14,6 +14,7 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import lombok.AccessLevel;
+import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.JdbcTypeCode;
@@ -43,5 +44,13 @@ public class Family extends BaseTimeEntity {
 	@Enumerated(EnumType.STRING)
 	@Column(nullable = false)
 	private FamilyStatus status;
+
+	@Builder
+	private Family(String name, String inviteCode, User owner) {
+		this.name = name;
+		this.inviteCode = inviteCode;
+		this.owner = owner;
+		this.status = FamilyStatus.ACTIVE;
+	}
 
 }
