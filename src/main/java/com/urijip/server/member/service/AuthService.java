@@ -16,6 +16,7 @@ import com.urijip.server.member.dto.response.LoginResponse;
 import com.urijip.server.member.dto.response.ReissueResponse;
 import com.urijip.server.member.dto.response.SignupResponse;
 import com.urijip.server.member.entity.RefreshToken;
+import com.urijip.server.member.entity.Role;
 import com.urijip.server.member.entity.User;
 import com.urijip.server.member.entity.UserStatus;
 import com.urijip.server.member.repository.RefreshTokenRepository;
@@ -65,6 +66,9 @@ public class AuthService {
 	@Transactional
 	public AdminLoginResponse adminLogin(LoginRequest request) {
 		User admin = findByCredentials(request);
+		if (admin.getRole() != Role.ADMIN) {
+			throw new BusinessException(ErrorCode.LOGIN_FAILED);
+		}
 
 		String accessToken = jwtProvider.createAccessToken(admin.getId(), admin.getRole().name());
 		String refreshToken = issueRefreshToken(admin);
