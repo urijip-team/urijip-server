@@ -427,6 +427,17 @@ class AuthServiceTest {
 		assertThat(refreshTokenRepository.count()).isZero();
 	}
 
+	@Test
+	void adminLoginRejectsWrongPassword() {
+		signupAdmin();
+
+		assertThatThrownBy(() -> authService.adminLogin(new LoginRequest("mom@example.com", "wrong-password")))
+				.isInstanceOf(BusinessException.class)
+				.extracting("errorCode")
+				.isEqualTo(ErrorCode.LOGIN_FAILED);
+		assertThat(refreshTokenRepository.count()).isZero();
+	}
+
 	private Long signupAdmin() {
 		User user = userRepository.findById(signupMom().id()).orElseThrow();
 		ReflectionTestUtils.setField(user, "role", Role.ADMIN);
