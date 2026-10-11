@@ -160,6 +160,19 @@ class FamilyControllerTest {
 		then(familyService).should(never()).join(any(), any());
 	}
 
+	@Test
+	void joinWithUnknownInviteCodeReturnsNotFound() {
+		given(familyService.join(any(), any())).willThrow(new BusinessException(ErrorCode.INVITE_CODE_NOT_FOUND));
+
+		MvcTestResult result = join(2L, """
+				{"inviteCode": "A3K9P2"}
+				""");
+
+		assertThat(result).hasStatus(HttpStatus.NOT_FOUND);
+		assertThat(result).bodyJson().extractingPath("$.success").isEqualTo(false);
+		assertThat(result).bodyJson().extractingPath("$.error.code").isEqualTo("INVITE_CODE_NOT_FOUND");
+	}
+
 	private MvcTestResult create(Long userId, String body) {
 		return mvc.post().uri("/api/families")
 				.header("Authorization", "Bearer " + jwtProvider.createAccessToken(userId, "USER"))
