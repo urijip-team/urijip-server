@@ -1,6 +1,7 @@
 package com.urijip.server.family.repository;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.urijip.server.TestcontainersConfiguration;
 import com.urijip.server.family.entity.Family;
@@ -14,6 +15,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
 import org.springframework.context.annotation.Import;
+import org.springframework.dao.DataIntegrityViolationException;
 
 @DataJpaTest
 @Import({TestcontainersConfiguration.class, JpaAuditingConfig.class})
@@ -76,6 +78,14 @@ class FamilyMemberRepositoryTest {
 		familyMemberRepository.saveAndFlush(member(dad, FamilyRole.MEMBER));
 
 		assertThat(familyMemberRepository.count()).isEqualTo(2);
+	}
+
+	@Test
+	void sameUserTwiceInSameFamilyIsRejectedByUniqueConstraint() {
+		familyMemberRepository.saveAndFlush(member(mom, FamilyRole.OWNER));
+
+		assertThatThrownBy(() -> familyMemberRepository.saveAndFlush(member(mom, FamilyRole.MEMBER)))
+				.isInstanceOf(DataIntegrityViolationException.class);
 	}
 
 	private FamilyMember member(User user, FamilyRole role) {
