@@ -40,4 +40,6 @@ public class FamilyMember {
 	@Column(nullable = false)
 	private FamilyRole role;
 
+	private String nickname;
+
 }
