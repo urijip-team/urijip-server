@@ -394,6 +394,17 @@ class AuthServiceTest {
 		assertThat(claims.role()).isEqualTo("ADMIN");
 	}
 
+	@Test
+	void adminLoginReturnsAdminInfo() {
+		Long adminId = signupAdmin();
+
+		AdminLoginResponse response = authService.adminLogin(new LoginRequest("mom@example.com", "password123"));
+
+		assertThat(response.admin().id()).isEqualTo(adminId);
+		assertThat(response.admin().name()).isEqualTo("김엄마");
+		assertThat(response.admin().adminLevel()).isEqualTo(AdminLevel.SUPER);
+	}
+
 	private Long signupAdmin() {
 		User user = userRepository.findById(signupMom().id()).orElseThrow();
 		ReflectionTestUtils.setField(user, "role", Role.ADMIN);
