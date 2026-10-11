@@ -6,6 +6,7 @@ import static org.mockito.BDDMockito.willReturn;
 
 import com.urijip.server.TestcontainersConfiguration;
 import com.urijip.server.family.dto.request.FamilyCreateRequest;
+import com.urijip.server.family.dto.request.FamilyJoinRequest;
 import com.urijip.server.family.dto.response.FamilyResponse;
 import com.urijip.server.family.entity.Family;
 import com.urijip.server.family.entity.FamilyRole;
@@ -122,6 +123,18 @@ class FamilyServiceTest {
 	@Test
 	void hasFamilyIsFalseForUserWithoutFamily() {
 		assertThat(familyService.hasFamily(mom.getId())).isFalse();
+	}
+
+	@Test
+	void joinReturnsJoinedFamily() {
+		FamilyResponse created = familyService.create(mom.getId(), new FamilyCreateRequest("김씨네"));
+		User dad = saveUser("dad@example.com", "김아빠");
+
+		FamilyResponse response = familyService.join(dad.getId(), new FamilyJoinRequest(created.inviteCode()));
+
+		assertThat(response.id()).isEqualTo(created.id());
+		assertThat(response.name()).isEqualTo("김씨네");
+		assertThat(response.inviteCode()).isEqualTo(created.inviteCode());
 	}
 
 	private User saveUser(String email, String name) {
