@@ -154,6 +154,16 @@ class FamilyServiceTest {
 		assertThat(familyMemberRepository.count()).isEqualTo(2);
 	}
 
+	@Test
+	void joinedUserHasFamily() {
+		FamilyResponse created = familyService.create(mom.getId(), new FamilyCreateRequest("김씨네"));
+		User dad = saveUser("dad@example.com", "김아빠");
+
+		familyService.join(dad.getId(), new FamilyJoinRequest(created.inviteCode()));
+
+		assertThat(familyService.hasFamily(dad.getId())).isTrue();
+	}
+
 	private User saveUser(String email, String name) {
 		return userRepository.saveAndFlush(User.builder()
 				.email(email)
