@@ -103,6 +103,15 @@ class FamilyControllerTest {
 		then(familyService).should(never()).create(any(), any());
 	}
 
+	@Test
+	void createWithNameLongerThanTwentyCharactersReturnsBadRequest() {
+		MvcTestResult result = create(1L, "{\"name\": \"" + "가".repeat(21) + "\"}");
+
+		assertThat(result).hasStatus(HttpStatus.BAD_REQUEST);
+		assertThat(result).bodyJson().extractingPath("$.error.message").isEqualTo("name: 20자 이하여야 합니다");
+		then(familyService).should(never()).create(any(), any());
+	}
+
 	private MvcTestResult create(Long userId, String body) {
 		return mvc.post().uri("/api/families")
 				.header("Authorization", "Bearer " + jwtProvider.createAccessToken(userId, "USER"))
