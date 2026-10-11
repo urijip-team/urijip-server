@@ -137,6 +137,15 @@ class FamilyControllerTest {
 		assertThat(result).bodyJson().extractingPath("$.error").isNull();
 	}
 
+	@Test
+	void joinPassesUserIdOfAccessToken() {
+		join(7L, """
+				{"inviteCode": "A3K9P2"}
+				""");
+
+		then(familyService).should().join(7L, new FamilyJoinRequest("A3K9P2"));
+	}
+
 	private MvcTestResult create(Long userId, String body) {
 		return mvc.post().uri("/api/families")
 				.header("Authorization", "Bearer " + jwtProvider.createAccessToken(userId, "USER"))
