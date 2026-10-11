@@ -6,6 +6,7 @@ import static org.mockito.BDDMockito.willReturn;
 
 import com.urijip.server.TestcontainersConfiguration;
 import com.urijip.server.family.dto.request.FamilyCreateRequest;
+import com.urijip.server.family.dto.request.FamilyJoinRequest;
 import com.urijip.server.family.dto.response.FamilyResponse;
 import com.urijip.server.family.entity.Family;
 import com.urijip.server.family.entity.FamilyRole;
@@ -22,6 +23,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
+import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.transaction.annotation.Transactional;
 
 @SpringBootTest
@@ -122,6 +124,118 @@ class FamilyServiceTest {
 	@Test
 	void hasFamilyIsFalseForUserWithoutFamily() {
 		assertThat(familyService.hasFamily(mom.getId())).isFalse();
+	}
+
+	@Test
+	void joinReturnsJoinedFamily() {
+		FamilyResponse created = familyService.create(mom.getId(), new FamilyCreateRequest("김씨네"));
+		User dad = saveUser("dad@example.com", "김아빠");
+
+		FamilyResponse response = familyService.join(dad.getId(), new FamilyJoinRequest(created.inviteCode()));
+
+		assertThat(response.id()).isEqualTo(created.id());
+		assertThat(response.name()).isEqualTo("김씨네");
+		assertThat(response.inviteCode()).isEqualTo(created.inviteCode());
+	}
+
+	@Test
+	void joinRegistersUserAsMember() {
+		FamilyResponse created = familyService.create(mom.getId(), new FamilyCreateRequest("김씨네"));
+		User dad = saveUser("dad@example.com", "김아빠");
+
+		familyService.join(dad.getId(), new FamilyJoinRequest(created.inviteCode()));
+
+		assertThat(familyMemberRepository.findAll())
+				.filteredOn(member -> member.getUser().getId().equals(dad.getId()))
+				.singleElement()
+				.satisfies(member -> {
+					assertThat(member.getFamily().getId()).isEqualTo(created.id());
+					assertThat(member.getRole()).isEqualTo(FamilyRole.MEMBER);
+				});
+		assertThat(familyMemberRepository.count()).isEqualTo(2);
+	}
+
+	@Test
+	void joinedUserHasFamily() {
+		FamilyResponse created = familyService.create(mom.getId(), new FamilyCreateRequest("김씨네"));
+		User dad = saveUser("dad@example.com", "김아빠");
+
+		familyService.join(dad.getId(), new FamilyJoinRequest(created.inviteCode()));
+
+		assertThat(familyService.hasFamily(dad.getId())).isTrue();
+	}
+
+	@Test
+	void joinAcceptsLowercaseCodeWithSurroundingSpaces() {
+		FamilyResponse created = familyService.create(mom.getId(), new FamilyCreateRequest("김씨네"));
+		User dad = saveUser("dad@example.com", "김아빠");
+
+		String typed = " " + created.inviteCode().toLowerCase() + " ";
+
+		FamilyResponse response = familyService.join(dad.getId(), new FamilyJoinRequest(typed));
+
+		assertThat(response.id()).isEqualTo(created.id());
+	}
+
+	@Test
+	void joinRejectsUnknownInviteCode() {
+		FamilyResponse created = familyService.create(mom.getId(), new FamilyCreateRequest("김씨네"));
+		User dad = saveUser("dad@example.com", "김아빠");
+
+		assertThatThrownBy(() -> familyService.join(dad.getId(), new FamilyJoinRequest("000000")))
+				.isInstanceOf(BusinessException.class)
+				.extracting("errorCode")
+				.isEqualTo(ErrorCode.INVITE_CODE_NOT_FOUND);
+		assertThat(familyService.hasFamily(dad.getId())).isFalse();
+	}
+
+	@Test
+	void joinRejectsInviteCodeOfSuspendedFamily() {
+		FamilyResponse created = familyService.create(mom.getId(), new FamilyCreateRequest("김씨네"));
+		User dad = saveUser("dad@example.com", "김아빠");
+
+		Family family = familyRepository.findById(created.id()).orElseThrow();
+		ReflectionTestUtils.setField(family, "status", FamilyStatus.SUSPENDED);
+		familyRepository.flush();
+
+		assertThatThrownBy(() -> familyService.join(dad.getId(), new FamilyJoinRequest(created.inviteCode())))
+				.isInstanceOf(BusinessException.class)
+				.extracting("errorCode")
+				.isEqualTo(ErrorCode.INVITE_CODE_NOT_FOUND);
+	}
+
+	@Test
+	void joinRejectsOwnerJoiningOwnFamilyAgain() {
+		FamilyResponse created = familyService.create(mom.getId(), new FamilyCreateRequest("김씨네"));
+
+		assertThatThrownBy(() -> familyService.join(mom.getId(), new FamilyJoinRequest(created.inviteCode())))
+				.isInstanceOf(BusinessException.class)
+				.extracting("errorCode")
+				.isEqualTo(ErrorCode.ALREADY_FAMILY_MEMBER);
+		assertThat(familyMemberRepository.count()).isEqualTo(1);
+	}
+
+	@Test
+	void joinRejectsUserWhoAlreadyHasAnotherFamily() {
+		FamilyResponse created = familyService.create(mom.getId(), new FamilyCreateRequest("김씨네"));
+		User dad = saveUser("dad@example.com", "김아빠");
+
+		familyService.create(dad.getId(), new FamilyCreateRequest("아빠네"));
+
+		assertThatThrownBy(() -> familyService.join(dad.getId(), new FamilyJoinRequest(created.inviteCode())))
+				.isInstanceOf(BusinessException.class)
+				.extracting("errorCode")
+				.isEqualTo(ErrorCode.ALREADY_FAMILY_MEMBER);
+	}
+
+	@Test
+	void joinRejectsUnknownUser() {
+		FamilyResponse created = familyService.create(mom.getId(), new FamilyCreateRequest("김씨네"));
+
+		assertThatThrownBy(() -> familyService.join(999_999L, new FamilyJoinRequest(created.inviteCode())))
+				.isInstanceOf(BusinessException.class)
+				.extracting("errorCode")
+				.isEqualTo(ErrorCode.USER_NOT_FOUND);
 	}
 
 	private User saveUser(String email, String name) {

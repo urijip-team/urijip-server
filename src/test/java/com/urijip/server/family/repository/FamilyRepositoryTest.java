@@ -81,6 +81,23 @@ class FamilyRepositoryTest {
 		assertThat(columnType).isEqualTo("char(6)");
 	}
 
+	@Test
+	void findByInviteCodeReturnsSavedFamily() {
+		Family saved = familyRepository.saveAndFlush(family("A3K9P2"));
+
+		assertThat(familyRepository.findByInviteCode("A3K9P2"))
+				.get()
+				.extracting(Family::getId)
+				.isEqualTo(saved.getId());
+	}
+
+	@Test
+	void findByInviteCodeReturnsEmptyForUnknownCode() {
+		familyRepository.saveAndFlush(family("A3K9P2"));
+
+		assertThat(familyRepository.findByInviteCode("ZZZZZZ")).isEmpty();
+	}
+
 	private Family family(String inviteCode) {
 		return Family.builder()
 				.name("김씨네")

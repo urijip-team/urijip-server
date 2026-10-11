@@ -1,10 +1,14 @@
 package com.urijip.server.family.service;
 
+import java.util.Locale;
+
 import com.urijip.server.family.dto.request.FamilyCreateRequest;
+import com.urijip.server.family.dto.request.FamilyJoinRequest;
 import com.urijip.server.family.dto.response.FamilyResponse;
 import com.urijip.server.family.entity.Family;
 import com.urijip.server.family.entity.FamilyMember;
 import com.urijip.server.family.entity.FamilyRole;
+import com.urijip.server.family.entity.FamilyStatus;
 import com.urijip.server.family.repository.FamilyMemberRepository;
 import com.urijip.server.family.repository.FamilyRepository;
 import com.urijip.server.global.exception.BusinessException;
@@ -26,9 +30,7 @@ public class FamilyService {
 
 	@Transactional
 	public FamilyResponse create(Long userId, FamilyCreateRequest request) {
-		if (familyMemberRepository.existsByUserId(userId)) {
-			throw new BusinessException(ErrorCode.ALREADY_FAMILY_MEMBER);
-		}
+		validateHasNoFamily(userId);
 		User owner = userService.getUser(userId);
 
 		Family family = familyRepository.save(Family.builder()
@@ -45,9 +47,36 @@ public class FamilyService {
 		return FamilyResponse.from(family);
 	}
 
+	@Transactional
+	public FamilyResponse join(Long userId, FamilyJoinRequest request) {
+		validateHasNoFamily(userId);
+		Family family = familyRepository.findByInviteCode(normalize(request.inviteCode()))
+				.filter(found -> found.getStatus() == FamilyStatus.ACTIVE)
+				.orElseThrow(() -> new BusinessException(ErrorCode.INVITE_CODE_NOT_FOUND));
+		User user = userService.getUser(userId);
+
+		familyMemberRepository.save(FamilyMember.builder()
+				.family(family)
+				.user(user)
+				.role(FamilyRole.MEMBER)
+				.build());
+
+		return FamilyResponse.from(family);
+	}
+
 	@Transactional(readOnly = true)
 	public boolean hasFamily(Long userId) {
 		return familyMemberRepository.existsByUserId(userId);
+	}
+
+	private String normalize(String inviteCode) {
+		return inviteCode.trim().toUpperCase(Locale.ROOT);
+	}
+
+	private void validateHasNoFamily(Long userId) {
+		if (familyMemberRepository.existsByUserId(userId)) {
+			throw new BusinessException(ErrorCode.ALREADY_FAMILY_MEMBER);
+		}
 	}
 
 	private String newInviteCode() {
