@@ -10,6 +10,8 @@ import jakarta.persistence.Table;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 @Entity
 @Table(name = "families")
@@ -23,5 +25,9 @@ public class Family extends BaseTimeEntity {
 
 	@Column(nullable = false)
 	private String name;
+
+	@JdbcTypeCode(SqlTypes.CHAR)
+	@Column(nullable = false, unique = true, length = 6, columnDefinition = "char(6)")
+	private String inviteCode;
 
 }
