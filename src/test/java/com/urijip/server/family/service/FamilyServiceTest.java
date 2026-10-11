@@ -5,6 +5,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.urijip.server.TestcontainersConfiguration;
 import com.urijip.server.family.dto.request.FamilyCreateRequest;
 import com.urijip.server.family.dto.response.FamilyResponse;
+import com.urijip.server.family.entity.Family;
+import com.urijip.server.family.entity.FamilyStatus;
+import com.urijip.server.family.repository.FamilyRepository;
 import com.urijip.server.member.entity.User;
 import com.urijip.server.member.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -23,6 +26,9 @@ class FamilyServiceTest {
 	private FamilyService familyService;
 
 	@Autowired
+	private FamilyRepository familyRepository;
+
+	@Autowired
 	private UserRepository userRepository;
 
 	private User mom;
@@ -39,6 +45,16 @@ class FamilyServiceTest {
 		assertThat(response.id()).isNotNull();
 		assertThat(response.name()).isEqualTo("김씨네");
 		assertThat(response.inviteCode()).matches("[A-HJ-NP-Z2-9]{6}");
+	}
+
+	@Test
+	void createSavesActiveFamilyOwnedByCreator() {
+		FamilyResponse response = familyService.create(mom.getId(), new FamilyCreateRequest("김씨네"));
+
+		Family saved = familyRepository.findById(response.id()).orElseThrow();
+		assertThat(saved.getOwner().getId()).isEqualTo(mom.getId());
+		assertThat(saved.getStatus()).isEqualTo(FamilyStatus.ACTIVE);
+		assertThat(saved.getInviteCode()).isEqualTo(response.inviteCode());
 	}
 
 	private User saveUser(String email, String name) {
