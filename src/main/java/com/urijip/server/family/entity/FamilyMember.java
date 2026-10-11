@@ -17,6 +17,7 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 import lombok.AccessLevel;
+import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import org.springframework.data.annotation.CreatedDate;
@@ -51,5 +52,12 @@ public class FamilyMember {
 	@CreatedDate
 	@Column(nullable = false, updatable = false)
 	private LocalDateTime joinedAt;
+
+	@Builder
+	private FamilyMember(Family family, User user, FamilyRole role) {
+		this.family = family;
+		this.user = user;
+		this.role = role;
+	}
 
 }
