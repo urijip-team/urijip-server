@@ -112,6 +112,13 @@ class FamilyControllerTest {
 		then(familyService).should(never()).create(any(), any());
 	}
 
+	@Test
+	void createWithTwentyCharacterNameIsAccepted() {
+		MvcTestResult result = create(1L, "{\"name\": \"" + "가".repeat(20) + "\"}");
+
+		assertThat(result).hasStatus(HttpStatus.CREATED);
+	}
+
 	private MvcTestResult create(Long userId, String body) {
 		return mvc.post().uri("/api/families")
 				.header("Authorization", "Bearer " + jwtProvider.createAccessToken(userId, "USER"))
