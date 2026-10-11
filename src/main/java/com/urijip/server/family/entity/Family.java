@@ -1,0 +1,23 @@
+package com.urijip.server.family.entity;
+
+import com.urijip.server.global.entity.BaseTimeEntity;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
+import lombok.AccessLevel;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+
+@Entity
+@Table(name = "families")
+@Getter
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
+public class Family extends BaseTimeEntity {
+
+	@Id
+	@GeneratedValue(strategy = GenerationType.IDENTITY)
+	private Long id;
+
+}
