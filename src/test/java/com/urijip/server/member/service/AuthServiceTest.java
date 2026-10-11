@@ -21,10 +21,13 @@ import com.urijip.server.member.dto.request.LoginRequest;
 import com.urijip.server.member.dto.request.LogoutRequest;
 import com.urijip.server.member.dto.request.ReissueRequest;
 import com.urijip.server.member.dto.request.SignupRequest;
+import com.urijip.server.member.dto.response.AdminLoginResponse;
 import com.urijip.server.member.dto.response.LoginResponse;
 import com.urijip.server.member.dto.response.ReissueResponse;
 import com.urijip.server.member.dto.response.SignupResponse;
+import com.urijip.server.member.entity.AdminLevel;
 import com.urijip.server.member.entity.RefreshToken;
+import com.urijip.server.member.entity.Role;
 import com.urijip.server.member.entity.User;
 import com.urijip.server.member.entity.UserStatus;
 import com.urijip.server.member.repository.RefreshTokenRepository;
@@ -378,6 +381,25 @@ class AuthServiceTest {
 		authService.logout(jwtProvider.parseRefreshToken(token), new LogoutRequest("unknown-token"));
 
 		assertThat(refreshTokenRepository.count()).isEqualTo(1);
+	}
+
+	@Test
+	void adminLoginReturnsAccessTokenWithAdminRole() {
+		Long adminId = signupAdmin();
+
+		AdminLoginResponse response = authService.adminLogin(new LoginRequest("mom@example.com", "password123"));
+
+		AccessTokenClaims claims = jwtProvider.parseAccessToken(response.accessToken());
+		assertThat(claims.userId()).isEqualTo(adminId);
+		assertThat(claims.role()).isEqualTo("ADMIN");
+	}
+
+	private Long signupAdmin() {
+		User user = userRepository.findById(signupMom().id()).orElseThrow();
+		ReflectionTestUtils.setField(user, "role", Role.ADMIN);
+		ReflectionTestUtils.setField(user, "adminLevel", AdminLevel.SUPER);
+		userRepository.flush();
+		return user.getId();
 	}
 
 	private String loginMom() {
