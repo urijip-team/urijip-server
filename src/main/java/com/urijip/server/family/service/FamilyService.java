@@ -33,7 +33,7 @@ public class FamilyService {
 
 		Family family = familyRepository.save(Family.builder()
 				.name(request.name())
-				.inviteCode(inviteCodeGenerator.generate())
+				.inviteCode(newInviteCode())
 				.owner(owner)
 				.build());
 		familyMemberRepository.save(FamilyMember.builder()
@@ -43,6 +43,14 @@ public class FamilyService {
 				.build());
 
 		return FamilyResponse.from(family);
+	}
+
+	private String newInviteCode() {
+		String code = inviteCodeGenerator.generate();
+		while (familyRepository.existsByInviteCode(code)) {
+			code = inviteCodeGenerator.generate();
+		}
+		return code;
 	}
 
 }
