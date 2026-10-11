@@ -1,6 +1,7 @@
 package com.urijip.server.family.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.urijip.server.TestcontainersConfiguration;
 import com.urijip.server.family.dto.request.FamilyCreateRequest;
@@ -10,6 +11,8 @@ import com.urijip.server.family.entity.FamilyRole;
 import com.urijip.server.family.entity.FamilyStatus;
 import com.urijip.server.family.repository.FamilyMemberRepository;
 import com.urijip.server.family.repository.FamilyRepository;
+import com.urijip.server.global.exception.BusinessException;
+import com.urijip.server.global.exception.ErrorCode;
 import com.urijip.server.member.entity.User;
 import com.urijip.server.member.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -71,6 +74,17 @@ class FamilyServiceTest {
 			assertThat(member.getUser().getId()).isEqualTo(mom.getId());
 			assertThat(member.getRole()).isEqualTo(FamilyRole.OWNER);
 		});
+	}
+
+	@Test
+	void createRejectsUserWhoAlreadyHasFamily() {
+		familyService.create(mom.getId(), new FamilyCreateRequest("김씨네"));
+
+		assertThatThrownBy(() -> familyService.create(mom.getId(), new FamilyCreateRequest("두 번째 가족")))
+				.isInstanceOf(BusinessException.class)
+				.extracting("errorCode")
+				.isEqualTo(ErrorCode.ALREADY_FAMILY_MEMBER);
+		assertThat(familyRepository.count()).isEqualTo(1);
 	}
 
 	private User saveUser(String email, String name) {
