@@ -5,6 +5,8 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 
 import com.urijip.server.global.config.SecurityConfig;
+import com.urijip.server.global.exception.BusinessException;
+import com.urijip.server.global.exception.ErrorCode;
 import com.urijip.server.member.dto.request.LoginRequest;
 import com.urijip.server.member.dto.response.AdminLoginResponse;
 import com.urijip.server.member.entity.AdminLevel;
@@ -47,6 +49,19 @@ class AdminAuthControllerTest {
 		assertThat(result).bodyJson().extractingPath("$.data.admin.name").isEqualTo("관리자");
 		assertThat(result).bodyJson().extractingPath("$.data.admin.adminLevel").isEqualTo("SUPER");
 		assertThat(result).bodyJson().extractingPath("$.error").isNull();
+	}
+
+	@Test
+	void loginByNonAdminOrWithWrongCredentialsReturnsUnauthorized() {
+		given(authService.adminLogin(any())).willThrow(new BusinessException(ErrorCode.LOGIN_FAILED));
+
+		MvcTestResult result = login("""
+				{"email": "admin@example.com", "password": "password123"}
+				""");
+
+		assertThat(result).hasStatus(HttpStatus.UNAUTHORIZED);
+		assertThat(result).bodyJson().extractingPath("$.success").isEqualTo(false);
+		assertThat(result).bodyJson().extractingPath("$.error.code").isEqualTo("LOGIN_FAILED");
 	}
 
 	private MvcTestResult login(String body) {
