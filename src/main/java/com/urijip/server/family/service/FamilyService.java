@@ -26,9 +26,7 @@ public class FamilyService {
 
 	@Transactional
 	public FamilyResponse create(Long userId, FamilyCreateRequest request) {
-		if (familyMemberRepository.existsByUserId(userId)) {
-			throw new BusinessException(ErrorCode.ALREADY_FAMILY_MEMBER);
-		}
+		validateHasNoFamily(userId);
 		User owner = userService.getUser(userId);
 
 		Family family = familyRepository.save(Family.builder()
@@ -48,6 +46,12 @@ public class FamilyService {
 	@Transactional(readOnly = true)
 	public boolean hasFamily(Long userId) {
 		return familyMemberRepository.existsByUserId(userId);
+	}
+
+	private void validateHasNoFamily(Long userId) {
+		if (familyMemberRepository.existsByUserId(userId)) {
+			throw new BusinessException(ErrorCode.ALREADY_FAMILY_MEMBER);
+		}
 	}
 
 	private String newInviteCode() {
