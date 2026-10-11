@@ -3,6 +3,8 @@ package com.urijip.server.member.controller;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.then;
+import static org.mockito.Mockito.never;
 
 import com.urijip.server.global.config.SecurityConfig;
 import com.urijip.server.global.exception.BusinessException;
@@ -12,6 +14,8 @@ import com.urijip.server.member.dto.response.AdminLoginResponse;
 import com.urijip.server.member.entity.AdminLevel;
 import com.urijip.server.member.service.AuthService;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
@@ -75,6 +79,22 @@ class AdminAuthControllerTest {
 		assertThat(result).hasStatus(HttpStatus.FORBIDDEN);
 		assertThat(result).bodyJson().extractingPath("$.success").isEqualTo(false);
 		assertThat(result).bodyJson().extractingPath("$.error.code").isEqualTo("USER_SUSPENDED");
+	}
+
+	@ParameterizedTest
+	@CsvSource(delimiter = '|', textBlock = """
+			email    | {"email": "not-an-email", "password": "password123"}
+			email    | {"password": "password123"}
+			password | {"email": "admin@example.com", "password": " "}
+			password | {"email": "admin@example.com"}
+			""")
+	void loginWithInvalidInputReturnsBadRequest(String field, String body) {
+		MvcTestResult result = login(body);
+
+		assertThat(result).hasStatus(HttpStatus.BAD_REQUEST);
+		assertThat(result).bodyJson().extractingPath("$.error.code").isEqualTo("INVALID_INPUT");
+		assertThat(result).bodyJson().extractingPath("$.error.message").asString().contains(field + ": ");
+		then(authService).should(never()).adminLogin(any());
 	}
 
 	private MvcTestResult login(String body) {
