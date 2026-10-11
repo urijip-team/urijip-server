@@ -146,6 +146,20 @@ class FamilyControllerTest {
 		then(familyService).should().join(7L, new FamilyJoinRequest("A3K9P2"));
 	}
 
+	@Test
+	void joinWithoutAccessTokenReturnsUnauthorized() {
+		MvcTestResult result = mvc.post().uri("/api/families/join")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("""
+						{"inviteCode": "A3K9P2"}
+						""")
+				.exchange();
+
+		assertThat(result).hasStatus(HttpStatus.UNAUTHORIZED);
+		assertThat(result).bodyJson().extractingPath("$.error.code").isEqualTo("INVALID_TOKEN");
+		then(familyService).should(never()).join(any(), any());
+	}
+
 	private MvcTestResult create(Long userId, String body) {
 		return mvc.post().uri("/api/families")
 				.header("Authorization", "Bearer " + jwtProvider.createAccessToken(userId, "USER"))
