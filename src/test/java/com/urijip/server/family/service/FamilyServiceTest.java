@@ -176,6 +176,18 @@ class FamilyServiceTest {
 		assertThat(response.id()).isEqualTo(created.id());
 	}
 
+	@Test
+	void joinRejectsUnknownInviteCode() {
+		FamilyResponse created = familyService.create(mom.getId(), new FamilyCreateRequest("김씨네"));
+		User dad = saveUser("dad@example.com", "김아빠");
+
+		assertThatThrownBy(() -> familyService.join(dad.getId(), new FamilyJoinRequest("000000")))
+				.isInstanceOf(BusinessException.class)
+				.extracting("errorCode")
+				.isEqualTo(ErrorCode.INVITE_CODE_NOT_FOUND);
+		assertThat(familyService.hasFamily(dad.getId())).isFalse();
+	}
+
 	private User saveUser(String email, String name) {
 		return userRepository.saveAndFlush(User.builder()
 				.email(email)
