@@ -1,5 +1,7 @@
 package com.urijip.server.family.service;
 
+import java.util.Locale;
+
 import com.urijip.server.family.dto.request.FamilyCreateRequest;
 import com.urijip.server.family.dto.request.FamilyJoinRequest;
 import com.urijip.server.family.dto.response.FamilyResponse;
@@ -46,7 +48,7 @@ public class FamilyService {
 
 	@Transactional
 	public FamilyResponse join(Long userId, FamilyJoinRequest request) {
-		Family family = familyRepository.findByInviteCode(request.inviteCode())
+		Family family = familyRepository.findByInviteCode(normalize(request.inviteCode()))
 				.orElseThrow(() -> new BusinessException(ErrorCode.INVITE_CODE_NOT_FOUND));
 		User user = userService.getUser(userId);
 
@@ -62,6 +64,10 @@ public class FamilyService {
 	@Transactional(readOnly = true)
 	public boolean hasFamily(Long userId) {
 		return familyMemberRepository.existsByUserId(userId);
+	}
+
+	private String normalize(String inviteCode) {
+		return inviteCode.trim().toUpperCase(Locale.ROOT);
 	}
 
 	private void validateHasNoFamily(Long userId) {
