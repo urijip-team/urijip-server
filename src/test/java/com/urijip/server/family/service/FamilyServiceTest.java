@@ -2,6 +2,7 @@ package com.urijip.server.family.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.BDDMockito.willReturn;
 
 import com.urijip.server.TestcontainersConfiguration;
 import com.urijip.server.family.dto.request.FamilyCreateRequest;
@@ -20,6 +21,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
+import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.springframework.transaction.annotation.Transactional;
 
 @SpringBootTest
@@ -38,6 +40,9 @@ class FamilyServiceTest {
 
 	@Autowired
 	private UserRepository userRepository;
+
+	@MockitoSpyBean
+	private InviteCodeGenerator inviteCodeGenerator;
 
 	private User mom;
 
@@ -94,6 +99,17 @@ class FamilyServiceTest {
 				.extracting("errorCode")
 				.isEqualTo(ErrorCode.USER_NOT_FOUND);
 		assertThat(familyRepository.count()).isZero();
+	}
+
+	@Test
+	void createRetriesWhenInviteCodeIsAlreadyTaken() {
+		User dad = saveUser("dad@example.com", "김아빠");
+		willReturn("AAAAAA", "AAAAAA", "BBBBBB").given(inviteCodeGenerator).generate();
+		familyService.create(mom.getId(), new FamilyCreateRequest("김씨네"));
+
+		FamilyResponse response = familyService.create(dad.getId(), new FamilyCreateRequest("아빠네"));
+
+		assertThat(response.inviteCode()).isEqualTo("BBBBBB");
 	}
 
 	private User saveUser(String email, String name) {
