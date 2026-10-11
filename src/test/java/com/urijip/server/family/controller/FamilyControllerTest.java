@@ -173,6 +173,19 @@ class FamilyControllerTest {
 		assertThat(result).bodyJson().extractingPath("$.error.code").isEqualTo("INVITE_CODE_NOT_FOUND");
 	}
 
+	@Test
+	void joinByUserWhoAlreadyHasFamilyReturnsConflict() {
+		given(familyService.join(any(), any())).willThrow(new BusinessException(ErrorCode.ALREADY_FAMILY_MEMBER));
+
+		MvcTestResult result = join(2L, """
+				{"inviteCode": "A3K9P2"}
+				""");
+
+		assertThat(result).hasStatus(HttpStatus.CONFLICT);
+		assertThat(result).bodyJson().extractingPath("$.success").isEqualTo(false);
+		assertThat(result).bodyJson().extractingPath("$.error.code").isEqualTo("ALREADY_FAMILY_MEMBER");
+	}
+
 	private MvcTestResult create(Long userId, String body) {
 		return mvc.post().uri("/api/families")
 				.header("Authorization", "Bearer " + jwtProvider.createAccessToken(userId, "USER"))
