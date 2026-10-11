@@ -23,6 +23,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
+import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.transaction.annotation.Transactional;
 
 @SpringBootTest
@@ -186,6 +187,21 @@ class FamilyServiceTest {
 				.extracting("errorCode")
 				.isEqualTo(ErrorCode.INVITE_CODE_NOT_FOUND);
 		assertThat(familyService.hasFamily(dad.getId())).isFalse();
+	}
+
+	@Test
+	void joinRejectsInviteCodeOfSuspendedFamily() {
+		FamilyResponse created = familyService.create(mom.getId(), new FamilyCreateRequest("김씨네"));
+		User dad = saveUser("dad@example.com", "김아빠");
+
+		Family family = familyRepository.findById(created.id()).orElseThrow();
+		ReflectionTestUtils.setField(family, "status", FamilyStatus.SUSPENDED);
+		familyRepository.flush();
+
+		assertThatThrownBy(() -> familyService.join(dad.getId(), new FamilyJoinRequest(created.inviteCode())))
+				.isInstanceOf(BusinessException.class)
+				.extracting("errorCode")
+				.isEqualTo(ErrorCode.INVITE_CODE_NOT_FOUND);
 	}
 
 	private User saveUser(String email, String name) {
