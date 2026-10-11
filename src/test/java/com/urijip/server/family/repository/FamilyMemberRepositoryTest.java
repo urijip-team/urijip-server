@@ -60,6 +60,15 @@ class FamilyMemberRepositoryTest {
 		assertThat(saved.getNickname()).isNull();
 	}
 
+	@Test
+	void existsByUserIdFindsOnlyUsersInFamily() {
+		User dad = saveUser("dad@example.com", "김아빠");
+		familyMemberRepository.saveAndFlush(member(mom, FamilyRole.OWNER));
+
+		assertThat(familyMemberRepository.existsByUserId(mom.getId())).isTrue();
+		assertThat(familyMemberRepository.existsByUserId(dad.getId())).isFalse();
+	}
+
 	private FamilyMember member(User user, FamilyRole role) {
 		return FamilyMember.builder()
 				.family(family)
