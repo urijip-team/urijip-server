@@ -87,6 +87,15 @@ class FamilyServiceTest {
 		assertThat(familyRepository.count()).isEqualTo(1);
 	}
 
+	@Test
+	void createRejectsUnknownUser() {
+		assertThatThrownBy(() -> familyService.create(999_999L, new FamilyCreateRequest("김씨네")))
+				.isInstanceOf(BusinessException.class)
+				.extracting("errorCode")
+				.isEqualTo(ErrorCode.USER_NOT_FOUND);
+		assertThat(familyRepository.count()).isZero();
+	}
+
 	private User saveUser(String email, String name) {
 		return userRepository.saveAndFlush(User.builder()
 				.email(email)
