@@ -447,6 +447,17 @@ class AuthServiceTest {
 		assertThat(refreshTokenRepository.count()).isZero();
 	}
 
+	@Test
+	void adminLoginRejectsSuspendedAdmin() {
+		changeStatus(signupAdmin(), UserStatus.SUSPENDED);
+
+		assertThatThrownBy(() -> authService.adminLogin(new LoginRequest("mom@example.com", "password123")))
+				.isInstanceOf(BusinessException.class)
+				.extracting("errorCode")
+				.isEqualTo(ErrorCode.USER_SUSPENDED);
+		assertThat(refreshTokenRepository.count()).isZero();
+	}
+
 	private Long signupAdmin() {
 		User user = userRepository.findById(signupMom().id()).orElseThrow();
 		ReflectionTestUtils.setField(user, "role", Role.ADMIN);
