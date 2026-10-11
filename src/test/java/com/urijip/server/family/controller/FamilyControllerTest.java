@@ -1,8 +1,10 @@
 package com.urijip.server.family.controller;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
+import static org.mockito.Mockito.never;
 
 import com.urijip.server.family.dto.request.FamilyCreateRequest;
 import com.urijip.server.family.dto.response.FamilyResponse;
@@ -56,6 +58,20 @@ class FamilyControllerTest {
 				""");
 
 		then(familyService).should().create(7L, new FamilyCreateRequest("김씨네"));
+	}
+
+	@Test
+	void createWithoutAccessTokenReturnsUnauthorized() {
+		MvcTestResult result = mvc.post().uri("/api/families")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("""
+						{"name": "김씨네"}
+						""")
+				.exchange();
+
+		assertThat(result).hasStatus(HttpStatus.UNAUTHORIZED);
+		assertThat(result).bodyJson().extractingPath("$.error.code").isEqualTo("INVALID_TOKEN");
+		then(familyService).should(never()).create(any(), any());
 	}
 
 	private MvcTestResult create(Long userId, String body) {
