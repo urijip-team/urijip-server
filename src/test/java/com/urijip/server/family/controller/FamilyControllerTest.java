@@ -186,6 +186,17 @@ class FamilyControllerTest {
 		assertThat(result).bodyJson().extractingPath("$.error.code").isEqualTo("ALREADY_FAMILY_MEMBER");
 	}
 
+	@ParameterizedTest
+	@ValueSource(strings = {"{}", "{\"inviteCode\": \"\"}", "{\"inviteCode\": \" \"}"})
+	void joinWithoutInviteCodeReturnsBadRequest(String body) {
+		MvcTestResult result = join(2L, body);
+
+		assertThat(result).hasStatus(HttpStatus.BAD_REQUEST);
+		assertThat(result).bodyJson().extractingPath("$.error.code").isEqualTo("INVALID_INPUT");
+		assertThat(result).bodyJson().extractingPath("$.error.message").asString().contains("inviteCode: ");
+		then(familyService).should(never()).join(any(), any());
+	}
+
 	private MvcTestResult create(Long userId, String body) {
 		return mvc.post().uri("/api/families")
 				.header("Authorization", "Bearer " + jwtProvider.createAccessToken(userId, "USER"))
