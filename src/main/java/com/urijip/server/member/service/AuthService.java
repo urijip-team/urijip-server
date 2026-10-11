@@ -69,6 +69,7 @@ public class AuthService {
 		if (admin.getRole() != Role.ADMIN) {
 			throw new BusinessException(ErrorCode.LOGIN_FAILED);
 		}
+		validateStatus(admin, ErrorCode.LOGIN_FAILED);
 
 		String accessToken = jwtProvider.createAccessToken(admin.getId(), admin.getRole().name());
 		String refreshToken = issueRefreshToken(admin);
