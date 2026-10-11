@@ -14,6 +14,8 @@ import com.urijip.server.global.exception.BusinessException;
 import com.urijip.server.global.exception.ErrorCode;
 import com.urijip.server.global.security.JwtProvider;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
@@ -88,6 +90,17 @@ class FamilyControllerTest {
 		assertThat(result).hasStatus(HttpStatus.CONFLICT);
 		assertThat(result).bodyJson().extractingPath("$.success").isEqualTo(false);
 		assertThat(result).bodyJson().extractingPath("$.error.code").isEqualTo("ALREADY_FAMILY_MEMBER");
+	}
+
+	@ParameterizedTest
+	@ValueSource(strings = {"{}", "{\"name\": \"\"}", "{\"name\": \" \"}"})
+	void createWithoutNameReturnsBadRequest(String body) {
+		MvcTestResult result = create(1L, body);
+
+		assertThat(result).hasStatus(HttpStatus.BAD_REQUEST);
+		assertThat(result).bodyJson().extractingPath("$.error.code").isEqualTo("INVALID_INPUT");
+		assertThat(result).bodyJson().extractingPath("$.error.message").asString().contains("name: ");
+		then(familyService).should(never()).create(any(), any());
 	}
 
 	private MvcTestResult create(Long userId, String body) {
