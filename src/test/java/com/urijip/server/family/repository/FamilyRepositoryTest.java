@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.urijip.server.TestcontainersConfiguration;
 import com.urijip.server.family.entity.Family;
+import com.urijip.server.family.entity.FamilyStatus;
 import com.urijip.server.global.config.JpaAuditingConfig;
 import com.urijip.server.member.entity.User;
 import com.urijip.server.member.repository.UserRepository;
@@ -38,6 +39,14 @@ class FamilyRepositoryTest {
 		assertThat(saved.getName()).isEqualTo("김씨네");
 		assertThat(saved.getInviteCode()).isEqualTo("A3K9P2");
 		assertThat(saved.getOwner().getId()).isEqualTo(owner.getId());
+	}
+
+	@Test
+	void savedFamilyGetsActiveStatusAndCreatedAt() {
+		Family saved = familyRepository.saveAndFlush(family("A3K9P2"));
+
+		assertThat(saved.getStatus()).isEqualTo(FamilyStatus.ACTIVE);
+		assertThat(saved.getCreatedAt()).isNotNull();
 	}
 
 	private Family family(String inviteCode) {
