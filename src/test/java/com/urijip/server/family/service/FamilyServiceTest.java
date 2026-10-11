@@ -164,6 +164,18 @@ class FamilyServiceTest {
 		assertThat(familyService.hasFamily(dad.getId())).isTrue();
 	}
 
+	@Test
+	void joinAcceptsLowercaseCodeWithSurroundingSpaces() {
+		FamilyResponse created = familyService.create(mom.getId(), new FamilyCreateRequest("김씨네"));
+		User dad = saveUser("dad@example.com", "김아빠");
+
+		String typed = " " + created.inviteCode().toLowerCase() + " ";
+
+		FamilyResponse response = familyService.join(dad.getId(), new FamilyJoinRequest(typed));
+
+		assertThat(response.id()).isEqualTo(created.id());
+	}
+
 	private User saveUser(String email, String name) {
 		return userRepository.saveAndFlush(User.builder()
 				.email(email)
