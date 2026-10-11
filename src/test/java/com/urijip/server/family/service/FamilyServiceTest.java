@@ -112,6 +112,13 @@ class FamilyServiceTest {
 		assertThat(response.inviteCode()).isEqualTo("BBBBBB");
 	}
 
+	@Test
+	void hasFamilyIsTrueForUserInFamily() {
+		familyService.create(mom.getId(), new FamilyCreateRequest("김씨네"));
+
+		assertThat(familyService.hasFamily(mom.getId())).isTrue();
+	}
+
 	private User saveUser(String email, String name) {
 		return userRepository.saveAndFlush(User.builder()
 				.email(email)
