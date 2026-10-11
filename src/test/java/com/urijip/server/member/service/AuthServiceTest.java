@@ -405,6 +405,17 @@ class AuthServiceTest {
 		assertThat(response.admin().adminLevel()).isEqualTo(AdminLevel.SUPER);
 	}
 
+	@Test
+	void adminLoginSavesRefreshToken() {
+		signupAdmin();
+
+		AdminLoginResponse response = authService.adminLogin(new LoginRequest("mom@example.com", "password123"));
+
+		assertThat(refreshTokenRepository.findAll())
+				.extracting(RefreshToken::getToken)
+				.containsExactly(response.refreshToken());
+	}
+
 	private Long signupAdmin() {
 		User user = userRepository.findById(signupMom().id()).orElseThrow();
 		ReflectionTestUtils.setField(user, "role", Role.ADMIN);
