@@ -1,6 +1,7 @@
 package com.urijip.server.family.service;
 
 import com.urijip.server.family.dto.request.FamilyCreateRequest;
+import com.urijip.server.family.dto.request.FamilyJoinRequest;
 import com.urijip.server.family.dto.response.FamilyResponse;
 import com.urijip.server.family.entity.Family;
 import com.urijip.server.family.entity.FamilyMember;
@@ -38,6 +39,21 @@ public class FamilyService {
 				.family(family)
 				.user(owner)
 				.role(FamilyRole.OWNER)
+				.build());
+
+		return FamilyResponse.from(family);
+	}
+
+	@Transactional
+	public FamilyResponse join(Long userId, FamilyJoinRequest request) {
+		Family family = familyRepository.findByInviteCode(request.inviteCode())
+				.orElseThrow(() -> new BusinessException(ErrorCode.INVITE_CODE_NOT_FOUND));
+		User user = userService.getUser(userId);
+
+		familyMemberRepository.save(FamilyMember.builder()
+				.family(family)
+				.user(user)
+				.role(FamilyRole.MEMBER)
 				.build());
 
 		return FamilyResponse.from(family);
