@@ -52,6 +52,14 @@ class FamilyMemberRepositoryTest {
 		assertThat(saved.getRole()).isEqualTo(FamilyRole.OWNER);
 	}
 
+	@Test
+	void savedMemberGetsJoinedAtAndNoNickname() {
+		FamilyMember saved = familyMemberRepository.saveAndFlush(member(mom, FamilyRole.OWNER));
+
+		assertThat(saved.getJoinedAt()).isNotNull();
+		assertThat(saved.getNickname()).isNull();
+	}
+
 	private FamilyMember member(User user, FamilyRole role) {
 		return FamilyMember.builder()
 				.family(family)
