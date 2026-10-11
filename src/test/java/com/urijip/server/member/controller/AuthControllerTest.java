@@ -9,7 +9,9 @@ import static org.mockito.Mockito.never;
 import com.urijip.server.global.config.SecurityConfig;
 import com.urijip.server.global.exception.BusinessException;
 import com.urijip.server.global.exception.ErrorCode;
+import com.urijip.server.global.security.JwtProvider;
 import com.urijip.server.member.dto.request.LoginRequest;
+import com.urijip.server.member.dto.request.LogoutRequest;
 import com.urijip.server.member.dto.request.ReissueRequest;
 import com.urijip.server.member.dto.request.SignupRequest;
 import com.urijip.server.member.dto.response.LoginResponse;
@@ -35,6 +37,9 @@ class AuthControllerTest {
 
 	@Autowired
 	private MockMvcTester mvc;
+
+	@Autowired
+	private JwtProvider jwtProvider;
 
 	@MockitoBean
 	private AuthService authService;
@@ -239,6 +244,52 @@ class AuthControllerTest {
 		then(authService).should(never()).reissue(any());
 	}
 
+	@Test
+	void logoutReturnsOkWithoutData() {
+		MvcTestResult result = logout(1L, """
+				{"refreshToken": "refresh-token"}
+				""");
+
+		assertThat(result).hasStatusOk();
+		assertThat(result).bodyJson().extractingPath("$.success").isEqualTo(true);
+		assertThat(result).bodyJson().extractingPath("$.data").isNull();
+		assertThat(result).bodyJson().extractingPath("$.error").isNull();
+	}
+
+	@Test
+	void logoutPassesUserIdOfAccessToken() {
+		logout(7L, """
+				{"refreshToken": "refresh-token"}
+				""");
+
+		then(authService).should().logout(7L, new LogoutRequest("refresh-token"));
+	}
+
+	@Test
+	void logoutWithoutAccessTokenReturnsUnauthorized() {
+		MvcTestResult result = mvc.post().uri("/api/auth/logout")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("""
+						{"refreshToken": "refresh-token"}
+						""")
+				.exchange();
+
+		assertThat(result).hasStatus(HttpStatus.UNAUTHORIZED);
+		assertThat(result).bodyJson().extractingPath("$.error.code").isEqualTo("INVALID_TOKEN");
+		then(authService).should(never()).logout(any(), any());
+	}
+
+	@ParameterizedTest
+	@ValueSource(strings = {"{}", "{\"refreshToken\": \"\"}", "{\"refreshToken\": \" \"}"})
+	void logoutWithoutRefreshTokenReturnsBadRequest(String body) {
+		MvcTestResult result = logout(1L, body);
+
+		assertThat(result).hasStatus(HttpStatus.BAD_REQUEST);
+		assertThat(result).bodyJson().extractingPath("$.error.code").isEqualTo("INVALID_INPUT");
+		assertThat(result).bodyJson().extractingPath("$.error.message").asString().contains("refreshToken: ");
+		then(authService).should(never()).logout(any(), any());
+	}
+
 	private MvcTestResult signup(String body) {
 		return mvc.post().uri("/api/auth/signup")
 				.contentType(MediaType.APPLICATION_JSON)
@@ -255,6 +306,14 @@ class AuthControllerTest {
 
 	private MvcTestResult reissue(String body) {
 		return mvc.post().uri("/api/auth/reissue")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(body)
+				.exchange();
+	}
+
+	private MvcTestResult logout(Long userId, String body) {
+		return mvc.post().uri("/api/auth/logout")
+				.header("Authorization", "Bearer " + jwtProvider.createAccessToken(userId, "USER"))
 				.contentType(MediaType.APPLICATION_JSON)
 				.content(body)
 				.exchange();

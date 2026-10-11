@@ -7,6 +7,7 @@ import com.urijip.server.global.exception.ErrorCode;
 import com.urijip.server.global.security.JwtProperties;
 import com.urijip.server.global.security.JwtProvider;
 import com.urijip.server.member.dto.request.LoginRequest;
+import com.urijip.server.member.dto.request.LogoutRequest;
 import com.urijip.server.member.dto.request.ReissueRequest;
 import com.urijip.server.member.dto.request.SignupRequest;
 import com.urijip.server.member.dto.response.LoginResponse;
@@ -75,6 +76,11 @@ public class AuthService {
 		String refreshToken = issueRefreshToken(user);
 
 		return new ReissueResponse(accessToken, refreshToken);
+	}
+
+	@Transactional
+	public void logout(Long userId, LogoutRequest request) {
+		refreshTokenRepository.deleteByTokenAndUserId(request.refreshToken(), userId);
 	}
 
 	private String issueRefreshToken(User user) {
