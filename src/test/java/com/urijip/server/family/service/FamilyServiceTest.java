@@ -137,6 +137,23 @@ class FamilyServiceTest {
 		assertThat(response.inviteCode()).isEqualTo(created.inviteCode());
 	}
 
+	@Test
+	void joinRegistersUserAsMember() {
+		FamilyResponse created = familyService.create(mom.getId(), new FamilyCreateRequest("김씨네"));
+		User dad = saveUser("dad@example.com", "김아빠");
+
+		familyService.join(dad.getId(), new FamilyJoinRequest(created.inviteCode()));
+
+		assertThat(familyMemberRepository.findAll())
+				.filteredOn(member -> member.getUser().getId().equals(dad.getId()))
+				.singleElement()
+				.satisfies(member -> {
+					assertThat(member.getFamily().getId()).isEqualTo(created.id());
+					assertThat(member.getRole()).isEqualTo(FamilyRole.MEMBER);
+				});
+		assertThat(familyMemberRepository.count()).isEqualTo(2);
+	}
+
 	private User saveUser(String email, String name) {
 		return userRepository.saveAndFlush(User.builder()
 				.email(email)
