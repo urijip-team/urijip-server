@@ -49,6 +49,7 @@ public class FamilyService {
 
 	@Transactional
 	public FamilyResponse join(Long userId, FamilyJoinRequest request) {
+		validateHasNoFamily(userId);
 		Family family = familyRepository.findByInviteCode(normalize(request.inviteCode()))
 				.filter(found -> found.getStatus() == FamilyStatus.ACTIVE)
 				.orElseThrow(() -> new BusinessException(ErrorCode.INVITE_CODE_NOT_FOUND));
