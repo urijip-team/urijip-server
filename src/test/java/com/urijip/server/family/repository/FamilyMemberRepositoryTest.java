@@ -69,6 +69,15 @@ class FamilyMemberRepositoryTest {
 		assertThat(familyMemberRepository.existsByUserId(dad.getId())).isFalse();
 	}
 
+	@Test
+	void oneFamilyCanHaveSeveralMembers() {
+		User dad = saveUser("dad@example.com", "김아빠");
+		familyMemberRepository.saveAndFlush(member(mom, FamilyRole.OWNER));
+		familyMemberRepository.saveAndFlush(member(dad, FamilyRole.MEMBER));
+
+		assertThat(familyMemberRepository.count()).isEqualTo(2);
+	}
+
 	private FamilyMember member(User user, FamilyRole role) {
 		return FamilyMember.builder()
 				.family(family)
