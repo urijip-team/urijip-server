@@ -228,6 +228,16 @@ class FamilyServiceTest {
 				.isEqualTo(ErrorCode.ALREADY_FAMILY_MEMBER);
 	}
 
+	@Test
+	void joinRejectsUnknownUser() {
+		FamilyResponse created = familyService.create(mom.getId(), new FamilyCreateRequest("김씨네"));
+
+		assertThatThrownBy(() -> familyService.join(999_999L, new FamilyJoinRequest(created.inviteCode())))
+				.isInstanceOf(BusinessException.class)
+				.extracting("errorCode")
+				.isEqualTo(ErrorCode.USER_NOT_FOUND);
+	}
+
 	private User saveUser(String email, String name) {
 		return userRepository.saveAndFlush(User.builder()
 				.email(email)
