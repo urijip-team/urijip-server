@@ -49,6 +49,14 @@ class FamilyRepositoryTest {
 		assertThat(saved.getCreatedAt()).isNotNull();
 	}
 
+	@Test
+	void existsByInviteCodeFindsOnlySavedCode() {
+		familyRepository.saveAndFlush(family("A3K9P2"));
+
+		assertThat(familyRepository.existsByInviteCode("A3K9P2")).isTrue();
+		assertThat(familyRepository.existsByInviteCode("ZZZZZZ")).isFalse();
+	}
+
 	private Family family(String inviteCode) {
 		return Family.builder()
 				.name("김씨네")
