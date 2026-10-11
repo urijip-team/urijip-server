@@ -11,6 +11,7 @@ import com.urijip.server.member.dto.request.LoginRequest;
 import com.urijip.server.member.dto.request.LogoutRequest;
 import com.urijip.server.member.dto.request.ReissueRequest;
 import com.urijip.server.member.dto.request.SignupRequest;
+import com.urijip.server.member.dto.response.AdminLoginResponse;
 import com.urijip.server.member.dto.response.LoginResponse;
 import com.urijip.server.member.dto.response.ReissueResponse;
 import com.urijip.server.member.dto.response.SignupResponse;
@@ -59,6 +60,16 @@ public class AuthService {
 		String refreshToken = issueRefreshToken(user);
 
 		return LoginResponse.of(accessToken, refreshToken, user, familyService.hasFamily(user.getId()));
+	}
+
+	@Transactional
+	public AdminLoginResponse adminLogin(LoginRequest request) {
+		User admin = findByCredentials(request);
+
+		String accessToken = jwtProvider.createAccessToken(admin.getId(), admin.getRole().name());
+		String refreshToken = issueRefreshToken(admin);
+
+		return AdminLoginResponse.of(accessToken, refreshToken, admin);
 	}
 
 	@Transactional
