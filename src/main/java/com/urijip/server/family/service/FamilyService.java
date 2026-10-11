@@ -8,6 +8,7 @@ import com.urijip.server.family.dto.response.FamilyResponse;
 import com.urijip.server.family.entity.Family;
 import com.urijip.server.family.entity.FamilyMember;
 import com.urijip.server.family.entity.FamilyRole;
+import com.urijip.server.family.entity.FamilyStatus;
 import com.urijip.server.family.repository.FamilyMemberRepository;
 import com.urijip.server.family.repository.FamilyRepository;
 import com.urijip.server.global.exception.BusinessException;
@@ -49,6 +50,7 @@ public class FamilyService {
 	@Transactional
 	public FamilyResponse join(Long userId, FamilyJoinRequest request) {
 		Family family = familyRepository.findByInviteCode(normalize(request.inviteCode()))
+				.filter(found -> found.getStatus() == FamilyStatus.ACTIVE)
 				.orElseThrow(() -> new BusinessException(ErrorCode.INVITE_CODE_NOT_FOUND));
 		User user = userService.getUser(userId);
 
