@@ -215,6 +215,19 @@ class FamilyServiceTest {
 		assertThat(familyMemberRepository.count()).isEqualTo(1);
 	}
 
+	@Test
+	void joinRejectsUserWhoAlreadyHasAnotherFamily() {
+		FamilyResponse created = familyService.create(mom.getId(), new FamilyCreateRequest("김씨네"));
+		User dad = saveUser("dad@example.com", "김아빠");
+
+		familyService.create(dad.getId(), new FamilyCreateRequest("아빠네"));
+
+		assertThatThrownBy(() -> familyService.join(dad.getId(), new FamilyJoinRequest(created.inviteCode())))
+				.isInstanceOf(BusinessException.class)
+				.extracting("errorCode")
+				.isEqualTo(ErrorCode.ALREADY_FAMILY_MEMBER);
+	}
+
 	private User saveUser(String email, String name) {
 		return userRepository.saveAndFlush(User.builder()
 				.email(email)
