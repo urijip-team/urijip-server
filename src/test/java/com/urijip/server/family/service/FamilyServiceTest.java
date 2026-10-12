@@ -5,9 +5,12 @@ import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.BDDMockito.willReturn;
 
+import java.util.List;
+
 import com.urijip.server.TestcontainersConfiguration;
 import com.urijip.server.family.dto.request.FamilyCreateRequest;
 import com.urijip.server.family.dto.request.FamilyJoinRequest;
+import com.urijip.server.family.dto.response.FamilyMemberResponse;
 import com.urijip.server.family.dto.response.FamilyResponse;
 import com.urijip.server.family.entity.Family;
 import com.urijip.server.family.entity.FamilyRole;
@@ -310,6 +313,19 @@ class FamilyServiceTest {
 				.isInstanceOf(BusinessException.class)
 				.extracting("errorCode")
 				.isEqualTo(ErrorCode.FAMILY_NOT_MEMBER);
+	}
+
+	@Test
+	void getMembersReturnsOwnerThenJoinedMembers() {
+		FamilyResponse created = familyService.create(mom.getId(), new FamilyCreateRequest("김씨네"));
+		User dad = saveUser("dad@example.com", "김아빠");
+		familyService.join(dad.getId(), new FamilyJoinRequest(created.inviteCode()));
+
+		List<FamilyMemberResponse> members = familyService.getMembers(created.id(), mom.getId());
+
+		assertThat(members).containsExactly(
+				new FamilyMemberResponse(mom.getId(), "김엄마", null, null, FamilyRole.OWNER),
+				new FamilyMemberResponse(dad.getId(), "김아빠", null, null, FamilyRole.MEMBER));
 	}
 
 	private User saveUser(String email, String name) {
