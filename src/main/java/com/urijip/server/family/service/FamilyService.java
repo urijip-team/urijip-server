@@ -97,6 +97,10 @@ public class FamilyService {
 
 	@Transactional
 	public void removeMember(Long familyId, Long userId, Long targetUserId) {
+		if (userId.equals(targetUserId)) {
+			leave(familyId, userId);
+			return;
+		}
 		validateOwner(familyId, userId);
 		familyMemberRepository.delete(getMember(familyId, targetUserId));
 	}
@@ -135,6 +139,11 @@ public class FamilyService {
 	@Transactional(readOnly = true)
 	public boolean hasFamily(Long userId) {
 		return familyMemberRepository.existsByUserId(userId);
+	}
+
+	private void leave(Long familyId, Long userId) {
+		validateMember(familyId, userId);
+		familyMemberRepository.delete(getMember(familyId, userId));
 	}
 
 	private FamilyMember getMember(Long familyId, Long userId) {
