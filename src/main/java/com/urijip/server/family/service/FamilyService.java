@@ -65,6 +65,13 @@ public class FamilyService {
 	}
 
 	@Transactional(readOnly = true)
+	public FamilyResponse getMyFamily(Long userId) {
+		return familyMemberRepository.findFirstByUserId(userId)
+				.map(member -> FamilyResponse.from(member.getFamily()))
+				.orElseThrow(() -> new BusinessException(ErrorCode.FAMILY_NOT_FOUND));
+	}
+
+	@Transactional(readOnly = true)
 	public boolean hasFamily(Long userId) {
 		return familyMemberRepository.existsByUserId(userId);
 	}
