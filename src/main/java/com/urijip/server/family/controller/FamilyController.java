@@ -13,6 +13,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -63,6 +64,13 @@ public class FamilyController {
 	public ApiResponse<List<FamilyMemberResponse>> transferOwner(@AuthenticationPrincipal Long userId,
 			@PathVariable Long familyId, @Valid @RequestBody FamilyOwnerTransferRequest request) {
 		return ApiResponse.success(familyService.transferOwner(familyId, userId, request));
+	}
+
+	@DeleteMapping("/{familyId}/members/{userId}")
+	public ApiResponse<Void> removeMember(@AuthenticationPrincipal Long userId, @PathVariable Long familyId,
+			@PathVariable("userId") Long targetUserId) {
+		familyService.removeMember(familyId, userId, targetUserId);
+		return ApiResponse.success(null);
 	}
 
 }
