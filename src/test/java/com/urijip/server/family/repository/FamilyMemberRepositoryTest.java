@@ -119,6 +119,17 @@ class FamilyMemberRepositoryTest {
 		assertThat(familyMemberRepository.existsByFamilyIdAndUserId(family.getId() + 1, mom.getId())).isFalse();
 	}
 
+	@Test
+	void findByFamilyIdReturnsMembersInJoinOrder() {
+		User dad = saveUser("dad@example.com", "김아빠");
+		familyMemberRepository.saveAndFlush(member(mom, FamilyRole.OWNER));
+		familyMemberRepository.saveAndFlush(member(dad, FamilyRole.MEMBER));
+
+		assertThat(familyMemberRepository.findByFamilyIdOrderByJoinedAtAscIdAsc(family.getId()))
+				.extracting(found -> found.getUser().getName())
+				.containsExactly("김엄마", "김아빠");
+	}
+
 	private FamilyMember member(User user, FamilyRole role) {
 		return FamilyMember.builder()
 				.family(family)
