@@ -172,6 +172,14 @@ class FamilyMemberRepositoryTest {
 				.isEqualTo(FamilyRole.OWNER);
 	}
 
+	@Test
+	void findByFamilyIdAndUserIdReturnsEmptyForNonMember() {
+		User dad = saveUser("dad@example.com", "김아빠");
+		familyMemberRepository.saveAndFlush(member(mom, FamilyRole.OWNER));
+
+		assertThat(familyMemberRepository.findByFamilyIdAndUserId(family.getId(), dad.getId())).isEmpty();
+	}
+
 	private FamilyMember member(User user, FamilyRole role) {
 		return FamilyMember.builder()
 				.family(family)
