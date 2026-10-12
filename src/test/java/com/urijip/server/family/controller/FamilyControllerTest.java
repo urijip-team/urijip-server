@@ -460,6 +460,15 @@ class FamilyControllerTest {
 		assertThat(result).bodyJson().extractingPath("$.error.code").isEqualTo("FAMILY_MEMBER_NOT_FOUND");
 	}
 
+	@Test
+	void removeMemberWithoutAccessTokenReturnsUnauthorized() {
+		MvcTestResult result = mvc.delete().uri("/api/families/3/members/2").exchange();
+
+		assertThat(result).hasStatus(HttpStatus.UNAUTHORIZED);
+		assertThat(result).bodyJson().extractingPath("$.error.code").isEqualTo("INVALID_TOKEN");
+		then(familyService).should(never()).removeMember(any(), any(), any());
+	}
+
 	private MvcTestResult create(Long userId, String body) {
 		return mvc.post().uri("/api/families")
 				.header("Authorization", "Bearer " + jwtProvider.createAccessToken(userId, "USER"))
