@@ -497,6 +497,20 @@ class FamilyServiceTest {
 		assertThat(family.getOwner().getId()).isEqualTo(dad.getId());
 	}
 
+	@Test
+	void transferOwnerMovesOwnerPermission() {
+		FamilyResponse created = familyService.create(mom.getId(), new FamilyCreateRequest("김씨네"));
+		User dad = saveUser("dad@example.com", "김아빠");
+		familyService.join(dad.getId(), new FamilyJoinRequest(created.inviteCode()));
+		familyService.transferOwner(created.id(), mom.getId(), new FamilyOwnerTransferRequest(dad.getId()));
+
+		assertThatThrownBy(() -> familyService.reissueInviteCode(created.id(), mom.getId()))
+				.isInstanceOf(BusinessException.class)
+				.extracting("errorCode")
+				.isEqualTo(ErrorCode.NOT_FAMILY_OWNER);
+		assertThatCode(() -> familyService.reissueInviteCode(created.id(), dad.getId())).doesNotThrowAnyException();
+	}
+
 	private User saveUser(String email, String name) {
 		return userRepository.saveAndFlush(User.builder()
 				.email(email)
