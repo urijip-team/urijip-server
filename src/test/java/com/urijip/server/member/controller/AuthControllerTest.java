@@ -114,6 +114,18 @@ class AuthControllerTest {
 	}
 
 	@Test
+	void signupWithTooLongNameExplainsMaximumLength() {
+		MvcTestResult result = signup("""
+				{"email": "mom@example.com", "password": "password123", "name": "%s"}
+				""".formatted("가".repeat(51)));
+
+		assertThat(result).hasStatus(HttpStatus.BAD_REQUEST);
+		assertThat(result).bodyJson().extractingPath("$.error.message")
+				.isEqualTo("name: 50자 이하여야 합니다");
+		then(authService).should(never()).signup(any());
+	}
+
+	@Test
 	void loginReturnsTokensAndUser() {
 		given(authService.login(new LoginRequest("mom@example.com", "password123")))
 				.willReturn(new LoginResponse("access-token", "refresh-token",
