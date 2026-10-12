@@ -732,6 +732,16 @@ class FamilyServiceTest {
 				.isEqualTo(ErrorCode.INVITE_CODE_NOT_FOUND);
 	}
 
+	@Test
+	void userWhoDeletedFamilyCanCreateNewFamily() {
+		FamilyResponse created = familyService.create(mom.getId(), new FamilyCreateRequest("김씨네"));
+		familyService.removeMember(created.id(), mom.getId(), mom.getId());
+
+		FamilyResponse second = familyService.create(mom.getId(), new FamilyCreateRequest("새 가족"));
+
+		assertThat(familyService.getMyFamily(mom.getId())).isEqualTo(second);
+	}
+
 	private User saveUser(String email, String name) {
 		return userRepository.saveAndFlush(User.builder()
 				.email(email)
