@@ -720,6 +720,18 @@ class FamilyServiceTest {
 		assertThat(familyService.hasFamily(mom.getId())).isFalse();
 	}
 
+	@Test
+	void inviteCodeOfDeletedFamilyCannotBeUsed() {
+		FamilyResponse created = familyService.create(mom.getId(), new FamilyCreateRequest("김씨네"));
+		User dad = saveUser("dad@example.com", "김아빠");
+		familyService.removeMember(created.id(), mom.getId(), mom.getId());
+
+		assertThatThrownBy(() -> familyService.join(dad.getId(), new FamilyJoinRequest(created.inviteCode())))
+				.isInstanceOf(BusinessException.class)
+				.extracting("errorCode")
+				.isEqualTo(ErrorCode.INVITE_CODE_NOT_FOUND);
+	}
+
 	private User saveUser(String email, String name) {
 		return userRepository.saveAndFlush(User.builder()
 				.email(email)
