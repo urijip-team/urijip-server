@@ -60,4 +60,8 @@ public class FamilyMember {
 		this.role = role;
 	}
 
+	public void changeRole(FamilyRole role) {
+		this.role = role;
+	}
+
 }
