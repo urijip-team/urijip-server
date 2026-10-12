@@ -1,8 +1,10 @@
 package com.urijip.server.member.controller;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.then;
 import static org.mockito.BDDMockito.willThrow;
+import static org.mockito.Mockito.never;
 
 import com.urijip.server.global.config.SecurityConfig;
 import com.urijip.server.global.exception.BusinessException;
@@ -57,6 +59,15 @@ class UserControllerTest {
 		assertThat(result).hasStatus(HttpStatus.CONFLICT);
 		assertThat(result).bodyJson().extractingPath("$.success").isEqualTo(false);
 		assertThat(result).bodyJson().extractingPath("$.error.code").isEqualTo("OWNER_CANNOT_LEAVE");
+	}
+
+	@Test
+	void withdrawWithoutAccessTokenReturnsUnauthorized() {
+		MvcTestResult result = mvc.delete().uri("/api/users/me").exchange();
+
+		assertThat(result).hasStatus(HttpStatus.UNAUTHORIZED);
+		assertThat(result).bodyJson().extractingPath("$.error.code").isEqualTo("INVALID_TOKEN");
+		then(authService).should(never()).withdraw(any());
 	}
 
 	private MvcTestResult withdraw(Long userId) {
