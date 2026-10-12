@@ -742,6 +742,14 @@ class FamilyServiceTest {
 		assertThat(familyService.getMyFamily(mom.getId())).isEqualTo(second);
 	}
 
+	@Test
+	void removeMemberRejectsUnknownFamilyId() {
+		assertThatThrownBy(() -> familyService.removeMember(999_999L, mom.getId(), mom.getId()))
+				.isInstanceOf(BusinessException.class)
+				.extracting("errorCode")
+				.isEqualTo(ErrorCode.FAMILY_NOT_MEMBER);
+	}
+
 	private User saveUser(String email, String name) {
 		return userRepository.saveAndFlush(User.builder()
 				.email(email)
