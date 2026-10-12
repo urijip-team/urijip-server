@@ -150,6 +150,18 @@ class FamilyMemberRepositoryTest {
 				.containsExactly("김엄마");
 	}
 
+	@Test
+	void existsByFamilyIdAndUserIdAndRoleMatchesOnlyThatRole() {
+		User dad = saveUser("dad@example.com", "김아빠");
+		familyMemberRepository.saveAndFlush(member(mom, FamilyRole.OWNER));
+		familyMemberRepository.saveAndFlush(member(dad, FamilyRole.MEMBER));
+
+		assertThat(familyMemberRepository
+				.existsByFamilyIdAndUserIdAndRole(family.getId(), mom.getId(), FamilyRole.OWNER)).isTrue();
+		assertThat(familyMemberRepository
+				.existsByFamilyIdAndUserIdAndRole(family.getId(), dad.getId(), FamilyRole.OWNER)).isFalse();
+	}
+
 	private FamilyMember member(User user, FamilyRole role) {
 		return FamilyMember.builder()
 				.family(family)
