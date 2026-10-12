@@ -264,6 +264,17 @@ class FamilyControllerTest {
 		assertThat(result).bodyJson().extractingPath("$.data[0].profileImageUrl").isNull();
 	}
 
+	@Test
+	void getMembersByUserWhoIsNotMemberReturnsForbidden() {
+		given(familyService.getMembers(any(), any())).willThrow(new BusinessException(ErrorCode.FAMILY_NOT_MEMBER));
+
+		MvcTestResult result = getMembers(2L, "3");
+
+		assertThat(result).hasStatus(HttpStatus.FORBIDDEN);
+		assertThat(result).bodyJson().extractingPath("$.success").isEqualTo(false);
+		assertThat(result).bodyJson().extractingPath("$.error.code").isEqualTo("FAMILY_NOT_MEMBER");
+	}
+
 	private MvcTestResult create(Long userId, String body) {
 		return mvc.post().uri("/api/families")
 				.header("Authorization", "Bearer " + jwtProvider.createAccessToken(userId, "USER"))
