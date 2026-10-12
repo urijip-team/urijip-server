@@ -393,6 +393,17 @@ class FamilyServiceTest {
 				.isEqualTo(ErrorCode.FAMILY_NOT_MEMBER);
 	}
 
+	@Test
+	void reissueInviteCodeReturnsFamilyWithNewCode() {
+		FamilyResponse created = familyService.create(mom.getId(), new FamilyCreateRequest("김씨네"));
+
+		FamilyResponse response = familyService.reissueInviteCode(created.id(), mom.getId());
+
+		assertThat(response.id()).isEqualTo(created.id());
+		assertThat(response.name()).isEqualTo("김씨네");
+		assertThat(response.inviteCode()).matches("[A-HJ-NP-Z2-9]{6}").isNotEqualTo(created.inviteCode());
+	}
+
 	private User saveUser(String email, String name) {
 		return userRepository.saveAndFlush(User.builder()
 				.email(email)
