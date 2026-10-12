@@ -463,6 +463,14 @@ class FamilyServiceTest {
 		assertThat(familyRepository.existsByInviteCode(created.inviteCode())).isTrue();
 	}
 
+	@Test
+	void reissueInviteCodeRejectsUnknownFamilyId() {
+		assertThatThrownBy(() -> familyService.reissueInviteCode(999_999L, mom.getId()))
+				.isInstanceOf(BusinessException.class)
+				.extracting("errorCode")
+				.isEqualTo(ErrorCode.FAMILY_NOT_MEMBER);
+	}
+
 	private User saveUser(String email, String name) {
 		return userRepository.saveAndFlush(User.builder()
 				.email(email)
