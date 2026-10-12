@@ -5,6 +5,7 @@ import java.util.Locale;
 
 import com.urijip.server.family.dto.request.FamilyCreateRequest;
 import com.urijip.server.family.dto.request.FamilyJoinRequest;
+import com.urijip.server.family.dto.request.FamilyOwnerTransferRequest;
 import com.urijip.server.family.dto.response.FamilyMemberResponse;
 import com.urijip.server.family.dto.response.FamilyResponse;
 import com.urijip.server.family.entity.Family;
@@ -77,6 +78,20 @@ public class FamilyService {
 		return FamilyResponse.from(family);
 	}
 
+	@Transactional
+	public List<FamilyMemberResponse> transferOwner(Long familyId, Long userId,
+			FamilyOwnerTransferRequest request) {
+		validateOwner(familyId, userId);
+		FamilyMember newOwner = getMember(familyId, request.userId());
+		FamilyMember oldOwner = getMember(familyId, userId);
+
+		oldOwner.changeRole(FamilyRole.MEMBER);
+		newOwner.changeRole(FamilyRole.OWNER);
+		newOwner.getFamily().changeOwner(newOwner.getUser());
+
+		return getMembers(familyId, userId);
+	}
+
 	@Transactional(readOnly = true)
 	public FamilyResponse getMyFamily(Long userId) {
 		return familyMemberRepository.findFirstByUserId(userId)
@@ -111,6 +126,11 @@ public class FamilyService {
 	@Transactional(readOnly = true)
 	public boolean hasFamily(Long userId) {
 		return familyMemberRepository.existsByUserId(userId);
+	}
+
+	private FamilyMember getMember(Long familyId, Long userId) {
+		return familyMemberRepository.findByFamilyIdAndUserId(familyId, userId)
+				.orElseThrow(() -> new BusinessException(ErrorCode.FAMILY_MEMBER_NOT_FOUND));
 	}
 
 	private String normalize(String inviteCode) {
