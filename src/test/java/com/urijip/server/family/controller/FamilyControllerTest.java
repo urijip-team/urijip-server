@@ -6,9 +6,13 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
 import static org.mockito.Mockito.never;
 
+import java.util.List;
+
 import com.urijip.server.family.dto.request.FamilyCreateRequest;
 import com.urijip.server.family.dto.request.FamilyJoinRequest;
+import com.urijip.server.family.dto.response.FamilyMemberResponse;
 import com.urijip.server.family.dto.response.FamilyResponse;
+import com.urijip.server.family.entity.FamilyRole;
 import com.urijip.server.family.service.FamilyService;
 import com.urijip.server.global.config.SecurityConfig;
 import com.urijip.server.global.exception.BusinessException;
@@ -197,6 +201,98 @@ class FamilyControllerTest {
 		then(familyService).should(never()).join(any(), any());
 	}
 
+	@Test
+	void getMyFamilyReturnsFamilyOfAccessTokenUser() {
+		given(familyService.getMyFamily(2L)).willReturn(new FamilyResponse(3L, "김씨네", "A3K9P2"));
+
+		MvcTestResult result = getMyFamily(2L);
+
+		assertThat(result).hasStatusOk();
+		assertThat(result).bodyJson().extractingPath("$.success").isEqualTo(true);
+		assertThat(result).bodyJson().extractingPath("$.data.id").isEqualTo(3);
+		assertThat(result).bodyJson().extractingPath("$.data.name").isEqualTo("김씨네");
+		assertThat(result).bodyJson().extractingPath("$.data.inviteCode").isEqualTo("A3K9P2");
+	}
+
+	@Test
+	void getMyFamilyByUserWithoutFamilyReturnsNotFound() {
+		given(familyService.getMyFamily(any())).willThrow(new BusinessException(ErrorCode.FAMILY_NOT_FOUND));
+
+		MvcTestResult result = getMyFamily(2L);
+
+		assertThat(result).hasStatus(HttpStatus.NOT_FOUND);
+		assertThat(result).bodyJson().extractingPath("$.success").isEqualTo(false);
+		assertThat(result).bodyJson().extractingPath("$.error.code").isEqualTo("FAMILY_NOT_FOUND");
+	}
+
+	@Test
+	void getMyFamilyWithoutAccessTokenReturnsUnauthorized() {
+		MvcTestResult result = mvc.get().uri("/api/families/me").exchange();
+
+		assertThat(result).hasStatus(HttpStatus.UNAUTHORIZED);
+		assertThat(result).bodyJson().extractingPath("$.error.code").isEqualTo("INVALID_TOKEN");
+		then(familyService).should(never()).getMyFamily(any());
+	}
+
+	@Test
+	void getMembersReturnsMemberList() {
+		given(familyService.getMembers(3L, 2L)).willReturn(List.of(
+				new FamilyMemberResponse(1L, "김엄마", "https://example.com/mom.png", "엄마", FamilyRole.OWNER),
+				new FamilyMemberResponse(2L, "김아빠", null, null, FamilyRole.MEMBER)));
+
+		MvcTestResult result = getMembers(2L, "3");
+
+		assertThat(result).hasStatusOk();
+		assertThat(result).bodyJson().extractingPath("$.success").isEqualTo(true);
+		assertThat(result).bodyJson().extractingPath("$.data.length()").isEqualTo(2);
+		assertThat(result).bodyJson().extractingPath("$.data[0].userId").isEqualTo(1);
+		assertThat(result).bodyJson().extractingPath("$.data[0].name").isEqualTo("김엄마");
+		assertThat(result).bodyJson().extractingPath("$.data[0].profileImageUrl").isEqualTo("https://example.com/mom.png");
+		assertThat(result).bodyJson().extractingPath("$.data[0].nickname").isEqualTo("엄마");
+		assertThat(result).bodyJson().extractingPath("$.data[0].role").isEqualTo("OWNER");
+		assertThat(result).bodyJson().extractingPath("$.data[1].role").isEqualTo("MEMBER");
+	}
+
+	@Test
+	void getMembersReturnsNullForMissingNicknameAndProfileImage() {
+		given(familyService.getMembers(3L, 2L)).willReturn(List.of(
+				new FamilyMemberResponse(2L, "김아빠", null, null, FamilyRole.MEMBER)));
+
+		MvcTestResult result = getMembers(2L, "3");
+
+		assertThat(result).bodyJson().extractingPath("$.data[0].nickname").isNull();
+		assertThat(result).bodyJson().extractingPath("$.data[0].profileImageUrl").isNull();
+	}
+
+	@Test
+	void getMembersByUserWhoIsNotMemberReturnsForbidden() {
+		given(familyService.getMembers(any(), any())).willThrow(new BusinessException(ErrorCode.FAMILY_NOT_MEMBER));
+
+		MvcTestResult result = getMembers(2L, "3");
+
+		assertThat(result).hasStatus(HttpStatus.FORBIDDEN);
+		assertThat(result).bodyJson().extractingPath("$.success").isEqualTo(false);
+		assertThat(result).bodyJson().extractingPath("$.error.code").isEqualTo("FAMILY_NOT_MEMBER");
+	}
+
+	@Test
+	void getMembersWithoutAccessTokenReturnsUnauthorized() {
+		MvcTestResult result = mvc.get().uri("/api/families/3/members").exchange();
+
+		assertThat(result).hasStatus(HttpStatus.UNAUTHORIZED);
+		assertThat(result).bodyJson().extractingPath("$.error.code").isEqualTo("INVALID_TOKEN");
+		then(familyService).should(never()).getMembers(any(), any());
+	}
+
+	@Test
+	void getMembersWithNonNumericFamilyIdReturnsBadRequest() {
+		MvcTestResult result = getMembers(2L, "abc");
+
+		assertThat(result).hasStatus(HttpStatus.BAD_REQUEST);
+		assertThat(result).bodyJson().extractingPath("$.success").isEqualTo(false);
+		then(familyService).should(never()).getMembers(any(), any());
+	}
+
 	private MvcTestResult create(Long userId, String body) {
 		return mvc.post().uri("/api/families")
 				.header("Authorization", "Bearer " + jwtProvider.createAccessToken(userId, "USER"))
@@ -210,6 +306,18 @@ class FamilyControllerTest {
 				.header("Authorization", "Bearer " + jwtProvider.createAccessToken(userId, "USER"))
 				.contentType(MediaType.APPLICATION_JSON)
 				.content(body)
+				.exchange();
+	}
+
+	private MvcTestResult getMyFamily(Long userId) {
+		return mvc.get().uri("/api/families/me")
+				.header("Authorization", "Bearer " + jwtProvider.createAccessToken(userId, "USER"))
+				.exchange();
+	}
+
+	private MvcTestResult getMembers(Long userId, String familyId) {
+		return mvc.get().uri("/api/families/{familyId}/members", familyId)
+				.header("Authorization", "Bearer " + jwtProvider.createAccessToken(userId, "USER"))
 				.exchange();
 	}
 

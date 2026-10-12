@@ -1,7 +1,10 @@
 package com.urijip.server.family.controller;
 
+import java.util.List;
+
 import com.urijip.server.family.dto.request.FamilyCreateRequest;
 import com.urijip.server.family.dto.request.FamilyJoinRequest;
+import com.urijip.server.family.dto.response.FamilyMemberResponse;
 import com.urijip.server.family.dto.response.FamilyResponse;
 import com.urijip.server.family.service.FamilyService;
 import com.urijip.server.global.response.ApiResponse;
@@ -9,6 +12,8 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -27,6 +32,17 @@ public class FamilyController {
 	public ApiResponse<FamilyResponse> create(@AuthenticationPrincipal Long userId,
 			@Valid @RequestBody FamilyCreateRequest request) {
 		return ApiResponse.success(familyService.create(userId, request));
+	}
+
+	@GetMapping("/me")
+	public ApiResponse<FamilyResponse> getMyFamily(@AuthenticationPrincipal Long userId) {
+		return ApiResponse.success(familyService.getMyFamily(userId));
+	}
+
+	@GetMapping("/{familyId}/members")
+	public ApiResponse<List<FamilyMemberResponse>> getMembers(@AuthenticationPrincipal Long userId,
+			@PathVariable Long familyId) {
+		return ApiResponse.success(familyService.getMembers(familyId, userId));
 	}
 
 	@PostMapping("/join")

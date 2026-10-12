@@ -88,6 +88,68 @@ class FamilyMemberRepositoryTest {
 				.isInstanceOf(DataIntegrityViolationException.class);
 	}
 
+	@Test
+	void findFirstByUserIdReturnsMembershipWithFamily() {
+		familyMemberRepository.saveAndFlush(member(mom, FamilyRole.OWNER));
+
+		assertThat(familyMemberRepository.findFirstByUserId(mom.getId()))
+				.get()
+				.extracting(found -> found.getFamily().getName())
+				.isEqualTo("김씨네");
+	}
+
+	@Test
+	void findFirstByUserIdReturnsEmptyForUserWithoutFamily() {
+		assertThat(familyMemberRepository.findFirstByUserId(mom.getId())).isEmpty();
+	}
+
+	@Test
+	void existsByFamilyIdAndUserIdIsTrueOnlyForMemberOfThatFamily() {
+		User dad = saveUser("dad@example.com", "김아빠");
+		familyMemberRepository.saveAndFlush(member(mom, FamilyRole.OWNER));
+
+		assertThat(familyMemberRepository.existsByFamilyIdAndUserId(family.getId(), mom.getId())).isTrue();
+		assertThat(familyMemberRepository.existsByFamilyIdAndUserId(family.getId(), dad.getId())).isFalse();
+	}
+
+	@Test
+	void existsByFamilyIdAndUserIdIsFalseForAnotherFamilyId() {
+		familyMemberRepository.saveAndFlush(member(mom, FamilyRole.OWNER));
+
+		assertThat(familyMemberRepository.existsByFamilyIdAndUserId(family.getId() + 1, mom.getId())).isFalse();
+	}
+
+	@Test
+	void findByFamilyIdReturnsMembersInJoinOrder() {
+		User dad = saveUser("dad@example.com", "김아빠");
+		familyMemberRepository.saveAndFlush(member(mom, FamilyRole.OWNER));
+		familyMemberRepository.saveAndFlush(member(dad, FamilyRole.MEMBER));
+
+		assertThat(familyMemberRepository.findByFamilyIdOrderByJoinedAtAscIdAsc(family.getId()))
+				.extracting(found -> found.getUser().getName())
+				.containsExactly("김엄마", "김아빠");
+	}
+
+	@Test
+	void findByFamilyIdExcludesMembersOfAnotherFamily() {
+		User dad = saveUser("dad@example.com", "김아빠");
+		Family another = familyRepository.saveAndFlush(Family.builder()
+				.name("아빠네")
+				.inviteCode("B2B2B2")
+				.owner(dad)
+				.build());
+		familyMemberRepository.saveAndFlush(member(mom, FamilyRole.OWNER));
+		familyMemberRepository.saveAndFlush(FamilyMember.builder()
+				.family(another)
+				.user(dad)
+				.role(FamilyRole.OWNER)
+				.build());
+
+		assertThat(familyMemberRepository.findByFamilyIdOrderByJoinedAtAscIdAsc(family.getId()))
+				.extracting(found -> found.getUser().getName())
+				.containsExactly("김엄마");
+	}
+
 	private FamilyMember member(User user, FamilyRole role) {
 		return FamilyMember.builder()
 				.family(family)

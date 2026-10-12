@@ -1,12 +1,16 @@
 package com.urijip.server.family.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.BDDMockito.willReturn;
+
+import java.util.List;
 
 import com.urijip.server.TestcontainersConfiguration;
 import com.urijip.server.family.dto.request.FamilyCreateRequest;
 import com.urijip.server.family.dto.request.FamilyJoinRequest;
+import com.urijip.server.family.dto.response.FamilyMemberResponse;
 import com.urijip.server.family.dto.response.FamilyResponse;
 import com.urijip.server.family.entity.Family;
 import com.urijip.server.family.entity.FamilyRole;
@@ -236,6 +240,127 @@ class FamilyServiceTest {
 				.isInstanceOf(BusinessException.class)
 				.extracting("errorCode")
 				.isEqualTo(ErrorCode.USER_NOT_FOUND);
+	}
+
+	@Test
+	void getMyFamilyReturnsFamilyOfOwner() {
+		FamilyResponse created = familyService.create(mom.getId(), new FamilyCreateRequest("김씨네"));
+
+		FamilyResponse response = familyService.getMyFamily(mom.getId());
+
+		assertThat(response).isEqualTo(created);
+	}
+
+	@Test
+	void getMyFamilyReturnsFamilyOfJoinedMember() {
+		FamilyResponse created = familyService.create(mom.getId(), new FamilyCreateRequest("김씨네"));
+		User dad = saveUser("dad@example.com", "김아빠");
+		familyService.join(dad.getId(), new FamilyJoinRequest(created.inviteCode()));
+
+		assertThat(familyService.getMyFamily(dad.getId())).isEqualTo(created);
+	}
+
+	@Test
+	void getMyFamilyRejectsUserWithoutFamily() {
+		assertThatThrownBy(() -> familyService.getMyFamily(mom.getId()))
+				.isInstanceOf(BusinessException.class)
+				.extracting("errorCode")
+				.isEqualTo(ErrorCode.FAMILY_NOT_FOUND);
+	}
+
+	@Test
+	void validateMemberPassesForOwner() {
+		FamilyResponse created = familyService.create(mom.getId(), new FamilyCreateRequest("김씨네"));
+
+		assertThatCode(() -> familyService.validateMember(created.id(), mom.getId())).doesNotThrowAnyException();
+	}
+
+	@Test
+	void validateMemberPassesForJoinedMember() {
+		FamilyResponse created = familyService.create(mom.getId(), new FamilyCreateRequest("김씨네"));
+		User dad = saveUser("dad@example.com", "김아빠");
+		familyService.join(dad.getId(), new FamilyJoinRequest(created.inviteCode()));
+
+		assertThatCode(() -> familyService.validateMember(created.id(), dad.getId())).doesNotThrowAnyException();
+	}
+
+	@Test
+	void validateMemberRejectsUserWithoutFamily() {
+		FamilyResponse created = familyService.create(mom.getId(), new FamilyCreateRequest("김씨네"));
+		User dad = saveUser("dad@example.com", "김아빠");
+
+		assertThatThrownBy(() -> familyService.validateMember(created.id(), dad.getId()))
+				.isInstanceOf(BusinessException.class)
+				.extracting("errorCode")
+				.isEqualTo(ErrorCode.FAMILY_NOT_MEMBER);
+	}
+
+	@Test
+	void validateMemberRejectsMemberOfAnotherFamily() {
+		FamilyResponse created = familyService.create(mom.getId(), new FamilyCreateRequest("김씨네"));
+		User dad = saveUser("dad@example.com", "김아빠");
+		familyService.create(dad.getId(), new FamilyCreateRequest("아빠네"));
+
+		assertThatThrownBy(() -> familyService.validateMember(created.id(), dad.getId()))
+				.isInstanceOf(BusinessException.class)
+				.extracting("errorCode")
+				.isEqualTo(ErrorCode.FAMILY_NOT_MEMBER);
+	}
+
+	@Test
+	void validateMemberRejectsUnknownFamilyId() {
+		assertThatThrownBy(() -> familyService.validateMember(999_999L, mom.getId()))
+				.isInstanceOf(BusinessException.class)
+				.extracting("errorCode")
+				.isEqualTo(ErrorCode.FAMILY_NOT_MEMBER);
+	}
+
+	@Test
+	void getMembersReturnsOwnerThenJoinedMembers() {
+		FamilyResponse created = familyService.create(mom.getId(), new FamilyCreateRequest("김씨네"));
+		User dad = saveUser("dad@example.com", "김아빠");
+		familyService.join(dad.getId(), new FamilyJoinRequest(created.inviteCode()));
+
+		List<FamilyMemberResponse> members = familyService.getMembers(created.id(), mom.getId());
+
+		assertThat(members).containsExactly(
+				new FamilyMemberResponse(mom.getId(), "김엄마", null, null, FamilyRole.OWNER),
+				new FamilyMemberResponse(dad.getId(), "김아빠", null, null, FamilyRole.MEMBER));
+	}
+
+	@Test
+	void getMembersIsAllowedForOrdinaryMember() {
+		FamilyResponse created = familyService.create(mom.getId(), new FamilyCreateRequest("김씨네"));
+		User dad = saveUser("dad@example.com", "김아빠");
+		familyService.join(dad.getId(), new FamilyJoinRequest(created.inviteCode()));
+
+		assertThat(familyService.getMembers(created.id(), dad.getId())).hasSize(2);
+	}
+
+	@Test
+	void getMembersRejectsUserWhoIsNotMember() {
+		FamilyResponse created = familyService.create(mom.getId(), new FamilyCreateRequest("김씨네"));
+		User dad = saveUser("dad@example.com", "김아빠");
+
+		assertThatThrownBy(() -> familyService.getMembers(created.id(), dad.getId()))
+				.isInstanceOf(BusinessException.class)
+				.extracting("errorCode")
+				.isEqualTo(ErrorCode.FAMILY_NOT_MEMBER);
+	}
+
+	@Test
+	void getMembersRejectsMemberOfAnotherFamily() {
+		FamilyResponse created = familyService.create(mom.getId(), new FamilyCreateRequest("김씨네"));
+		User dad = saveUser("dad@example.com", "김아빠");
+		FamilyResponse another = familyService.create(dad.getId(), new FamilyCreateRequest("아빠네"));
+
+		assertThatThrownBy(() -> familyService.getMembers(another.id(), mom.getId()))
+				.isInstanceOf(BusinessException.class)
+				.extracting("errorCode")
+				.isEqualTo(ErrorCode.FAMILY_NOT_MEMBER);
+		assertThat(familyService.getMembers(created.id(), mom.getId()))
+				.extracting(FamilyMemberResponse::name)
+				.containsExactly("김엄마");
 	}
 
 	private User saveUser(String email, String name) {
