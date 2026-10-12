@@ -583,6 +583,23 @@ class FamilyServiceTest {
 		assertThat(familyService.hasFamily(dad.getId())).isFalse();
 	}
 
+	@Test
+	void ordinaryMemberCannotRemoveAnotherMember() {
+		FamilyResponse created = familyService.create(mom.getId(), new FamilyCreateRequest("김씨네"));
+		User dad = saveUser("dad@example.com", "김아빠");
+		User kid = saveUser("kid@example.com", "김첫째");
+		familyService.join(dad.getId(), new FamilyJoinRequest(created.inviteCode()));
+		familyService.join(kid.getId(), new FamilyJoinRequest(created.inviteCode()));
+
+		assertThatThrownBy(() -> familyService.removeMember(created.id(), dad.getId(), kid.getId()))
+				.isInstanceOf(BusinessException.class)
+				.extracting("errorCode")
+				.isEqualTo(ErrorCode.NOT_FAMILY_OWNER);
+		assertThat(familyService.getMembers(created.id(), mom.getId()))
+				.extracting(FamilyMemberResponse::name)
+				.containsExactly("김엄마", "김아빠", "김첫째");
+	}
+
 	private User saveUser(String email, String name) {
 		return userRepository.saveAndFlush(User.builder()
 				.email(email)
