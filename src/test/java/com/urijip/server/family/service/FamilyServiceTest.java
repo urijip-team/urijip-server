@@ -363,6 +363,13 @@ class FamilyServiceTest {
 				.containsExactly("김엄마");
 	}
 
+	@Test
+	void validateOwnerPassesForOwner() {
+		FamilyResponse created = familyService.create(mom.getId(), new FamilyCreateRequest("김씨네"));
+
+		assertThatCode(() -> familyService.validateOwner(created.id(), mom.getId())).doesNotThrowAnyException();
+	}
+
 	private User saveUser(String email, String name) {
 		return userRepository.saveAndFlush(User.builder()
 				.email(email)
