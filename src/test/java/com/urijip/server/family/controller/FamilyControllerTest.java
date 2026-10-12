@@ -305,6 +305,17 @@ class FamilyControllerTest {
 		assertThat(result).bodyJson().extractingPath("$.data.inviteCode").isEqualTo("B7B7B7");
 	}
 
+	@Test
+	void reissueInviteCodeByOrdinaryMemberReturnsForbidden() {
+		given(familyService.reissueInviteCode(any(), any())).willThrow(new BusinessException(ErrorCode.NOT_FAMILY_OWNER));
+
+		MvcTestResult result = reissueInviteCode(2L, 3L);
+
+		assertThat(result).hasStatus(HttpStatus.FORBIDDEN);
+		assertThat(result).bodyJson().extractingPath("$.success").isEqualTo(false);
+		assertThat(result).bodyJson().extractingPath("$.error.code").isEqualTo("NOT_FAMILY_OWNER");
+	}
+
 	private MvcTestResult create(Long userId, String body) {
 		return mvc.post().uri("/api/families")
 				.header("Authorization", "Bearer " + jwtProvider.createAccessToken(userId, "USER"))
