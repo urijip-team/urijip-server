@@ -51,4 +51,10 @@ public class FamilyController {
 		return ApiResponse.success(familyService.join(userId, request));
 	}
 
+	@PostMapping("/{familyId}/invite-code")
+	public ApiResponse<FamilyResponse> reissueInviteCode(@AuthenticationPrincipal Long userId,
+			@PathVariable Long familyId) {
+		return ApiResponse.success(familyService.reissueInviteCode(familyId, userId));
+	}
+
 }
