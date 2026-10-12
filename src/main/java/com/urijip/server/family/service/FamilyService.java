@@ -105,6 +105,12 @@ public class FamilyService {
 		familyMemberRepository.delete(getMember(familyId, targetUserId));
 	}
 
+	@Transactional
+	public void leaveFamily(Long userId) {
+		familyMemberRepository.findFirstByUserId(userId)
+				.ifPresent(member -> leave(member.getFamily().getId(), userId));
+	}
+
 	@Transactional(readOnly = true)
 	public FamilyResponse getMyFamily(Long userId) {
 		return familyMemberRepository.findFirstByUserId(userId)
