@@ -103,6 +103,7 @@ public class AuthService {
 				.orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
 
 		familyService.leaveFamily(userId);
+		refreshTokenRepository.deleteByUserId(userId);
 		user.withdraw();
 	}
 
