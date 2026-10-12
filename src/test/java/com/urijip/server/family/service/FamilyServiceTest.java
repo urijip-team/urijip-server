@@ -1,6 +1,7 @@
 package com.urijip.server.family.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.BDDMockito.willReturn;
 
@@ -262,6 +263,13 @@ class FamilyServiceTest {
 				.isInstanceOf(BusinessException.class)
 				.extracting("errorCode")
 				.isEqualTo(ErrorCode.FAMILY_NOT_FOUND);
+	}
+
+	@Test
+	void validateMemberPassesForOwner() {
+		FamilyResponse created = familyService.create(mom.getId(), new FamilyCreateRequest("김씨네"));
+
+		assertThatCode(() -> familyService.validateMember(created.id(), mom.getId())).doesNotThrowAnyException();
 	}
 
 	private User saveUser(String email, String name) {
