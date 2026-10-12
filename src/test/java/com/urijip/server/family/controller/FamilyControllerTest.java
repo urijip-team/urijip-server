@@ -327,6 +327,15 @@ class FamilyControllerTest {
 		assertThat(result).bodyJson().extractingPath("$.error.code").isEqualTo("FAMILY_NOT_MEMBER");
 	}
 
+	@Test
+	void reissueInviteCodeWithoutAccessTokenReturnsUnauthorized() {
+		MvcTestResult result = mvc.post().uri("/api/families/3/invite-code").exchange();
+
+		assertThat(result).hasStatus(HttpStatus.UNAUTHORIZED);
+		assertThat(result).bodyJson().extractingPath("$.error.code").isEqualTo("INVALID_TOKEN");
+		then(familyService).should(never()).reissueInviteCode(any(), any());
+	}
+
 	private MvcTestResult create(Long userId, String body) {
 		return mvc.post().uri("/api/families")
 				.header("Authorization", "Bearer " + jwtProvider.createAccessToken(userId, "USER"))
