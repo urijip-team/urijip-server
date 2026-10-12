@@ -600,6 +600,16 @@ class AuthServiceTest {
 				.isEqualTo(ErrorCode.USER_NOT_FOUND);
 	}
 
+	@Test
+	void withdrawnEmailCannotBeUsedForSignup() {
+		authService.withdraw(signupMom().id());
+
+		assertThatThrownBy(() -> signupMom())
+				.isInstanceOf(BusinessException.class)
+				.extracting("errorCode")
+				.isEqualTo(ErrorCode.EMAIL_DUPLICATED);
+	}
+
 	private Long signupAdmin() {
 		User user = userRepository.findById(signupMom().id()).orElseThrow();
 		ReflectionTestUtils.setField(user, "role", Role.ADMIN);
