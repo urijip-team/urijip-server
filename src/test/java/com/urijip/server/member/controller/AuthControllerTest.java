@@ -262,7 +262,16 @@ class AuthControllerTest {
 				{"refreshToken": "refresh-token"}
 				""");
 
-		then(authService).should().logout(7L, new LogoutRequest("refresh-token"));
+		then(authService).should().logout(7L, new LogoutRequest("refresh-token", null));
+	}
+
+	@Test
+	void logoutPassesFcmToken() {
+		logout(7L, """
+				{"refreshToken": "refresh-token", "fcmToken": "fcm-1"}
+				""");
+
+		then(authService).should().logout(7L, new LogoutRequest("refresh-token", "fcm-1"));
 	}
 
 	@Test
