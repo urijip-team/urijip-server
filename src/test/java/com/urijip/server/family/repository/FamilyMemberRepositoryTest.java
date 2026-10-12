@@ -103,6 +103,15 @@ class FamilyMemberRepositoryTest {
 		assertThat(familyMemberRepository.findFirstByUserId(mom.getId())).isEmpty();
 	}
 
+	@Test
+	void existsByFamilyIdAndUserIdIsTrueOnlyForMemberOfThatFamily() {
+		User dad = saveUser("dad@example.com", "김아빠");
+		familyMemberRepository.saveAndFlush(member(mom, FamilyRole.OWNER));
+
+		assertThat(familyMemberRepository.existsByFamilyIdAndUserId(family.getId(), mom.getId())).isTrue();
+		assertThat(familyMemberRepository.existsByFamilyIdAndUserId(family.getId(), dad.getId())).isFalse();
+	}
+
 	private FamilyMember member(User user, FamilyRole role) {
 		return FamilyMember.builder()
 				.family(family)
