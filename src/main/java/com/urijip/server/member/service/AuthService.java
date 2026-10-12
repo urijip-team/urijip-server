@@ -97,6 +97,14 @@ public class AuthService {
 		refreshTokenRepository.deleteByTokenAndUserId(request.refreshToken(), userId);
 	}
 
+	@Transactional
+	public void withdraw(Long userId) {
+		User user = userRepository.findById(userId)
+				.orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+
+		user.withdraw();
+	}
+
 	private User findByCredentials(LoginRequest request) {
 		User user = userRepository.findByEmail(request.email())
 				.orElseThrow(() -> new BusinessException(ErrorCode.LOGIN_FAILED));
