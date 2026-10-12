@@ -626,6 +626,20 @@ class FamilyServiceTest {
 				.isEqualTo(ErrorCode.FAMILY_MEMBER_NOT_FOUND);
 	}
 
+	@Test
+	void outsiderCannotRemoveMember() {
+		FamilyResponse created = familyService.create(mom.getId(), new FamilyCreateRequest("김씨네"));
+		User dad = saveUser("dad@example.com", "김아빠");
+
+		assertThatThrownBy(() -> familyService.removeMember(created.id(), dad.getId(), mom.getId()))
+				.isInstanceOf(BusinessException.class)
+				.extracting("errorCode")
+				.isEqualTo(ErrorCode.FAMILY_NOT_MEMBER);
+		assertThat(familyService.getMembers(created.id(), mom.getId()))
+				.extracting(FamilyMemberResponse::name)
+				.containsExactly("김엄마");
+	}
+
 	private User saveUser(String email, String name) {
 		return userRepository.saveAndFlush(User.builder()
 				.email(email)
