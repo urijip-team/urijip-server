@@ -28,10 +28,13 @@ import com.urijip.server.member.dto.response.LoginResponse;
 import com.urijip.server.member.dto.response.ReissueResponse;
 import com.urijip.server.member.dto.response.SignupResponse;
 import com.urijip.server.member.entity.AdminLevel;
+import com.urijip.server.member.entity.DeviceToken;
+import com.urijip.server.member.entity.Platform;
 import com.urijip.server.member.entity.RefreshToken;
 import com.urijip.server.member.entity.Role;
 import com.urijip.server.member.entity.User;
 import com.urijip.server.member.entity.UserStatus;
+import com.urijip.server.member.repository.DeviceTokenRepository;
 import com.urijip.server.member.repository.RefreshTokenRepository;
 import com.urijip.server.member.repository.UserRepository;
 import org.junit.jupiter.api.Test;
@@ -58,6 +61,9 @@ class AuthServiceTest {
 
 	@Autowired
 	private RefreshTokenRepository refreshTokenRepository;
+
+	@Autowired
+	private DeviceTokenRepository deviceTokenRepository;
 
 	@Autowired
 	private PasswordEncoder passwordEncoder;
@@ -338,7 +344,7 @@ class AuthServiceTest {
 	void logoutDeletesRefreshToken() {
 		String token = loginMom();
 
-		authService.logout(jwtProvider.parseRefreshToken(token), new LogoutRequest(token));
+		authService.logout(jwtProvider.parseRefreshToken(token), new LogoutRequest(token, null));
 
 		assertThat(refreshTokenRepository.count()).isZero();
 	}
@@ -346,7 +352,7 @@ class AuthServiceTest {
 	@Test
 	void loggedOutTokenCannotBeReissued() {
 		String token = loginMom();
-		authService.logout(jwtProvider.parseRefreshToken(token), new LogoutRequest(token));
+		authService.logout(jwtProvider.parseRefreshToken(token), new LogoutRequest(token, null));
 
 		assertThatThrownBy(() -> authService.reissue(new ReissueRequest(token)))
 				.isInstanceOf(BusinessException.class)
@@ -359,7 +365,7 @@ class AuthServiceTest {
 		String token = loginMom();
 		String otherDevice = authService.login(new LoginRequest("mom@example.com", "password123")).refreshToken();
 
-		authService.logout(jwtProvider.parseRefreshToken(token), new LogoutRequest(token));
+		authService.logout(jwtProvider.parseRefreshToken(token), new LogoutRequest(token, null));
 
 		assertThat(refreshTokenRepository.findAll())
 				.extracting(RefreshToken::getToken)
@@ -371,7 +377,7 @@ class AuthServiceTest {
 		String token = loginMom();
 		Long dadId = authService.signup(new SignupRequest("dad@example.com", "password123", "김아빠")).id();
 
-		authService.logout(dadId, new LogoutRequest(token));
+		authService.logout(dadId, new LogoutRequest(token, null));
 
 		assertThat(refreshTokenRepository.count()).isEqualTo(1);
 	}
@@ -380,7 +386,7 @@ class AuthServiceTest {
 	void logoutWithUnknownTokenDoesNothing() {
 		String token = loginMom();
 
-		authService.logout(jwtProvider.parseRefreshToken(token), new LogoutRequest("unknown-token"));
+		authService.logout(jwtProvider.parseRefreshToken(token), new LogoutRequest("unknown-token", null));
 
 		assertThat(refreshTokenRepository.count()).isEqualTo(1);
 	}
@@ -610,6 +616,67 @@ class AuthServiceTest {
 				.isEqualTo(ErrorCode.EMAIL_DUPLICATED);
 	}
 
+	@Test
+	void logoutDeletesDeviceTokenOfThatDevice() {
+		String token = loginMom();
+		Long momId = jwtProvider.parseRefreshToken(token);
+		saveDeviceToken(momId, "fcm-phone");
+		saveDeviceToken(momId, "fcm-tablet");
+
+		authService.logout(momId, new LogoutRequest(token, "fcm-phone"));
+
+		assertThat(deviceTokenRepository.findAll())
+				.extracting(DeviceToken::getFcmToken)
+				.containsExactly("fcm-tablet");
+	}
+
+	@Test
+	void logoutWithoutFcmTokenKeepsDeviceTokens() {
+		String token = loginMom();
+		Long momId = jwtProvider.parseRefreshToken(token);
+		saveDeviceToken(momId, "fcm-phone");
+
+		authService.logout(momId, new LogoutRequest(token, null));
+
+		assertThat(deviceTokenRepository.count()).isEqualTo(1);
+	}
+
+	@Test
+	void logoutKeepsDeviceTokenOfAnotherUser() {
+		String token = loginMom();
+		Long momId = jwtProvider.parseRefreshToken(token);
+		Long dadId = authService.signup(new SignupRequest("dad@example.com", "password123", "김아빠")).id();
+		saveDeviceToken(dadId, "fcm-dad");
+
+		authService.logout(momId, new LogoutRequest(token, "fcm-dad"));
+
+		assertThat(deviceTokenRepository.count()).isEqualTo(1);
+	}
+
+	@Test
+	void withdrawDeletesDeviceTokensOfAllDevices() {
+		Long momId = signupMom().id();
+		saveDeviceToken(momId, "fcm-phone");
+		saveDeviceToken(momId, "fcm-tablet");
+
+		authService.withdraw(momId);
+
+		assertThat(deviceTokenRepository.count()).isZero();
+	}
+
+	@Test
+	void withdrawKeepsDeviceTokensOfOtherUsers() {
+		Long momId = signupMom().id();
+		Long dadId = authService.signup(new SignupRequest("dad@example.com", "password123", "김아빠")).id();
+		saveDeviceToken(dadId, "fcm-dad");
+
+		authService.withdraw(momId);
+
+		assertThat(deviceTokenRepository.findAll())
+				.extracting(DeviceToken::getFcmToken)
+				.containsExactly("fcm-dad");
+	}
+
 	private Long signupAdmin() {
 		User user = userRepository.findById(signupMom().id()).orElseThrow();
 		ReflectionTestUtils.setField(user, "role", Role.ADMIN);
@@ -625,6 +692,11 @@ class AuthServiceTest {
 
 	private SignupResponse signupMom() {
 		return authService.signup(new SignupRequest("mom@example.com", "password123", "김엄마"));
+	}
+
+	private void saveDeviceToken(Long userId, String fcmToken) {
+		User user = userRepository.findById(userId).orElseThrow();
+		deviceTokenRepository.saveAndFlush(new DeviceToken(user, fcmToken, Platform.ANDROID));
 	}
 
 	private void changeStatus(Long userId, UserStatus status) {

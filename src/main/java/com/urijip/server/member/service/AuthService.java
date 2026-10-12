@@ -19,6 +19,7 @@ import com.urijip.server.member.entity.RefreshToken;
 import com.urijip.server.member.entity.Role;
 import com.urijip.server.member.entity.User;
 import com.urijip.server.member.entity.UserStatus;
+import com.urijip.server.member.repository.DeviceTokenRepository;
 import com.urijip.server.member.repository.RefreshTokenRepository;
 import com.urijip.server.member.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -32,6 +33,7 @@ public class AuthService {
 
 	private final UserRepository userRepository;
 	private final RefreshTokenRepository refreshTokenRepository;
+	private final DeviceTokenRepository deviceTokenRepository;
 	private final PasswordEncoder passwordEncoder;
 	private final JwtProvider jwtProvider;
 	private final JwtProperties jwtProperties;
@@ -95,6 +97,9 @@ public class AuthService {
 	@Transactional
 	public void logout(Long userId, LogoutRequest request) {
 		refreshTokenRepository.deleteByTokenAndUserId(request.refreshToken(), userId);
+		if (request.fcmToken() != null) {
+			deviceTokenRepository.deleteByFcmTokenAndUserId(request.fcmToken(), userId);
+		}
 	}
 
 	@Transactional
@@ -104,6 +109,7 @@ public class AuthService {
 
 		familyService.leaveFamily(userId);
 		refreshTokenRepository.deleteByUserId(userId);
+		deviceTokenRepository.deleteByUserId(userId);
 		user.withdraw();
 	}
 
