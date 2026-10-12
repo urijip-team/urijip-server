@@ -53,4 +53,8 @@ public class Family extends BaseTimeEntity {
 		this.status = FamilyStatus.ACTIVE;
 	}
 
+	public void changeInviteCode(String inviteCode) {
+		this.inviteCode = inviteCode;
+	}
+
 }
