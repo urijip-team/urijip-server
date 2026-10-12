@@ -162,6 +162,16 @@ class FamilyMemberRepositoryTest {
 				.existsByFamilyIdAndUserIdAndRole(family.getId(), dad.getId(), FamilyRole.OWNER)).isFalse();
 	}
 
+	@Test
+	void findByFamilyIdAndUserIdReturnsThatMember() {
+		familyMemberRepository.saveAndFlush(member(mom, FamilyRole.OWNER));
+
+		assertThat(familyMemberRepository.findByFamilyIdAndUserId(family.getId(), mom.getId()))
+				.get()
+				.extracting(FamilyMember::getRole)
+				.isEqualTo(FamilyRole.OWNER);
+	}
+
 	private FamilyMember member(User user, FamilyRole role) {
 		return FamilyMember.builder()
 				.family(family)
