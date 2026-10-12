@@ -368,6 +368,20 @@ class FamilyControllerTest {
 		assertThat(result).bodyJson().extractingPath("$.error.code").isEqualTo("NOT_FAMILY_OWNER");
 	}
 
+	@Test
+	void transferOwnerToUserWhoIsNotMemberReturnsNotFound() {
+		given(familyService.transferOwner(any(), any(), any()))
+				.willThrow(new BusinessException(ErrorCode.FAMILY_MEMBER_NOT_FOUND));
+
+		MvcTestResult result = transferOwner(1L, 3L, """
+				{"userId": 2}
+				""");
+
+		assertThat(result).hasStatus(HttpStatus.NOT_FOUND);
+		assertThat(result).bodyJson().extractingPath("$.success").isEqualTo(false);
+		assertThat(result).bodyJson().extractingPath("$.error.code").isEqualTo("FAMILY_MEMBER_NOT_FOUND");
+	}
+
 	private MvcTestResult create(Long userId, String body) {
 		return mvc.post().uri("/api/families")
 				.header("Authorization", "Bearer " + jwtProvider.createAccessToken(userId, "USER"))
