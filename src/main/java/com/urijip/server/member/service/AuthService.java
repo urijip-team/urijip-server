@@ -11,10 +11,12 @@ import com.urijip.server.member.dto.request.LoginRequest;
 import com.urijip.server.member.dto.request.LogoutRequest;
 import com.urijip.server.member.dto.request.ReissueRequest;
 import com.urijip.server.member.dto.request.SignupRequest;
+import com.urijip.server.member.dto.response.AdminLoginResponse;
 import com.urijip.server.member.dto.response.LoginResponse;
 import com.urijip.server.member.dto.response.ReissueResponse;
 import com.urijip.server.member.dto.response.SignupResponse;
 import com.urijip.server.member.entity.RefreshToken;
+import com.urijip.server.member.entity.Role;
 import com.urijip.server.member.entity.User;
 import com.urijip.server.member.entity.UserStatus;
 import com.urijip.server.member.repository.RefreshTokenRepository;
@@ -52,17 +54,27 @@ public class AuthService {
 
 	@Transactional
 	public LoginResponse login(LoginRequest request) {
-		User user = userRepository.findByEmail(request.email())
-				.orElseThrow(() -> new BusinessException(ErrorCode.LOGIN_FAILED));
-		if (!passwordEncoder.matches(request.password(), user.getPassword())) {
-			throw new BusinessException(ErrorCode.LOGIN_FAILED);
-		}
+		User user = findByCredentials(request);
 		validateStatus(user, ErrorCode.LOGIN_FAILED);
 
 		String accessToken = jwtProvider.createAccessToken(user.getId(), user.getRole().name());
 		String refreshToken = issueRefreshToken(user);
 
 		return LoginResponse.of(accessToken, refreshToken, user, familyService.hasFamily(user.getId()));
+	}
+
+	@Transactional
+	public AdminLoginResponse adminLogin(LoginRequest request) {
+		User admin = findByCredentials(request);
+		if (admin.getRole() != Role.ADMIN) {
+			throw new BusinessException(ErrorCode.LOGIN_FAILED);
+		}
+		validateStatus(admin, ErrorCode.LOGIN_FAILED);
+
+		String accessToken = jwtProvider.createAccessToken(admin.getId(), admin.getRole().name());
+		String refreshToken = issueRefreshToken(admin);
+
+		return AdminLoginResponse.of(accessToken, refreshToken, admin);
 	}
 
 	@Transactional
@@ -83,6 +95,15 @@ public class AuthService {
 	@Transactional
 	public void logout(Long userId, LogoutRequest request) {
 		refreshTokenRepository.deleteByTokenAndUserId(request.refreshToken(), userId);
+	}
+
+	private User findByCredentials(LoginRequest request) {
+		User user = userRepository.findByEmail(request.email())
+				.orElseThrow(() -> new BusinessException(ErrorCode.LOGIN_FAILED));
+		if (!passwordEncoder.matches(request.password(), user.getPassword())) {
+			throw new BusinessException(ErrorCode.LOGIN_FAILED);
+		}
+		return user;
 	}
 
 	private String issueRefreshToken(User user) {

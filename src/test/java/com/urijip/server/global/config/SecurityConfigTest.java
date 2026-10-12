@@ -83,6 +83,7 @@ class SecurityConfigTest {
 	// 테스트 컨트롤러에 없는 경로라 보안을 통과하면 404가 된다.
 	@ParameterizedTest
 	@ValueSource(strings = {"/api/auth/signup", "/api/auth/login", "/api/auth/reissue",
+			"/admin/auth/login",
 			"/swagger-ui.html", "/swagger-ui/index.html", "/v3/api-docs", "/actuator/health"})
 	void publicPathPassesWithoutToken(String uri) {
 		assertThat(get(uri)).hasStatus(HttpStatus.NOT_FOUND);
