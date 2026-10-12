@@ -143,6 +143,14 @@ public class FamilyService {
 	}
 
 	@Transactional(readOnly = true)
+	public void validateSameFamily(Long userId, Long otherUserId) {
+		Long familyId = familyMemberRepository.findFirstByUserId(userId)
+				.map(member -> member.getFamily().getId())
+				.orElseThrow(() -> new BusinessException(ErrorCode.FAMILY_NOT_MEMBER));
+		validateMember(familyId, otherUserId);
+	}
+
+	@Transactional(readOnly = true)
 	public boolean hasFamily(Long userId) {
 		return familyMemberRepository.existsByUserId(userId);
 	}

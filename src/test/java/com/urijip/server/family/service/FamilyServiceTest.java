@@ -792,6 +792,38 @@ class FamilyServiceTest {
 		assertThat(familyMemberRepository.count()).isZero();
 	}
 
+	@Test
+	void validateSameFamilyPassesForMembersOfSameFamily() {
+		FamilyResponse created = familyService.create(mom.getId(), new FamilyCreateRequest("김씨네"));
+		User dad = saveUser("dad@example.com", "김아빠");
+		familyService.join(dad.getId(), new FamilyJoinRequest(created.inviteCode()));
+
+		assertThatCode(() -> familyService.validateSameFamily(dad.getId(), mom.getId()))
+				.doesNotThrowAnyException();
+	}
+
+	@Test
+	void validateSameFamilyRejectsUserOutsideFamily() {
+		familyService.create(mom.getId(), new FamilyCreateRequest("김씨네"));
+		User dad = saveUser("dad@example.com", "김아빠");
+
+		assertThatThrownBy(() -> familyService.validateSameFamily(mom.getId(), dad.getId()))
+				.isInstanceOf(BusinessException.class)
+				.extracting("errorCode")
+				.isEqualTo(ErrorCode.FAMILY_NOT_MEMBER);
+	}
+
+	@Test
+	void validateSameFamilyRejectsRequesterWithoutFamily() {
+		familyService.create(mom.getId(), new FamilyCreateRequest("김씨네"));
+		User dad = saveUser("dad@example.com", "김아빠");
+
+		assertThatThrownBy(() -> familyService.validateSameFamily(dad.getId(), mom.getId()))
+				.isInstanceOf(BusinessException.class)
+				.extracting("errorCode")
+				.isEqualTo(ErrorCode.FAMILY_NOT_MEMBER);
+	}
+
 	private User saveUser(String email, String name) {
 		return userRepository.saveAndFlush(User.builder()
 				.email(email)
