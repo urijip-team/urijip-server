@@ -485,6 +485,18 @@ class FamilyServiceTest {
 				new FamilyMemberResponse(dad.getId(), "김아빠", null, null, FamilyRole.OWNER));
 	}
 
+	@Test
+	void transferOwnerChangesOwnerOfFamily() {
+		FamilyResponse created = familyService.create(mom.getId(), new FamilyCreateRequest("김씨네"));
+		User dad = saveUser("dad@example.com", "김아빠");
+		familyService.join(dad.getId(), new FamilyJoinRequest(created.inviteCode()));
+
+		familyService.transferOwner(created.id(), mom.getId(), new FamilyOwnerTransferRequest(dad.getId()));
+
+		Family family = familyRepository.findById(created.id()).orElseThrow();
+		assertThat(family.getOwner().getId()).isEqualTo(dad.getId());
+	}
+
 	private User saveUser(String email, String name) {
 		return userRepository.saveAndFlush(User.builder()
 				.email(email)
