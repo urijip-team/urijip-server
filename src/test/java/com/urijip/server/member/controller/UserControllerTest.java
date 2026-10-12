@@ -1,6 +1,7 @@
 package com.urijip.server.member.controller;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.BDDMockito.then;
 
 import com.urijip.server.global.config.SecurityConfig;
 import com.urijip.server.global.security.JwtProvider;
@@ -34,6 +35,13 @@ class UserControllerTest {
 		assertThat(result).bodyJson().extractingPath("$.success").isEqualTo(true);
 		assertThat(result).bodyJson().extractingPath("$.data").isNull();
 		assertThat(result).bodyJson().extractingPath("$.error").isNull();
+	}
+
+	@Test
+	void withdrawPassesUserIdOfAccessToken() {
+		withdraw(7L);
+
+		then(authService).should().withdraw(7L);
 	}
 
 	private MvcTestResult withdraw(Long userId) {
