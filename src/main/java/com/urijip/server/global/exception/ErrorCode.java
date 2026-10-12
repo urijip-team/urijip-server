@@ -21,6 +21,7 @@ public enum ErrorCode {
 	FAMILY_MEMBER_NOT_FOUND(HttpStatus.NOT_FOUND, "해당 가족의 멤버를 찾을 수 없습니다"),
 	INVITE_CODE_NOT_FOUND(HttpStatus.NOT_FOUND, "존재하지 않는 초대 코드입니다"),
 	EMAIL_DUPLICATED(HttpStatus.CONFLICT, "이미 가입된 이메일입니다"),
+	OWNER_CANNOT_LEAVE(HttpStatus.CONFLICT, "방장은 방장을 위임한 뒤에 나갈 수 있습니다"),
 	ALREADY_FAMILY_MEMBER(HttpStatus.CONFLICT, "이미 가족에 참여하고 있습니다"),
 	INTERNAL_SERVER_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "서버 오류가 발생했습니다");
 
