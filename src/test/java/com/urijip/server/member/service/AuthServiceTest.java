@@ -511,6 +511,16 @@ class AuthServiceTest {
 				.containsExactly(token);
 	}
 
+	@Test
+	void withdrawnUserCannotLogin() {
+		authService.withdraw(signupMom().id());
+
+		assertThatThrownBy(() -> authService.login(new LoginRequest("mom@example.com", "password123")))
+				.isInstanceOf(BusinessException.class)
+				.extracting("errorCode")
+				.isEqualTo(ErrorCode.LOGIN_FAILED);
+	}
+
 	private Long signupAdmin() {
 		User user = userRepository.findById(signupMom().id()).orElseThrow();
 		ReflectionTestUtils.setField(user, "role", Role.ADMIN);
