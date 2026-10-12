@@ -293,6 +293,18 @@ class FamilyControllerTest {
 		then(familyService).should(never()).getMembers(any(), any());
 	}
 
+	@Test
+	void reissueInviteCodeReturnsFamilyWithNewCode() {
+		given(familyService.reissueInviteCode(3L, 1L)).willReturn(new FamilyResponse(3L, "김씨네", "B7B7B7"));
+
+		MvcTestResult result = reissueInviteCode(1L, 3L);
+
+		assertThat(result).hasStatusOk();
+		assertThat(result).bodyJson().extractingPath("$.success").isEqualTo(true);
+		assertThat(result).bodyJson().extractingPath("$.data.id").isEqualTo(3);
+		assertThat(result).bodyJson().extractingPath("$.data.inviteCode").isEqualTo("B7B7B7");
+	}
+
 	private MvcTestResult create(Long userId, String body) {
 		return mvc.post().uri("/api/families")
 				.header("Authorization", "Bearer " + jwtProvider.createAccessToken(userId, "USER"))
@@ -317,6 +329,12 @@ class FamilyControllerTest {
 
 	private MvcTestResult getMembers(Long userId, String familyId) {
 		return mvc.get().uri("/api/families/{familyId}/members", familyId)
+				.header("Authorization", "Bearer " + jwtProvider.createAccessToken(userId, "USER"))
+				.exchange();
+	}
+
+	private MvcTestResult reissueInviteCode(Long userId, Long familyId) {
+		return mvc.post().uri("/api/families/{familyId}/invite-code", familyId)
 				.header("Authorization", "Bearer " + jwtProvider.createAccessToken(userId, "USER"))
 				.exchange();
 	}
