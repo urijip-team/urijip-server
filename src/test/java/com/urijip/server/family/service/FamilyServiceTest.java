@@ -427,6 +427,17 @@ class FamilyServiceTest {
 				.isEqualTo(ErrorCode.INVITE_CODE_NOT_FOUND);
 	}
 
+	@Test
+	void newInviteCodeCanBeUsedAfterReissue() {
+		FamilyResponse created = familyService.create(mom.getId(), new FamilyCreateRequest("김씨네"));
+		User dad = saveUser("dad@example.com", "김아빠");
+		FamilyResponse reissued = familyService.reissueInviteCode(created.id(), mom.getId());
+
+		familyService.join(dad.getId(), new FamilyJoinRequest(reissued.inviteCode()));
+
+		assertThat(familyService.getMembers(created.id(), mom.getId())).hasSize(2);
+	}
+
 	private User saveUser(String email, String name) {
 		return userRepository.saveAndFlush(User.builder()
 				.email(email)
