@@ -130,6 +130,26 @@ class FamilyMemberRepositoryTest {
 				.containsExactly("김엄마", "김아빠");
 	}
 
+	@Test
+	void findByFamilyIdExcludesMembersOfAnotherFamily() {
+		User dad = saveUser("dad@example.com", "김아빠");
+		Family another = familyRepository.saveAndFlush(Family.builder()
+				.name("아빠네")
+				.inviteCode("B2B2B2")
+				.owner(dad)
+				.build());
+		familyMemberRepository.saveAndFlush(member(mom, FamilyRole.OWNER));
+		familyMemberRepository.saveAndFlush(FamilyMember.builder()
+				.family(another)
+				.user(dad)
+				.role(FamilyRole.OWNER)
+				.build());
+
+		assertThat(familyMemberRepository.findByFamilyIdOrderByJoinedAtAscIdAsc(family.getId()))
+				.extracting(found -> found.getUser().getName())
+				.containsExactly("김엄마");
+	}
+
 	private FamilyMember member(User user, FamilyRole role) {
 		return FamilyMember.builder()
 				.family(family)
