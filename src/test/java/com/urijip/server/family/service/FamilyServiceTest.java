@@ -542,6 +542,22 @@ class FamilyServiceTest {
 				.containsExactly(mom.getId());
 	}
 
+	@Test
+	void transferOwnerRejectsTransferToSelf() {
+		FamilyResponse created = familyService.create(mom.getId(), new FamilyCreateRequest("김씨네"));
+		User dad = saveUser("dad@example.com", "김아빠");
+		familyService.join(dad.getId(), new FamilyJoinRequest(created.inviteCode()));
+
+		assertThatThrownBy(() -> familyService.transferOwner(created.id(), mom.getId(), new FamilyOwnerTransferRequest(mom.getId())))
+				.isInstanceOf(BusinessException.class)
+				.extracting("errorCode")
+				.isEqualTo(ErrorCode.INVALID_INPUT);
+		assertThat(familyService.getMembers(created.id(), mom.getId()))
+				.filteredOn(member -> member.role() == FamilyRole.OWNER)
+				.extracting(FamilyMemberResponse::userId)
+				.containsExactly(mom.getId());
+	}
+
 	private User saveUser(String email, String name) {
 		return userRepository.saveAndFlush(User.builder()
 				.email(email)
