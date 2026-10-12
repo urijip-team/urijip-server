@@ -256,6 +256,14 @@ class FamilyServiceTest {
 		assertThat(familyService.getMyFamily(dad.getId())).isEqualTo(created);
 	}
 
+	@Test
+	void getMyFamilyRejectsUserWithoutFamily() {
+		assertThatThrownBy(() -> familyService.getMyFamily(mom.getId()))
+				.isInstanceOf(BusinessException.class)
+				.extracting("errorCode")
+				.isEqualTo(ErrorCode.FAMILY_NOT_FOUND);
+	}
+
 	private User saveUser(String email, String name) {
 		return userRepository.saveAndFlush(User.builder()
 				.email(email)
