@@ -95,6 +95,12 @@ public class FamilyService {
 		return getMembers(familyId, userId);
 	}
 
+	@Transactional
+	public void removeMember(Long familyId, Long userId, Long targetUserId) {
+		validateOwner(familyId, userId);
+		familyMemberRepository.delete(getMember(familyId, targetUserId));
+	}
+
 	@Transactional(readOnly = true)
 	public FamilyResponse getMyFamily(Long userId) {
 		return familyMemberRepository.findFirstByUserId(userId)
