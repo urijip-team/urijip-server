@@ -406,6 +406,16 @@ class FamilyControllerTest {
 		then(familyService).should(never()).transferOwner(any(), any(), any());
 	}
 
+	@Test
+	void removeMemberReturnsOkWithoutData() {
+		MvcTestResult result = removeMember(1L, 3L, 2L);
+
+		assertThat(result).hasStatusOk();
+		assertThat(result).bodyJson().extractingPath("$.success").isEqualTo(true);
+		assertThat(result).bodyJson().extractingPath("$.data").isNull();
+		assertThat(result).bodyJson().extractingPath("$.error").isNull();
+	}
+
 	private MvcTestResult create(Long userId, String body) {
 		return mvc.post().uri("/api/families")
 				.header("Authorization", "Bearer " + jwtProvider.createAccessToken(userId, "USER"))
@@ -445,6 +455,12 @@ class FamilyControllerTest {
 				.header("Authorization", "Bearer " + jwtProvider.createAccessToken(userId, "USER"))
 				.contentType(MediaType.APPLICATION_JSON)
 				.content(body)
+				.exchange();
+	}
+
+	private MvcTestResult removeMember(Long userId, Long familyId, Long targetUserId) {
+		return mvc.delete().uri("/api/families/{familyId}/members/{userId}", familyId, targetUserId)
+				.header("Authorization", "Bearer " + jwtProvider.createAccessToken(userId, "USER"))
 				.exchange();
 	}
 
