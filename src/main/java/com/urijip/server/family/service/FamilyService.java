@@ -82,6 +82,9 @@ public class FamilyService {
 	public List<FamilyMemberResponse> transferOwner(Long familyId, Long userId,
 			FamilyOwnerTransferRequest request) {
 		validateOwner(familyId, userId);
+		if (userId.equals(request.userId())) {
+			throw new BusinessException(ErrorCode.INVALID_INPUT);
+		}
 		FamilyMember newOwner = getMember(familyId, request.userId());
 		FamilyMember oldOwner = getMember(familyId, userId);
 
