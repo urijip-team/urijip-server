@@ -511,6 +511,22 @@ class FamilyServiceTest {
 		assertThatCode(() -> familyService.reissueInviteCode(created.id(), dad.getId())).doesNotThrowAnyException();
 	}
 
+	@Test
+	void transferOwnerRejectsOrdinaryMember() {
+		FamilyResponse created = familyService.create(mom.getId(), new FamilyCreateRequest("김씨네"));
+		User dad = saveUser("dad@example.com", "김아빠");
+		familyService.join(dad.getId(), new FamilyJoinRequest(created.inviteCode()));
+
+		assertThatThrownBy(() -> familyService.transferOwner(created.id(), dad.getId(), new FamilyOwnerTransferRequest(dad.getId())))
+				.isInstanceOf(BusinessException.class)
+				.extracting("errorCode")
+				.isEqualTo(ErrorCode.NOT_FAMILY_OWNER);
+		assertThat(familyService.getMembers(created.id(), mom.getId()))
+				.filteredOn(member -> member.role() == FamilyRole.OWNER)
+				.extracting(FamilyMemberResponse::userId)
+				.containsExactly(mom.getId());
+	}
+
 	private User saveUser(String email, String name) {
 		return userRepository.saveAndFlush(User.builder()
 				.email(email)
