@@ -451,6 +451,18 @@ class FamilyServiceTest {
 		assertThat(familyRepository.existsByInviteCode(created.inviteCode())).isTrue();
 	}
 
+	@Test
+	void reissueInviteCodeRejectsUserWhoIsNotMember() {
+		FamilyResponse created = familyService.create(mom.getId(), new FamilyCreateRequest("김씨네"));
+		User dad = saveUser("dad@example.com", "김아빠");
+
+		assertThatThrownBy(() -> familyService.reissueInviteCode(created.id(), dad.getId()))
+				.isInstanceOf(BusinessException.class)
+				.extracting("errorCode")
+				.isEqualTo(ErrorCode.FAMILY_NOT_MEMBER);
+		assertThat(familyRepository.existsByInviteCode(created.inviteCode())).isTrue();
+	}
+
 	private User saveUser(String email, String name) {
 		return userRepository.saveAndFlush(User.builder()
 				.email(email)
