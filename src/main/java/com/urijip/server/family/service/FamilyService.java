@@ -150,6 +150,9 @@ public class FamilyService {
 		}
 
 		familyMemberRepository.delete(member);
+		if (owner) {
+			familyRepository.delete(member.getFamily());
+		}
 	}
 
 	private FamilyMember getMember(Long familyId, Long userId) {
