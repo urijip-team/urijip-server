@@ -128,4 +128,19 @@ class RefreshTokenRepositoryTest {
 		assertThat(refreshTokenRepository.count()).isZero();
 	}
 
+	@Test
+	void deleteByUserIdKeepsTokensOfAnotherUser() {
+		refreshTokenRepository.saveAndFlush(new RefreshToken(user, "token-1", EXPIRES_AT));
+		User another = userRepository.saveAndFlush(User.builder()
+				.email("dad@example.com")
+				.password("encoded-password")
+				.name("김아빠")
+				.build());
+
+		long deleted = refreshTokenRepository.deleteByUserId(another.getId());
+
+		assertThat(deleted).isZero();
+		assertThat(refreshTokenRepository.count()).isEqualTo(1);
+	}
+
 }
