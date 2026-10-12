@@ -404,6 +404,17 @@ class FamilyServiceTest {
 		assertThat(response.inviteCode()).matches("[A-HJ-NP-Z2-9]{6}").isNotEqualTo(created.inviteCode());
 	}
 
+	@Test
+	void reissueInviteCodeSavesNewCode() {
+		FamilyResponse created = familyService.create(mom.getId(), new FamilyCreateRequest("김씨네"));
+
+		FamilyResponse response = familyService.reissueInviteCode(created.id(), mom.getId());
+
+		assertThat(familyRepository.existsByInviteCode(response.inviteCode())).isTrue();
+		assertThat(familyRepository.existsByInviteCode(created.inviteCode())).isFalse();
+		assertThat(familyService.getMyFamily(mom.getId())).isEqualTo(response);
+	}
+
 	private User saveUser(String email, String name) {
 		return userRepository.saveAndFlush(User.builder()
 				.email(email)
