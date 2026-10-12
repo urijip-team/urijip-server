@@ -392,6 +392,20 @@ class FamilyControllerTest {
 		then(familyService).should(never()).transferOwner(any(), any(), any());
 	}
 
+	@Test
+	void transferOwnerWithoutAccessTokenReturnsUnauthorized() {
+		MvcTestResult result = mvc.patch().uri("/api/families/3/owner")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("""
+						{"userId": 2}
+						""")
+				.exchange();
+
+		assertThat(result).hasStatus(HttpStatus.UNAUTHORIZED);
+		assertThat(result).bodyJson().extractingPath("$.error.code").isEqualTo("INVALID_TOKEN");
+		then(familyService).should(never()).transferOwner(any(), any(), any());
+	}
+
 	private MvcTestResult create(Long userId, String body) {
 		return mvc.post().uri("/api/families")
 				.header("Authorization", "Bearer " + jwtProvider.createAccessToken(userId, "USER"))
