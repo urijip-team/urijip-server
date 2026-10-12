@@ -416,6 +416,13 @@ class FamilyControllerTest {
 		assertThat(result).bodyJson().extractingPath("$.error").isNull();
 	}
 
+	@Test
+	void removeMemberPassesFamilyRequesterAndTarget() {
+		removeMember(1L, 3L, 2L);
+
+		then(familyService).should().removeMember(3L, 1L, 2L);
+	}
+
 	private MvcTestResult create(Long userId, String body) {
 		return mvc.post().uri("/api/families")
 				.header("Authorization", "Bearer " + jwtProvider.createAccessToken(userId, "USER"))
