@@ -44,7 +44,7 @@ class OpenApiConfigTest {
 		MvcTestResult result = apiDocs();
 
 		assertThat(result).bodyJson().extractingPath("$.paths['/api/families'].post.requestBody").isNotNull();
-		assertThat(result).bodyText().doesNotContain("\"name\":\"userId\"");
+		assertThat(result).bodyJson().doesNotHavePath("$.paths['/api/families'].post.parameters");
 	}
 
 	private MvcTestResult apiDocs() {
