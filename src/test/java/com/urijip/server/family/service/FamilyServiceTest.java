@@ -709,6 +709,17 @@ class FamilyServiceTest {
 		assertThat(familyService.hasFamily(mom.getId())).isFalse();
 	}
 
+	@Test
+	void lastOwnerLeavingDeletesFamily() {
+		FamilyResponse created = familyService.create(mom.getId(), new FamilyCreateRequest("김씨네"));
+
+		familyService.removeMember(created.id(), mom.getId(), mom.getId());
+
+		assertThat(familyRepository.count()).isZero();
+		assertThat(familyMemberRepository.count()).isZero();
+		assertThat(familyService.hasFamily(mom.getId())).isFalse();
+	}
+
 	private User saveUser(String email, String name) {
 		return userRepository.saveAndFlush(User.builder()
 				.email(email)
