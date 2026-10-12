@@ -615,6 +615,17 @@ class FamilyServiceTest {
 				.containsExactly("김엄마", "김아빠");
 	}
 
+	@Test
+	void ownerCannotRemoveUserWhoIsNotMember() {
+		FamilyResponse created = familyService.create(mom.getId(), new FamilyCreateRequest("김씨네"));
+		User dad = saveUser("dad@example.com", "김아빠");
+
+		assertThatThrownBy(() -> familyService.removeMember(created.id(), mom.getId(), dad.getId()))
+				.isInstanceOf(BusinessException.class)
+				.extracting("errorCode")
+				.isEqualTo(ErrorCode.FAMILY_MEMBER_NOT_FOUND);
+	}
+
 	private User saveUser(String email, String name) {
 		return userRepository.saveAndFlush(User.builder()
 				.email(email)
