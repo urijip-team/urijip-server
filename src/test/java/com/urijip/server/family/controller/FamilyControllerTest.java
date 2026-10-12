@@ -354,6 +354,20 @@ class FamilyControllerTest {
 		assertThat(result).bodyJson().extractingPath("$.data[1].role").isEqualTo("OWNER");
 	}
 
+	@Test
+	void transferOwnerByOrdinaryMemberReturnsForbidden() {
+		given(familyService.transferOwner(any(), any(), any()))
+				.willThrow(new BusinessException(ErrorCode.NOT_FAMILY_OWNER));
+
+		MvcTestResult result = transferOwner(1L, 3L, """
+				{"userId": 2}
+				""");
+
+		assertThat(result).hasStatus(HttpStatus.FORBIDDEN);
+		assertThat(result).bodyJson().extractingPath("$.success").isEqualTo(false);
+		assertThat(result).bodyJson().extractingPath("$.error.code").isEqualTo("NOT_FAMILY_OWNER");
+	}
+
 	private MvcTestResult create(Long userId, String body) {
 		return mvc.post().uri("/api/families")
 				.header("Authorization", "Bearer " + jwtProvider.createAccessToken(userId, "USER"))
