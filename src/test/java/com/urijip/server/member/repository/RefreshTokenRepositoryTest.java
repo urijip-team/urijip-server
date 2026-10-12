@@ -117,4 +117,15 @@ class RefreshTokenRepositoryTest {
 		assertThat(refreshTokenRepository.count()).isEqualTo(1);
 	}
 
+	@Test
+	void deleteByUserIdDeletesAllTokensOfUser() {
+		refreshTokenRepository.saveAndFlush(new RefreshToken(user, "token-1", EXPIRES_AT));
+		refreshTokenRepository.saveAndFlush(new RefreshToken(user, "token-2", EXPIRES_AT));
+
+		long deleted = refreshTokenRepository.deleteByUserId(user.getId());
+
+		assertThat(deleted).isEqualTo(2);
+		assertThat(refreshTokenRepository.count()).isZero();
+	}
+
 }
