@@ -750,6 +750,20 @@ class FamilyServiceTest {
 				.isEqualTo(ErrorCode.FAMILY_NOT_MEMBER);
 	}
 
+	@Test
+	void leaveFamilyRemovesMemberFromFamily() {
+		FamilyResponse created = familyService.create(mom.getId(), new FamilyCreateRequest("김씨네"));
+		User dad = saveUser("dad@example.com", "김아빠");
+		familyService.join(dad.getId(), new FamilyJoinRequest(created.inviteCode()));
+
+		familyService.leaveFamily(dad.getId());
+
+		assertThat(familyService.getMembers(created.id(), mom.getId()))
+				.extracting(FamilyMemberResponse::name)
+				.containsExactly("김엄마");
+		assertThat(familyService.hasFamily(dad.getId())).isFalse();
+	}
+
 	private User saveUser(String email, String name) {
 		return userRepository.saveAndFlush(User.builder()
 				.email(email)
