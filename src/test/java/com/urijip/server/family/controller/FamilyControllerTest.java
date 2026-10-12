@@ -448,6 +448,18 @@ class FamilyControllerTest {
 		assertThat(result).bodyJson().extractingPath("$.error.code").isEqualTo("OWNER_CANNOT_LEAVE");
 	}
 
+	@Test
+	void removeMemberWhoIsNotInFamilyReturnsNotFound() {
+		willThrow(new BusinessException(ErrorCode.FAMILY_MEMBER_NOT_FOUND))
+				.given(familyService).removeMember(any(), any(), any());
+
+		MvcTestResult result = removeMember(1L, 3L, 2L);
+
+		assertThat(result).hasStatus(HttpStatus.NOT_FOUND);
+		assertThat(result).bodyJson().extractingPath("$.success").isEqualTo(false);
+		assertThat(result).bodyJson().extractingPath("$.error.code").isEqualTo("FAMILY_MEMBER_NOT_FOUND");
+	}
+
 	private MvcTestResult create(Long userId, String body) {
 		return mvc.post().uri("/api/families")
 				.header("Authorization", "Bearer " + jwtProvider.createAccessToken(userId, "USER"))
