@@ -546,6 +546,20 @@ class AuthServiceTest {
 		assertThat(familyService.hasFamily(momId)).isTrue();
 	}
 
+	@Test
+	void withdrawRejectsOwnerWhileOtherMembersRemain() {
+		Long momId = signupMom().id();
+		String inviteCode = familyService.create(momId, new FamilyCreateRequest("김씨네")).inviteCode();
+		Long dadId = authService.signup(new SignupRequest("dad@example.com", "password123", "김아빠")).id();
+		familyService.join(dadId, new FamilyJoinRequest(inviteCode));
+
+		assertThatThrownBy(() -> authService.withdraw(momId))
+				.isInstanceOf(BusinessException.class)
+				.extracting("errorCode")
+				.isEqualTo(ErrorCode.OWNER_CANNOT_LEAVE);
+		assertThat(userRepository.findById(momId).orElseThrow().getStatus()).isEqualTo(UserStatus.ACTIVE);
+	}
+
 	private Long signupAdmin() {
 		User user = userRepository.findById(signupMom().id()).orElseThrow();
 		ReflectionTestUtils.setField(user, "role", Role.ADMIN);
