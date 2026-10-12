@@ -1,7 +1,9 @@
 package com.urijip.server.member.service;
 
 import com.urijip.server.family.service.FamilyService;
+import com.urijip.server.member.dto.request.ProfileUpdateRequest;
 import com.urijip.server.member.dto.response.ProfileResponse;
+import com.urijip.server.member.entity.User;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -20,6 +22,15 @@ public class ProfileService {
 		}
 
 		return ProfileResponse.from(userService.getUser(targetUserId));
+	}
+
+	@Transactional
+	public ProfileResponse updateMyProfile(Long userId, ProfileUpdateRequest request) {
+		User user = userService.getUser(userId);
+
+		user.updateProfile(request.name(), request.birthday(), request.statusMessage());
+
+		return ProfileResponse.from(user);
 	}
 
 }

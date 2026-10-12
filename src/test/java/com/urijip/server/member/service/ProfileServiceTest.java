@@ -12,6 +12,7 @@ import com.urijip.server.family.dto.response.FamilyResponse;
 import com.urijip.server.family.service.FamilyService;
 import com.urijip.server.global.exception.BusinessException;
 import com.urijip.server.global.exception.ErrorCode;
+import com.urijip.server.member.dto.request.ProfileUpdateRequest;
 import com.urijip.server.member.dto.response.ProfileResponse;
 import com.urijip.server.member.entity.User;
 import com.urijip.server.member.repository.UserRepository;
@@ -116,6 +117,52 @@ class ProfileServiceTest {
 				.isInstanceOf(BusinessException.class)
 				.extracting("errorCode")
 				.isEqualTo(ErrorCode.FAMILY_NOT_MEMBER);
+	}
+
+	@Test
+	void updateMyProfileChangesAllFields() {
+		ProfileResponse response = profileService.updateMyProfile(mom.getId(),
+				new ProfileUpdateRequest("김영희", LocalDate.of(1980, 5, 5), "오늘도 화이팅"));
+
+		assertThat(response).isEqualTo(new ProfileResponse(mom.getId(), "김영희", null, LocalDate.of(1980, 5, 5),
+				"오늘도 화이팅"));
+		assertThat(profileService.getProfile(mom.getId(), mom.getId())).isEqualTo(response);
+	}
+
+	@Test
+	void updateMyProfileKeepsFieldsThatAreNotSent() {
+		profileService.updateMyProfile(mom.getId(), new ProfileUpdateRequest("김영희", LocalDate.of(1980, 5, 5), "오늘도 화이팅"));
+
+		ProfileResponse response = profileService.updateMyProfile(mom.getId(),
+				new ProfileUpdateRequest(null, null, "퇴근 중"));
+
+		assertThat(response).isEqualTo(new ProfileResponse(mom.getId(), "김영희", null, LocalDate.of(1980, 5, 5), "퇴근 중"));
+	}
+
+	@Test
+	void updateMyProfileClearsStatusMessageWithBlank() {
+		profileService.updateMyProfile(mom.getId(), new ProfileUpdateRequest(null, null, "오늘도 화이팅"));
+
+		ProfileResponse response = profileService.updateMyProfile(mom.getId(),
+				new ProfileUpdateRequest(null, null, ""));
+
+		assertThat(response.statusMessage()).isNull();
+	}
+
+	@Test
+	void updateMyProfileDoesNotChangeOtherUsers() {
+		profileService.updateMyProfile(mom.getId(), new ProfileUpdateRequest("김영희", null, null));
+
+		assertThat(profileService.getProfile(dad.getId(), dad.getId()).name()).isEqualTo("김아빠");
+	}
+
+	@Test
+	void updateMyProfileRejectsUnknownUser() {
+		assertThatThrownBy(() -> profileService.updateMyProfile(999_999L,
+				new ProfileUpdateRequest("김영희", null, null)))
+				.isInstanceOf(BusinessException.class)
+				.extracting("errorCode")
+				.isEqualTo(ErrorCode.USER_NOT_FOUND);
 	}
 
 	private FamilyResponse joinSameFamily() {

@@ -14,6 +14,7 @@ import com.urijip.server.global.exception.BusinessException;
 import com.urijip.server.global.exception.ErrorCode;
 import com.urijip.server.global.security.JwtProvider;
 import com.urijip.server.member.dto.request.DeviceTokenRequest;
+import com.urijip.server.member.dto.request.ProfileUpdateRequest;
 import com.urijip.server.member.dto.response.ProfileResponse;
 import com.urijip.server.member.entity.Platform;
 import com.urijip.server.member.service.AuthService;
@@ -21,6 +22,7 @@ import com.urijip.server.member.service.DeviceTokenService;
 import com.urijip.server.member.service.ProfileService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
@@ -105,6 +107,73 @@ class UserControllerTest {
 		assertThat(result).hasStatus(HttpStatus.BAD_REQUEST);
 		assertThat(result).bodyJson().extractingPath("$.success").isEqualTo(false);
 		then(profileService).should(never()).getProfile(any(), any());
+	}
+
+	@Test
+	void updateMyProfileReturnsUpdatedProfile() {
+		given(profileService.updateMyProfile(1L,
+				new ProfileUpdateRequest("김영희", LocalDate.of(1980, 5, 5), "오늘도 화이팅")))
+				.willReturn(new ProfileResponse(1L, "김영희", null, LocalDate.of(1980, 5, 5), "오늘도 화이팅"));
+
+		MvcTestResult result = updateMyProfile(1L, """
+				{"name": "김영희", "birthday": "1980-05-05", "statusMessage": "오늘도 화이팅"}
+				""");
+
+		assertThat(result).hasStatusOk();
+		assertThat(result).bodyJson().extractingPath("$.success").isEqualTo(true);
+		assertThat(result).bodyJson().extractingPath("$.data.id").isEqualTo(1);
+		assertThat(result).bodyJson().extractingPath("$.data.name").isEqualTo("김영희");
+		assertThat(result).bodyJson().extractingPath("$.data.birthday").isEqualTo("1980-05-05");
+		assertThat(result).bodyJson().extractingPath("$.data.statusMessage").isEqualTo("오늘도 화이팅");
+	}
+
+	@Test
+	void updateMyProfileAcceptsPartialBody() {
+		updateMyProfile(7L, """
+				{"statusMessage": "퇴근 중"}
+				""");
+
+		then(profileService).should().updateMyProfile(7L, new ProfileUpdateRequest(null, null, "퇴근 중"));
+	}
+
+	@ParameterizedTest
+	@CsvSource(delimiter = '|', textBlock = """
+			name          | {"name": " "}
+			name          | {"name": "가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가"}
+			birthday      | {"birthday": "2999-01-01"}
+			""")
+	void updateMyProfileWithInvalidInputReturnsBadRequest(String field, String body) {
+		MvcTestResult result = updateMyProfile(1L, body);
+
+		assertThat(result).hasStatus(HttpStatus.BAD_REQUEST);
+		assertThat(result).bodyJson().extractingPath("$.error.code").isEqualTo("INVALID_INPUT");
+		assertThat(result).bodyJson().extractingPath("$.error.message").asString().contains(field + ": ");
+		then(profileService).should(never()).updateMyProfile(any(), any());
+	}
+
+	@Test
+	void updateMyProfileWithTooLongStatusMessageReturnsBadRequest() {
+		MvcTestResult result = updateMyProfile(1L, """
+				{"statusMessage": "%s"}
+				""".formatted("가".repeat(101)));
+
+		assertThat(result).hasStatus(HttpStatus.BAD_REQUEST);
+		assertThat(result).bodyJson().extractingPath("$.error.message")
+				.isEqualTo("statusMessage: 100자 이하여야 합니다");
+	}
+
+	@Test
+	void updateMyProfileWithoutAccessTokenReturnsUnauthorized() {
+		MvcTestResult result = mvc.patch().uri("/api/users/me")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("""
+						{"name": "김영희"}
+						""")
+				.exchange();
+
+		assertThat(result).hasStatus(HttpStatus.UNAUTHORIZED);
+		assertThat(result).bodyJson().extractingPath("$.error.code").isEqualTo("INVALID_TOKEN");
+		then(profileService).should(never()).updateMyProfile(any(), any());
 	}
 
 	@Test
@@ -216,6 +285,14 @@ class UserControllerTest {
 	private MvcTestResult getProfile(Long userId, String targetUserId) {
 		return mvc.get().uri("/api/users/{userId}", targetUserId)
 				.header("Authorization", "Bearer " + jwtProvider.createAccessToken(userId, "USER"))
+				.exchange();
+	}
+
+	private MvcTestResult updateMyProfile(Long userId, String body) {
+		return mvc.patch().uri("/api/users/me")
+				.header("Authorization", "Bearer " + jwtProvider.createAccessToken(userId, "USER"))
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(body)
 				.exchange();
 	}
 
