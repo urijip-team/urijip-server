@@ -253,6 +253,17 @@ class FamilyControllerTest {
 		assertThat(result).bodyJson().extractingPath("$.data[1].role").isEqualTo("MEMBER");
 	}
 
+	@Test
+	void getMembersReturnsNullForMissingNicknameAndProfileImage() {
+		given(familyService.getMembers(3L, 2L)).willReturn(List.of(
+				new FamilyMemberResponse(2L, "김아빠", null, null, FamilyRole.MEMBER)));
+
+		MvcTestResult result = getMembers(2L, "3");
+
+		assertThat(result).bodyJson().extractingPath("$.data[0].nickname").isNull();
+		assertThat(result).bodyJson().extractingPath("$.data[0].profileImageUrl").isNull();
+	}
+
 	private MvcTestResult create(Long userId, String body) {
 		return mvc.post().uri("/api/families")
 				.header("Authorization", "Bearer " + jwtProvider.createAccessToken(userId, "USER"))
