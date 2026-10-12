@@ -143,7 +143,13 @@ public class FamilyService {
 
 	private void leave(Long familyId, Long userId) {
 		validateMember(familyId, userId);
-		familyMemberRepository.delete(getMember(familyId, userId));
+		FamilyMember member = getMember(familyId, userId);
+		boolean owner = member.getRole() == FamilyRole.OWNER;
+		if (owner && familyMemberRepository.countByFamilyId(familyId) > 1) {
+			throw new BusinessException(ErrorCode.OWNER_CANNOT_LEAVE);
+		}
+
+		familyMemberRepository.delete(member);
 	}
 
 	private FamilyMember getMember(Long familyId, Long userId) {
