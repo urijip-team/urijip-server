@@ -88,6 +88,16 @@ class FamilyMemberRepositoryTest {
 				.isInstanceOf(DataIntegrityViolationException.class);
 	}
 
+	@Test
+	void findFirstByUserIdReturnsMembershipWithFamily() {
+		familyMemberRepository.saveAndFlush(member(mom, FamilyRole.OWNER));
+
+		assertThat(familyMemberRepository.findFirstByUserId(mom.getId()))
+				.get()
+				.extracting(found -> found.getFamily().getName())
+				.isEqualTo("김씨네");
+	}
+
 	private FamilyMember member(User user, FamilyRole role) {
 		return FamilyMember.builder()
 				.family(family)
