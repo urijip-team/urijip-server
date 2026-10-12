@@ -592,6 +592,14 @@ class AuthServiceTest {
 				.isEqualTo(ErrorCode.INVITE_CODE_NOT_FOUND);
 	}
 
+	@Test
+	void withdrawRejectsUnknownUser() {
+		assertThatThrownBy(() -> authService.withdraw(999_999L))
+				.isInstanceOf(BusinessException.class)
+				.extracting("errorCode")
+				.isEqualTo(ErrorCode.USER_NOT_FOUND);
+	}
+
 	private Long signupAdmin() {
 		User user = userRepository.findById(signupMom().id()).orElseThrow();
 		ReflectionTestUtils.setField(user, "role", Role.ADMIN);
