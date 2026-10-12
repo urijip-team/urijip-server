@@ -12,6 +12,7 @@ import java.util.List;
 import com.urijip.server.TestcontainersConfiguration;
 import com.urijip.server.family.dto.request.FamilyCreateRequest;
 import com.urijip.server.family.dto.request.FamilyJoinRequest;
+import com.urijip.server.family.dto.request.FamilyOwnerTransferRequest;
 import com.urijip.server.family.service.FamilyService;
 import com.urijip.server.global.exception.BusinessException;
 import com.urijip.server.global.exception.ErrorCode;
@@ -558,6 +559,22 @@ class AuthServiceTest {
 				.extracting("errorCode")
 				.isEqualTo(ErrorCode.OWNER_CANNOT_LEAVE);
 		assertThat(userRepository.findById(momId).orElseThrow().getStatus()).isEqualTo(UserStatus.ACTIVE);
+	}
+
+	@Test
+	void formerOwnerCanWithdrawAfterTransferringOwner() {
+		Long momId = signupMom().id();
+		String inviteCode = familyService.create(momId, new FamilyCreateRequest("김씨네")).inviteCode();
+		Long dadId = authService.signup(new SignupRequest("dad@example.com", "password123", "김아빠")).id();
+		familyService.join(dadId, new FamilyJoinRequest(inviteCode));
+		Long familyId = familyService.getMyFamily(momId).id();
+		familyService.transferOwner(familyId, momId, new FamilyOwnerTransferRequest(dadId));
+
+		authService.withdraw(momId);
+
+		assertThat(userRepository.findById(momId).orElseThrow().getStatus()).isEqualTo(UserStatus.WITHDRAWN);
+		assertThat(familyService.hasFamily(momId)).isFalse();
+		assertThat(familyService.hasFamily(dadId)).isTrue();
 	}
 
 	private Long signupAdmin() {
