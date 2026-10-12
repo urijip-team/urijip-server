@@ -1,5 +1,6 @@
 package com.urijip.server.family.repository;
 
+import java.util.List;
 import java.util.Optional;
 
 import com.urijip.server.family.entity.FamilyMember;
@@ -14,5 +15,8 @@ public interface FamilyMemberRepository extends JpaRepository<FamilyMember, Long
 
 	@EntityGraph(attributePaths = "family")
 	Optional<FamilyMember> findFirstByUserId(Long userId);
+
+	@EntityGraph(attributePaths = "user")
+	List<FamilyMember> findByFamilyIdOrderByJoinedAtAscIdAsc(Long familyId);
 
 }
