@@ -284,6 +284,15 @@ class FamilyControllerTest {
 		then(familyService).should(never()).getMembers(any(), any());
 	}
 
+	@Test
+	void getMembersWithNonNumericFamilyIdReturnsBadRequest() {
+		MvcTestResult result = getMembers(2L, "abc");
+
+		assertThat(result).hasStatus(HttpStatus.BAD_REQUEST);
+		assertThat(result).bodyJson().extractingPath("$.success").isEqualTo(false);
+		then(familyService).should(never()).getMembers(any(), any());
+	}
+
 	private MvcTestResult create(Long userId, String body) {
 		return mvc.post().uri("/api/families")
 				.header("Authorization", "Bearer " + jwtProvider.createAccessToken(userId, "USER"))
