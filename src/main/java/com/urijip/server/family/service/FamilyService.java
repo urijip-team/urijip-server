@@ -75,6 +75,8 @@ public class FamilyService {
 
 	@Transactional(readOnly = true)
 	public List<FamilyMemberResponse> getMembers(Long familyId, Long userId) {
+		validateMember(familyId, userId);
+
 		return familyMemberRepository.findByFamilyIdOrderByJoinedAtAscIdAsc(familyId).stream()
 				.map(FamilyMemberResponse::from)
 				.toList();
