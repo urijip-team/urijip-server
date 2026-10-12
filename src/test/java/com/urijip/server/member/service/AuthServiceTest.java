@@ -489,6 +489,16 @@ class AuthServiceTest {
 		assertThat(userRepository.findById(momId).orElseThrow().getStatus()).isEqualTo(UserStatus.WITHDRAWN);
 	}
 
+	@Test
+	void withdrawDeletesRefreshTokensOfAllDevices() {
+		String token = loginMom();
+		authService.login(new LoginRequest("mom@example.com", "password123"));
+
+		authService.withdraw(jwtProvider.parseRefreshToken(token));
+
+		assertThat(refreshTokenRepository.count()).isZero();
+	}
+
 	private Long signupAdmin() {
 		User user = userRepository.findById(signupMom().id()).orElseThrow();
 		ReflectionTestUtils.setField(user, "role", Role.ADMIN);
