@@ -34,6 +34,11 @@ class OpenApiConfigTest {
 		assertThat(result).bodyJson().extractingPath("$.components.securitySchemes.bearerAuth.bearerFormat").isEqualTo("JWT");
 	}
 
+	@Test
+	void apiDocsRequireBearerTokenForAllOperations() {
+		assertThat(apiDocs()).bodyJson().extractingPath("$.security[0].bearerAuth").isNotNull();
+	}
+
 	private MvcTestResult apiDocs() {
 		return mvc.get().uri("/v3/api-docs").exchange();
 	}
