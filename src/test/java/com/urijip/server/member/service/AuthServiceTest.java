@@ -11,6 +11,8 @@ import java.util.List;
 
 import com.urijip.server.TestcontainersConfiguration;
 import com.urijip.server.family.dto.request.FamilyCreateRequest;
+import com.urijip.server.family.dto.request.FamilyJoinRequest;
+import com.urijip.server.family.dto.request.FamilyOwnerTransferRequest;
 import com.urijip.server.family.service.FamilyService;
 import com.urijip.server.global.exception.BusinessException;
 import com.urijip.server.global.exception.ErrorCode;
@@ -478,6 +480,134 @@ class AuthServiceTest {
 				.extracting("errorCode")
 				.isEqualTo(ErrorCode.LOGIN_FAILED);
 		assertThat(refreshTokenRepository.count()).isZero();
+	}
+
+	@Test
+	void withdrawMarksUserAsWithdrawn() {
+		Long momId = signupMom().id();
+
+		authService.withdraw(momId);
+
+		assertThat(userRepository.findById(momId).orElseThrow().getStatus()).isEqualTo(UserStatus.WITHDRAWN);
+	}
+
+	@Test
+	void withdrawDeletesRefreshTokensOfAllDevices() {
+		String token = loginMom();
+		authService.login(new LoginRequest("mom@example.com", "password123"));
+
+		authService.withdraw(jwtProvider.parseRefreshToken(token));
+
+		assertThat(refreshTokenRepository.count()).isZero();
+	}
+
+	@Test
+	void withdrawKeepsRefreshTokensOfOtherUsers() {
+		String token = loginMom();
+		Long dadId = authService.signup(new SignupRequest("dad@example.com", "password123", "김아빠")).id();
+
+		authService.withdraw(dadId);
+
+		assertThat(refreshTokenRepository.findAll())
+				.extracting(RefreshToken::getToken)
+				.containsExactly(token);
+	}
+
+	@Test
+	void withdrawnUserCannotLogin() {
+		authService.withdraw(signupMom().id());
+
+		assertThatThrownBy(() -> authService.login(new LoginRequest("mom@example.com", "password123")))
+				.isInstanceOf(BusinessException.class)
+				.extracting("errorCode")
+				.isEqualTo(ErrorCode.LOGIN_FAILED);
+	}
+
+	@Test
+	void withdrawnUserCannotReissue() {
+		String token = loginMom();
+		authService.withdraw(jwtProvider.parseRefreshToken(token));
+
+		assertThatThrownBy(() -> authService.reissue(new ReissueRequest(token)))
+				.isInstanceOf(BusinessException.class)
+				.extracting("errorCode")
+				.isEqualTo(ErrorCode.INVALID_TOKEN);
+	}
+
+	@Test
+	void withdrawRemovesUserFromFamily() {
+		Long momId = signupMom().id();
+		String inviteCode = familyService.create(momId, new FamilyCreateRequest("김씨네")).inviteCode();
+		Long dadId = authService.signup(new SignupRequest("dad@example.com", "password123", "김아빠")).id();
+		familyService.join(dadId, new FamilyJoinRequest(inviteCode));
+
+		authService.withdraw(dadId);
+
+		assertThat(familyService.hasFamily(dadId)).isFalse();
+		assertThat(familyService.hasFamily(momId)).isTrue();
+	}
+
+	@Test
+	void withdrawRejectsOwnerWhileOtherMembersRemain() {
+		Long momId = signupMom().id();
+		String inviteCode = familyService.create(momId, new FamilyCreateRequest("김씨네")).inviteCode();
+		Long dadId = authService.signup(new SignupRequest("dad@example.com", "password123", "김아빠")).id();
+		familyService.join(dadId, new FamilyJoinRequest(inviteCode));
+
+		assertThatThrownBy(() -> authService.withdraw(momId))
+				.isInstanceOf(BusinessException.class)
+				.extracting("errorCode")
+				.isEqualTo(ErrorCode.OWNER_CANNOT_LEAVE);
+		assertThat(userRepository.findById(momId).orElseThrow().getStatus()).isEqualTo(UserStatus.ACTIVE);
+	}
+
+	@Test
+	void formerOwnerCanWithdrawAfterTransferringOwner() {
+		Long momId = signupMom().id();
+		String inviteCode = familyService.create(momId, new FamilyCreateRequest("김씨네")).inviteCode();
+		Long dadId = authService.signup(new SignupRequest("dad@example.com", "password123", "김아빠")).id();
+		familyService.join(dadId, new FamilyJoinRequest(inviteCode));
+		Long familyId = familyService.getMyFamily(momId).id();
+		familyService.transferOwner(familyId, momId, new FamilyOwnerTransferRequest(dadId));
+
+		authService.withdraw(momId);
+
+		assertThat(userRepository.findById(momId).orElseThrow().getStatus()).isEqualTo(UserStatus.WITHDRAWN);
+		assertThat(familyService.hasFamily(momId)).isFalse();
+		assertThat(familyService.hasFamily(dadId)).isTrue();
+	}
+
+	@Test
+	void withdrawOfOwnerWithoutOtherMembersDeletesFamily() {
+		Long momId = signupMom().id();
+		String inviteCode = familyService.create(momId, new FamilyCreateRequest("김씨네")).inviteCode();
+		Long dadId = authService.signup(new SignupRequest("dad@example.com", "password123", "김아빠")).id();
+
+		authService.withdraw(momId);
+
+		assertThat(familyService.hasFamily(momId)).isFalse();
+		assertThatThrownBy(() -> familyService.join(dadId, new FamilyJoinRequest(inviteCode)))
+				.isInstanceOf(BusinessException.class)
+				.extracting("errorCode")
+				.isEqualTo(ErrorCode.INVITE_CODE_NOT_FOUND);
+	}
+
+	@Test
+	void withdrawRejectsUnknownUser() {
+		assertThatThrownBy(() -> authService.withdraw(999_999L))
+				.isInstanceOf(BusinessException.class)
+				.extracting("errorCode")
+				.isEqualTo(ErrorCode.USER_NOT_FOUND);
+	}
+
+	@Test
+	void withdrawnEmailCannotBeUsedForSignup() {
+		authService.withdraw(signupMom().id());
+
+		assertThatThrownBy(() -> signupMom())
+				.isInstanceOf(BusinessException.class)
+				.extracting("errorCode")
+				.isEqualTo(ErrorCode.EMAIL_DUPLICATED);
 	}
 
 	private Long signupAdmin() {

@@ -750,6 +750,48 @@ class FamilyServiceTest {
 				.isEqualTo(ErrorCode.FAMILY_NOT_MEMBER);
 	}
 
+	@Test
+	void leaveFamilyRemovesMemberFromFamily() {
+		FamilyResponse created = familyService.create(mom.getId(), new FamilyCreateRequest("김씨네"));
+		User dad = saveUser("dad@example.com", "김아빠");
+		familyService.join(dad.getId(), new FamilyJoinRequest(created.inviteCode()));
+
+		familyService.leaveFamily(dad.getId());
+
+		assertThat(familyService.getMembers(created.id(), mom.getId()))
+				.extracting(FamilyMemberResponse::name)
+				.containsExactly("김엄마");
+		assertThat(familyService.hasFamily(dad.getId())).isFalse();
+	}
+
+	@Test
+	void leaveFamilyWithoutFamilyDoesNothing() {
+		assertThatCode(() -> familyService.leaveFamily(mom.getId())).doesNotThrowAnyException();
+	}
+
+	@Test
+	void leaveFamilyRejectsOwnerWhileOtherMembersRemain() {
+		FamilyResponse created = familyService.create(mom.getId(), new FamilyCreateRequest("김씨네"));
+		User dad = saveUser("dad@example.com", "김아빠");
+		familyService.join(dad.getId(), new FamilyJoinRequest(created.inviteCode()));
+
+		assertThatThrownBy(() -> familyService.leaveFamily(mom.getId()))
+				.isInstanceOf(BusinessException.class)
+				.extracting("errorCode")
+				.isEqualTo(ErrorCode.OWNER_CANNOT_LEAVE);
+		assertThat(familyService.hasFamily(mom.getId())).isTrue();
+	}
+
+	@Test
+	void leaveFamilyOfLastOwnerDeletesFamily() {
+		familyService.create(mom.getId(), new FamilyCreateRequest("김씨네"));
+
+		familyService.leaveFamily(mom.getId());
+
+		assertThat(familyRepository.count()).isZero();
+		assertThat(familyMemberRepository.count()).isZero();
+	}
+
 	private User saveUser(String email, String name) {
 		return userRepository.saveAndFlush(User.builder()
 				.email(email)
