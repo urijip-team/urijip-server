@@ -11,6 +11,7 @@ import java.util.List;
 
 import com.urijip.server.TestcontainersConfiguration;
 import com.urijip.server.family.dto.request.FamilyCreateRequest;
+import com.urijip.server.family.dto.request.FamilyJoinRequest;
 import com.urijip.server.family.service.FamilyService;
 import com.urijip.server.global.exception.BusinessException;
 import com.urijip.server.global.exception.ErrorCode;
@@ -530,6 +531,19 @@ class AuthServiceTest {
 				.isInstanceOf(BusinessException.class)
 				.extracting("errorCode")
 				.isEqualTo(ErrorCode.INVALID_TOKEN);
+	}
+
+	@Test
+	void withdrawRemovesUserFromFamily() {
+		Long momId = signupMom().id();
+		String inviteCode = familyService.create(momId, new FamilyCreateRequest("김씨네")).inviteCode();
+		Long dadId = authService.signup(new SignupRequest("dad@example.com", "password123", "김아빠")).id();
+		familyService.join(dadId, new FamilyJoinRequest(inviteCode));
+
+		authService.withdraw(dadId);
+
+		assertThat(familyService.hasFamily(dadId)).isFalse();
+		assertThat(familyService.hasFamily(momId)).isTrue();
 	}
 
 	private Long signupAdmin() {
