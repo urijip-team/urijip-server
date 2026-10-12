@@ -2,18 +2,23 @@ package com.urijip.server.member.controller;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
 import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.never;
+
+import java.time.LocalDate;
 
 import com.urijip.server.global.config.SecurityConfig;
 import com.urijip.server.global.exception.BusinessException;
 import com.urijip.server.global.exception.ErrorCode;
 import com.urijip.server.global.security.JwtProvider;
 import com.urijip.server.member.dto.request.DeviceTokenRequest;
+import com.urijip.server.member.dto.response.ProfileResponse;
 import com.urijip.server.member.entity.Platform;
 import com.urijip.server.member.service.AuthService;
 import com.urijip.server.member.service.DeviceTokenService;
+import com.urijip.server.member.service.ProfileService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
@@ -41,6 +46,66 @@ class UserControllerTest {
 
 	@MockitoBean
 	private DeviceTokenService deviceTokenService;
+
+	@MockitoBean
+	private ProfileService profileService;
+
+	@Test
+	void getProfileReturnsProfile() {
+		given(profileService.getProfile(2L, 1L)).willReturn(new ProfileResponse(1L, "김엄마",
+				"https://example.com/mom.png", LocalDate.of(1980, 5, 5), "오늘도 화이팅"));
+
+		MvcTestResult result = getProfile(2L, "1");
+
+		assertThat(result).hasStatusOk();
+		assertThat(result).bodyJson().extractingPath("$.success").isEqualTo(true);
+		assertThat(result).bodyJson().extractingPath("$.data.id").isEqualTo(1);
+		assertThat(result).bodyJson().extractingPath("$.data.name").isEqualTo("김엄마");
+		assertThat(result).bodyJson().extractingPath("$.data.profileImageUrl").isEqualTo("https://example.com/mom.png");
+		assertThat(result).bodyJson().extractingPath("$.data.birthday").isEqualTo("1980-05-05");
+		assertThat(result).bodyJson().extractingPath("$.data.statusMessage").isEqualTo("오늘도 화이팅");
+		assertThat(result).bodyJson().extractingPath("$.error").isNull();
+	}
+
+	@Test
+	void getProfileDoesNotExposeEmailOrPassword() {
+		given(profileService.getProfile(2L, 1L)).willReturn(new ProfileResponse(1L, "김엄마", null, null, null));
+
+		MvcTestResult result = getProfile(2L, "1");
+
+		assertThat(result).bodyJson().doesNotHavePath("$.data.email");
+		assertThat(result).bodyJson().doesNotHavePath("$.data.password");
+		assertThat(result).bodyJson().extractingPath("$.data.birthday").isNull();
+	}
+
+	@Test
+	void getProfileOfUserOutsideFamilyReturnsForbidden() {
+		given(profileService.getProfile(any(), any())).willThrow(new BusinessException(ErrorCode.FAMILY_NOT_MEMBER));
+
+		MvcTestResult result = getProfile(2L, "1");
+
+		assertThat(result).hasStatus(HttpStatus.FORBIDDEN);
+		assertThat(result).bodyJson().extractingPath("$.success").isEqualTo(false);
+		assertThat(result).bodyJson().extractingPath("$.error.code").isEqualTo("FAMILY_NOT_MEMBER");
+	}
+
+	@Test
+	void getProfileWithoutAccessTokenReturnsUnauthorized() {
+		MvcTestResult result = mvc.get().uri("/api/users/1").exchange();
+
+		assertThat(result).hasStatus(HttpStatus.UNAUTHORIZED);
+		assertThat(result).bodyJson().extractingPath("$.error.code").isEqualTo("INVALID_TOKEN");
+		then(profileService).should(never()).getProfile(any(), any());
+	}
+
+	@Test
+	void getProfileWithNonNumericUserIdReturnsBadRequest() {
+		MvcTestResult result = getProfile(2L, "abc");
+
+		assertThat(result).hasStatus(HttpStatus.BAD_REQUEST);
+		assertThat(result).bodyJson().extractingPath("$.success").isEqualTo(false);
+		then(profileService).should(never()).getProfile(any(), any());
+	}
 
 	@Test
 	void withdrawReturnsOkWithoutData() {
@@ -146,6 +211,12 @@ class UserControllerTest {
 		assertThat(result).hasStatus(HttpStatus.UNAUTHORIZED);
 		assertThat(result).bodyJson().extractingPath("$.error.code").isEqualTo("INVALID_TOKEN");
 		then(deviceTokenService).should(never()).register(any(), any());
+	}
+
+	private MvcTestResult getProfile(Long userId, String targetUserId) {
+		return mvc.get().uri("/api/users/{userId}", targetUserId)
+				.header("Authorization", "Bearer " + jwtProvider.createAccessToken(userId, "USER"))
+				.exchange();
 	}
 
 	private MvcTestResult withdraw(Long userId) {
