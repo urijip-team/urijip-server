@@ -90,6 +90,14 @@ public class FamilyService {
 	}
 
 	@Transactional(readOnly = true)
+	public void validateOwner(Long familyId, Long userId) {
+		validateMember(familyId, userId);
+		if (!familyMemberRepository.existsByFamilyIdAndUserIdAndRole(familyId, userId, FamilyRole.OWNER)) {
+			throw new BusinessException(ErrorCode.NOT_FAMILY_OWNER);
+		}
+	}
+
+	@Transactional(readOnly = true)
 	public boolean hasFamily(Long userId) {
 		return familyMemberRepository.existsByUserId(userId);
 	}
