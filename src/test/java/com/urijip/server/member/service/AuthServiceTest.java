@@ -521,6 +521,17 @@ class AuthServiceTest {
 				.isEqualTo(ErrorCode.LOGIN_FAILED);
 	}
 
+	@Test
+	void withdrawnUserCannotReissue() {
+		String token = loginMom();
+		authService.withdraw(jwtProvider.parseRefreshToken(token));
+
+		assertThatThrownBy(() -> authService.reissue(new ReissueRequest(token)))
+				.isInstanceOf(BusinessException.class)
+				.extracting("errorCode")
+				.isEqualTo(ErrorCode.INVALID_TOKEN);
+	}
+
 	private Long signupAdmin() {
 		User user = userRepository.findById(signupMom().id()).orElseThrow();
 		ReflectionTestUtils.setField(user, "role", Role.ADMIN);
