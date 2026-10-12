@@ -95,6 +95,16 @@ public class FamilyService {
 		return getMembers(familyId, userId);
 	}
 
+	@Transactional
+	public void removeMember(Long familyId, Long userId, Long targetUserId) {
+		if (userId.equals(targetUserId)) {
+			leave(familyId, userId);
+			return;
+		}
+		validateOwner(familyId, userId);
+		familyMemberRepository.delete(getMember(familyId, targetUserId));
+	}
+
 	@Transactional(readOnly = true)
 	public FamilyResponse getMyFamily(Long userId) {
 		return familyMemberRepository.findFirstByUserId(userId)
@@ -129,6 +139,20 @@ public class FamilyService {
 	@Transactional(readOnly = true)
 	public boolean hasFamily(Long userId) {
 		return familyMemberRepository.existsByUserId(userId);
+	}
+
+	private void leave(Long familyId, Long userId) {
+		validateMember(familyId, userId);
+		FamilyMember member = getMember(familyId, userId);
+		boolean owner = member.getRole() == FamilyRole.OWNER;
+		if (owner && familyMemberRepository.countByFamilyId(familyId) > 1) {
+			throw new BusinessException(ErrorCode.OWNER_CANNOT_LEAVE);
+		}
+
+		familyMemberRepository.delete(member);
+		if (owner) {
+			familyRepository.delete(member.getFamily());
+		}
 	}
 
 	private FamilyMember getMember(Long familyId, Long userId) {

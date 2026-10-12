@@ -569,6 +569,187 @@ class FamilyServiceTest {
 				.isEqualTo(ErrorCode.FAMILY_NOT_MEMBER);
 	}
 
+	@Test
+	void ownerRemovesMember() {
+		FamilyResponse created = familyService.create(mom.getId(), new FamilyCreateRequest("김씨네"));
+		User dad = saveUser("dad@example.com", "김아빠");
+		familyService.join(dad.getId(), new FamilyJoinRequest(created.inviteCode()));
+
+		familyService.removeMember(created.id(), mom.getId(), dad.getId());
+
+		assertThat(familyService.getMembers(created.id(), mom.getId()))
+				.extracting(FamilyMemberResponse::name)
+				.containsExactly("김엄마");
+		assertThat(familyService.hasFamily(dad.getId())).isFalse();
+	}
+
+	@Test
+	void ordinaryMemberCannotRemoveAnotherMember() {
+		FamilyResponse created = familyService.create(mom.getId(), new FamilyCreateRequest("김씨네"));
+		User dad = saveUser("dad@example.com", "김아빠");
+		User kid = saveUser("kid@example.com", "김첫째");
+		familyService.join(dad.getId(), new FamilyJoinRequest(created.inviteCode()));
+		familyService.join(kid.getId(), new FamilyJoinRequest(created.inviteCode()));
+
+		assertThatThrownBy(() -> familyService.removeMember(created.id(), dad.getId(), kid.getId()))
+				.isInstanceOf(BusinessException.class)
+				.extracting("errorCode")
+				.isEqualTo(ErrorCode.NOT_FAMILY_OWNER);
+		assertThat(familyService.getMembers(created.id(), mom.getId()))
+				.extracting(FamilyMemberResponse::name)
+				.containsExactly("김엄마", "김아빠", "김첫째");
+	}
+
+	@Test
+	void ordinaryMemberCannotRemoveOwner() {
+		FamilyResponse created = familyService.create(mom.getId(), new FamilyCreateRequest("김씨네"));
+		User dad = saveUser("dad@example.com", "김아빠");
+		familyService.join(dad.getId(), new FamilyJoinRequest(created.inviteCode()));
+
+		assertThatThrownBy(() -> familyService.removeMember(created.id(), dad.getId(), mom.getId()))
+				.isInstanceOf(BusinessException.class)
+				.extracting("errorCode")
+				.isEqualTo(ErrorCode.NOT_FAMILY_OWNER);
+		assertThat(familyService.getMembers(created.id(), mom.getId()))
+				.extracting(FamilyMemberResponse::name)
+				.containsExactly("김엄마", "김아빠");
+	}
+
+	@Test
+	void ownerCannotRemoveUserWhoIsNotMember() {
+		FamilyResponse created = familyService.create(mom.getId(), new FamilyCreateRequest("김씨네"));
+		User dad = saveUser("dad@example.com", "김아빠");
+
+		assertThatThrownBy(() -> familyService.removeMember(created.id(), mom.getId(), dad.getId()))
+				.isInstanceOf(BusinessException.class)
+				.extracting("errorCode")
+				.isEqualTo(ErrorCode.FAMILY_MEMBER_NOT_FOUND);
+	}
+
+	@Test
+	void outsiderCannotRemoveMember() {
+		FamilyResponse created = familyService.create(mom.getId(), new FamilyCreateRequest("김씨네"));
+		User dad = saveUser("dad@example.com", "김아빠");
+
+		assertThatThrownBy(() -> familyService.removeMember(created.id(), dad.getId(), mom.getId()))
+				.isInstanceOf(BusinessException.class)
+				.extracting("errorCode")
+				.isEqualTo(ErrorCode.FAMILY_NOT_MEMBER);
+		assertThat(familyService.getMembers(created.id(), mom.getId()))
+				.extracting(FamilyMemberResponse::name)
+				.containsExactly("김엄마");
+	}
+
+	@Test
+	void ordinaryMemberLeavesFamily() {
+		FamilyResponse created = familyService.create(mom.getId(), new FamilyCreateRequest("김씨네"));
+		User dad = saveUser("dad@example.com", "김아빠");
+		familyService.join(dad.getId(), new FamilyJoinRequest(created.inviteCode()));
+
+		familyService.removeMember(created.id(), dad.getId(), dad.getId());
+
+		assertThat(familyService.getMembers(created.id(), mom.getId()))
+				.extracting(FamilyMemberResponse::name)
+				.containsExactly("김엄마");
+		assertThat(familyService.hasFamily(dad.getId())).isFalse();
+		assertThat(familyRepository.count()).isEqualTo(1);
+	}
+
+	@Test
+	void memberWhoLeftCanJoinAgain() {
+		FamilyResponse created = familyService.create(mom.getId(), new FamilyCreateRequest("김씨네"));
+		User dad = saveUser("dad@example.com", "김아빠");
+		familyService.join(dad.getId(), new FamilyJoinRequest(created.inviteCode()));
+		familyService.removeMember(created.id(), dad.getId(), dad.getId());
+
+		familyService.join(dad.getId(), new FamilyJoinRequest(created.inviteCode()));
+
+		assertThat(familyService.getMembers(created.id(), mom.getId()))
+				.extracting(FamilyMemberResponse::name)
+				.containsExactly("김엄마", "김아빠");
+	}
+
+	@Test
+	void outsiderCannotLeaveFamily() {
+		FamilyResponse created = familyService.create(mom.getId(), new FamilyCreateRequest("김씨네"));
+		User dad = saveUser("dad@example.com", "김아빠");
+
+		assertThatThrownBy(() -> familyService.removeMember(created.id(), dad.getId(), dad.getId()))
+				.isInstanceOf(BusinessException.class)
+				.extracting("errorCode")
+				.isEqualTo(ErrorCode.FAMILY_NOT_MEMBER);
+	}
+
+	@Test
+	void ownerCannotLeaveWhileOtherMembersRemain() {
+		FamilyResponse created = familyService.create(mom.getId(), new FamilyCreateRequest("김씨네"));
+		User dad = saveUser("dad@example.com", "김아빠");
+		familyService.join(dad.getId(), new FamilyJoinRequest(created.inviteCode()));
+
+		assertThatThrownBy(() -> familyService.removeMember(created.id(), mom.getId(), mom.getId()))
+				.isInstanceOf(BusinessException.class)
+				.extracting("errorCode")
+				.isEqualTo(ErrorCode.OWNER_CANNOT_LEAVE);
+		assertThat(familyService.getMembers(created.id(), mom.getId()))
+				.extracting(FamilyMemberResponse::name)
+				.containsExactly("김엄마", "김아빠");
+	}
+
+	@Test
+	void formerOwnerCanLeaveAfterTransferringOwner() {
+		FamilyResponse created = familyService.create(mom.getId(), new FamilyCreateRequest("김씨네"));
+		User dad = saveUser("dad@example.com", "김아빠");
+		familyService.join(dad.getId(), new FamilyJoinRequest(created.inviteCode()));
+		familyService.transferOwner(created.id(), mom.getId(), new FamilyOwnerTransferRequest(dad.getId()));
+
+		familyService.removeMember(created.id(), mom.getId(), mom.getId());
+
+		assertThat(familyService.getMembers(created.id(), dad.getId()))
+				.containsExactly(new FamilyMemberResponse(dad.getId(), "김아빠", null, null, FamilyRole.OWNER));
+		assertThat(familyService.hasFamily(mom.getId())).isFalse();
+	}
+
+	@Test
+	void lastOwnerLeavingDeletesFamily() {
+		FamilyResponse created = familyService.create(mom.getId(), new FamilyCreateRequest("김씨네"));
+
+		familyService.removeMember(created.id(), mom.getId(), mom.getId());
+
+		assertThat(familyRepository.count()).isZero();
+		assertThat(familyMemberRepository.count()).isZero();
+		assertThat(familyService.hasFamily(mom.getId())).isFalse();
+	}
+
+	@Test
+	void inviteCodeOfDeletedFamilyCannotBeUsed() {
+		FamilyResponse created = familyService.create(mom.getId(), new FamilyCreateRequest("김씨네"));
+		User dad = saveUser("dad@example.com", "김아빠");
+		familyService.removeMember(created.id(), mom.getId(), mom.getId());
+
+		assertThatThrownBy(() -> familyService.join(dad.getId(), new FamilyJoinRequest(created.inviteCode())))
+				.isInstanceOf(BusinessException.class)
+				.extracting("errorCode")
+				.isEqualTo(ErrorCode.INVITE_CODE_NOT_FOUND);
+	}
+
+	@Test
+	void userWhoDeletedFamilyCanCreateNewFamily() {
+		FamilyResponse created = familyService.create(mom.getId(), new FamilyCreateRequest("김씨네"));
+		familyService.removeMember(created.id(), mom.getId(), mom.getId());
+
+		FamilyResponse second = familyService.create(mom.getId(), new FamilyCreateRequest("새 가족"));
+
+		assertThat(familyService.getMyFamily(mom.getId())).isEqualTo(second);
+	}
+
+	@Test
+	void removeMemberRejectsUnknownFamilyId() {
+		assertThatThrownBy(() -> familyService.removeMember(999_999L, mom.getId(), mom.getId()))
+				.isInstanceOf(BusinessException.class)
+				.extracting("errorCode")
+				.isEqualTo(ErrorCode.FAMILY_NOT_MEMBER);
+	}
+
 	private User saveUser(String email, String name) {
 		return userRepository.saveAndFlush(User.builder()
 				.email(email)

@@ -180,6 +180,16 @@ class FamilyMemberRepositoryTest {
 		assertThat(familyMemberRepository.findByFamilyIdAndUserId(family.getId(), dad.getId())).isEmpty();
 	}
 
+	@Test
+	void countByFamilyIdCountsMembersOfThatFamily() {
+		User dad = saveUser("dad@example.com", "김아빠");
+		familyMemberRepository.saveAndFlush(member(mom, FamilyRole.OWNER));
+		familyMemberRepository.saveAndFlush(member(dad, FamilyRole.MEMBER));
+
+		assertThat(familyMemberRepository.countByFamilyId(family.getId())).isEqualTo(2);
+		assertThat(familyMemberRepository.countByFamilyId(family.getId() + 1)).isZero();
+	}
+
 	private FamilyMember member(User user, FamilyRole role) {
 		return FamilyMember.builder()
 				.family(family)

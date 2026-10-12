@@ -14,6 +14,8 @@ public interface FamilyMemberRepository extends JpaRepository<FamilyMember, Long
 
 	boolean existsByFamilyIdAndUserId(Long familyId, Long userId);
 
+	long countByFamilyId(Long familyId);
+
 	boolean existsByFamilyIdAndUserIdAndRole(Long familyId, Long userId, FamilyRole role);
 
 	@EntityGraph(attributePaths = "family")

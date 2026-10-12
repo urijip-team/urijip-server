@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
+import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.never;
 
 import java.util.List;
@@ -406,6 +407,68 @@ class FamilyControllerTest {
 		then(familyService).should(never()).transferOwner(any(), any(), any());
 	}
 
+	@Test
+	void removeMemberReturnsOkWithoutData() {
+		MvcTestResult result = removeMember(1L, 3L, 2L);
+
+		assertThat(result).hasStatusOk();
+		assertThat(result).bodyJson().extractingPath("$.success").isEqualTo(true);
+		assertThat(result).bodyJson().extractingPath("$.data").isNull();
+		assertThat(result).bodyJson().extractingPath("$.error").isNull();
+	}
+
+	@Test
+	void removeMemberPassesFamilyRequesterAndTarget() {
+		removeMember(1L, 3L, 2L);
+
+		then(familyService).should().removeMember(3L, 1L, 2L);
+	}
+
+	@Test
+	void removeMemberByOrdinaryMemberReturnsForbidden() {
+		willThrow(new BusinessException(ErrorCode.NOT_FAMILY_OWNER))
+				.given(familyService).removeMember(any(), any(), any());
+
+		MvcTestResult result = removeMember(1L, 3L, 2L);
+
+		assertThat(result).hasStatus(HttpStatus.FORBIDDEN);
+		assertThat(result).bodyJson().extractingPath("$.success").isEqualTo(false);
+		assertThat(result).bodyJson().extractingPath("$.error.code").isEqualTo("NOT_FAMILY_OWNER");
+	}
+
+	@Test
+	void leaveByOwnerWithOtherMembersReturnsConflict() {
+		willThrow(new BusinessException(ErrorCode.OWNER_CANNOT_LEAVE))
+				.given(familyService).removeMember(any(), any(), any());
+
+		MvcTestResult result = removeMember(1L, 3L, 2L);
+
+		assertThat(result).hasStatus(HttpStatus.CONFLICT);
+		assertThat(result).bodyJson().extractingPath("$.success").isEqualTo(false);
+		assertThat(result).bodyJson().extractingPath("$.error.code").isEqualTo("OWNER_CANNOT_LEAVE");
+	}
+
+	@Test
+	void removeMemberWhoIsNotInFamilyReturnsNotFound() {
+		willThrow(new BusinessException(ErrorCode.FAMILY_MEMBER_NOT_FOUND))
+				.given(familyService).removeMember(any(), any(), any());
+
+		MvcTestResult result = removeMember(1L, 3L, 2L);
+
+		assertThat(result).hasStatus(HttpStatus.NOT_FOUND);
+		assertThat(result).bodyJson().extractingPath("$.success").isEqualTo(false);
+		assertThat(result).bodyJson().extractingPath("$.error.code").isEqualTo("FAMILY_MEMBER_NOT_FOUND");
+	}
+
+	@Test
+	void removeMemberWithoutAccessTokenReturnsUnauthorized() {
+		MvcTestResult result = mvc.delete().uri("/api/families/3/members/2").exchange();
+
+		assertThat(result).hasStatus(HttpStatus.UNAUTHORIZED);
+		assertThat(result).bodyJson().extractingPath("$.error.code").isEqualTo("INVALID_TOKEN");
+		then(familyService).should(never()).removeMember(any(), any(), any());
+	}
+
 	private MvcTestResult create(Long userId, String body) {
 		return mvc.post().uri("/api/families")
 				.header("Authorization", "Bearer " + jwtProvider.createAccessToken(userId, "USER"))
@@ -445,6 +508,12 @@ class FamilyControllerTest {
 				.header("Authorization", "Bearer " + jwtProvider.createAccessToken(userId, "USER"))
 				.contentType(MediaType.APPLICATION_JSON)
 				.content(body)
+				.exchange();
+	}
+
+	private MvcTestResult removeMember(Long userId, Long familyId, Long targetUserId) {
+		return mvc.delete().uri("/api/families/{familyId}/members/{userId}", familyId, targetUserId)
+				.header("Authorization", "Bearer " + jwtProvider.createAccessToken(userId, "USER"))
 				.exchange();
 	}
 
