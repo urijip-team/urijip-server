@@ -769,6 +769,19 @@ class FamilyServiceTest {
 		assertThatCode(() -> familyService.leaveFamily(mom.getId())).doesNotThrowAnyException();
 	}
 
+	@Test
+	void leaveFamilyRejectsOwnerWhileOtherMembersRemain() {
+		FamilyResponse created = familyService.create(mom.getId(), new FamilyCreateRequest("김씨네"));
+		User dad = saveUser("dad@example.com", "김아빠");
+		familyService.join(dad.getId(), new FamilyJoinRequest(created.inviteCode()));
+
+		assertThatThrownBy(() -> familyService.leaveFamily(mom.getId()))
+				.isInstanceOf(BusinessException.class)
+				.extracting("errorCode")
+				.isEqualTo(ErrorCode.OWNER_CANNOT_LEAVE);
+		assertThat(familyService.hasFamily(mom.getId())).isTrue();
+	}
+
 	private User saveUser(String email, String name) {
 		return userRepository.saveAndFlush(User.builder()
 				.email(email)
