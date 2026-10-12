@@ -39,6 +39,14 @@ class OpenApiConfigTest {
 		assertThat(apiDocs()).bodyJson().extractingPath("$.security[0].bearerAuth").isNotNull();
 	}
 
+	@Test
+	void authenticatedUserIdIsNotShownAsRequestParameter() {
+		MvcTestResult result = apiDocs();
+
+		assertThat(result).bodyJson().extractingPath("$.paths['/api/families'].post.requestBody").isNotNull();
+		assertThat(result).bodyText().doesNotContain("\"name\":\"userId\"");
+	}
+
 	private MvcTestResult apiDocs() {
 		return mvc.get().uri("/v3/api-docs").exchange();
 	}
