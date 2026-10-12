@@ -98,6 +98,11 @@ class FamilyMemberRepositoryTest {
 				.isEqualTo("김씨네");
 	}
 
+	@Test
+	void findFirstByUserIdReturnsEmptyForUserWithoutFamily() {
+		assertThat(familyMemberRepository.findFirstByUserId(mom.getId())).isEmpty();
+	}
+
 	private FamilyMember member(User user, FamilyRole role) {
 		return FamilyMember.builder()
 				.family(family)
