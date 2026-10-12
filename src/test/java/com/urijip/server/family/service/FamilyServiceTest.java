@@ -11,6 +11,7 @@ import com.urijip.server.TestcontainersConfiguration;
 import com.urijip.server.family.dto.request.FamilyCreateRequest;
 import com.urijip.server.family.dto.request.FamilyJoinRequest;
 import com.urijip.server.family.dto.request.FamilyOwnerTransferRequest;
+import com.urijip.server.family.dto.request.NicknameUpdateRequest;
 import com.urijip.server.family.dto.response.FamilyMemberResponse;
 import com.urijip.server.family.dto.response.FamilyResponse;
 import com.urijip.server.family.entity.Family;
@@ -819,6 +820,52 @@ class FamilyServiceTest {
 		User dad = saveUser("dad@example.com", "김아빠");
 
 		assertThatThrownBy(() -> familyService.validateSameFamily(dad.getId(), mom.getId()))
+				.isInstanceOf(BusinessException.class)
+				.extracting("errorCode")
+				.isEqualTo(ErrorCode.FAMILY_NOT_MEMBER);
+	}
+
+	@Test
+	void changeMyNicknameReturnsMemberWithNickname() {
+		FamilyResponse created = familyService.create(mom.getId(), new FamilyCreateRequest("김씨네"));
+
+		FamilyMemberResponse response = familyService.changeMyNickname(created.id(), mom.getId(),
+				new NicknameUpdateRequest("엄마"));
+
+		assertThat(response).isEqualTo(new FamilyMemberResponse(mom.getId(), "김엄마", null, "엄마", FamilyRole.OWNER));
+	}
+
+	@Test
+	void changedNicknameAppearsInMemberListOnlyForThatMember() {
+		FamilyResponse created = familyService.create(mom.getId(), new FamilyCreateRequest("김씨네"));
+		User dad = saveUser("dad@example.com", "김아빠");
+		familyService.join(dad.getId(), new FamilyJoinRequest(created.inviteCode()));
+
+		familyService.changeMyNickname(created.id(), dad.getId(), new NicknameUpdateRequest("아빠"));
+
+		assertThat(familyService.getMembers(created.id(), mom.getId()))
+				.extracting(FamilyMemberResponse::nickname)
+				.containsExactly(null, "아빠");
+	}
+
+	@Test
+	void changeMyNicknameClearsNicknameWithBlank() {
+		FamilyResponse created = familyService.create(mom.getId(), new FamilyCreateRequest("김씨네"));
+		familyService.changeMyNickname(created.id(), mom.getId(), new NicknameUpdateRequest("엄마"));
+
+		FamilyMemberResponse response = familyService.changeMyNickname(created.id(), mom.getId(),
+				new NicknameUpdateRequest(" "));
+
+		assertThat(response.nickname()).isNull();
+	}
+
+	@Test
+	void changeMyNicknameRejectsUserWhoIsNotMember() {
+		FamilyResponse created = familyService.create(mom.getId(), new FamilyCreateRequest("김씨네"));
+		User dad = saveUser("dad@example.com", "김아빠");
+
+		assertThatThrownBy(() -> familyService.changeMyNickname(created.id(), dad.getId(),
+				new NicknameUpdateRequest("아빠")))
 				.isInstanceOf(BusinessException.class)
 				.extracting("errorCode")
 				.isEqualTo(ErrorCode.FAMILY_NOT_MEMBER);

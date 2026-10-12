@@ -12,6 +12,7 @@ import java.util.List;
 import com.urijip.server.family.dto.request.FamilyCreateRequest;
 import com.urijip.server.family.dto.request.FamilyJoinRequest;
 import com.urijip.server.family.dto.request.FamilyOwnerTransferRequest;
+import com.urijip.server.family.dto.request.NicknameUpdateRequest;
 import com.urijip.server.family.dto.response.FamilyMemberResponse;
 import com.urijip.server.family.dto.response.FamilyResponse;
 import com.urijip.server.family.entity.FamilyRole;
@@ -408,6 +409,61 @@ class FamilyControllerTest {
 	}
 
 	@Test
+	void changeMyNicknameReturnsMemberWithNickname() {
+		given(familyService.changeMyNickname(3L, 2L, new NicknameUpdateRequest("아빠")))
+				.willReturn(new FamilyMemberResponse(2L, "김아빠", null, "아빠", FamilyRole.MEMBER));
+
+		MvcTestResult result = changeMyNickname(2L, 3L, """
+				{"nickname": "아빠"}
+				""");
+
+		assertThat(result).hasStatusOk();
+		assertThat(result).bodyJson().extractingPath("$.success").isEqualTo(true);
+		assertThat(result).bodyJson().extractingPath("$.data.userId").isEqualTo(2);
+		assertThat(result).bodyJson().extractingPath("$.data.nickname").isEqualTo("아빠");
+		assertThat(result).bodyJson().extractingPath("$.data.role").isEqualTo("MEMBER");
+	}
+
+	@Test
+	void changeMyNicknameWithTooLongNicknameReturnsBadRequest() {
+		MvcTestResult result = changeMyNickname(2L, 3L, """
+				{"nickname": "%s"}
+				""".formatted("가".repeat(21)));
+
+		assertThat(result).hasStatus(HttpStatus.BAD_REQUEST);
+		assertThat(result).bodyJson().extractingPath("$.error.code").isEqualTo("INVALID_INPUT");
+		assertThat(result).bodyJson().extractingPath("$.error.message").isEqualTo("nickname: 20자 이하여야 합니다");
+		then(familyService).should(never()).changeMyNickname(any(), any(), any());
+	}
+
+	@Test
+	void changeMyNicknameByUserWhoIsNotMemberReturnsForbidden() {
+		given(familyService.changeMyNickname(any(), any(), any()))
+				.willThrow(new BusinessException(ErrorCode.FAMILY_NOT_MEMBER));
+
+		MvcTestResult result = changeMyNickname(2L, 3L, """
+				{"nickname": "아빠"}
+				""");
+
+		assertThat(result).hasStatus(HttpStatus.FORBIDDEN);
+		assertThat(result).bodyJson().extractingPath("$.error.code").isEqualTo("FAMILY_NOT_MEMBER");
+	}
+
+	@Test
+	void changeMyNicknameWithoutAccessTokenReturnsUnauthorized() {
+		MvcTestResult result = mvc.patch().uri("/api/families/3/members/me")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("""
+						{"nickname": "아빠"}
+						""")
+				.exchange();
+
+		assertThat(result).hasStatus(HttpStatus.UNAUTHORIZED);
+		assertThat(result).bodyJson().extractingPath("$.error.code").isEqualTo("INVALID_TOKEN");
+		then(familyService).should(never()).changeMyNickname(any(), any(), any());
+	}
+
+	@Test
 	void removeMemberReturnsOkWithoutData() {
 		MvcTestResult result = removeMember(1L, 3L, 2L);
 
@@ -505,6 +561,14 @@ class FamilyControllerTest {
 
 	private MvcTestResult transferOwner(Long userId, Long familyId, String body) {
 		return mvc.patch().uri("/api/families/{familyId}/owner", familyId)
+				.header("Authorization", "Bearer " + jwtProvider.createAccessToken(userId, "USER"))
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(body)
+				.exchange();
+	}
+
+	private MvcTestResult changeMyNickname(Long userId, Long familyId, String body) {
+		return mvc.patch().uri("/api/families/{familyId}/members/me", familyId)
 				.header("Authorization", "Bearer " + jwtProvider.createAccessToken(userId, "USER"))
 				.contentType(MediaType.APPLICATION_JSON)
 				.content(body)

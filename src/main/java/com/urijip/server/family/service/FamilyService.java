@@ -6,6 +6,7 @@ import java.util.Locale;
 import com.urijip.server.family.dto.request.FamilyCreateRequest;
 import com.urijip.server.family.dto.request.FamilyJoinRequest;
 import com.urijip.server.family.dto.request.FamilyOwnerTransferRequest;
+import com.urijip.server.family.dto.request.NicknameUpdateRequest;
 import com.urijip.server.family.dto.response.FamilyMemberResponse;
 import com.urijip.server.family.dto.response.FamilyResponse;
 import com.urijip.server.family.entity.Family;
@@ -103,6 +104,16 @@ public class FamilyService {
 		}
 		validateOwner(familyId, userId);
 		familyMemberRepository.delete(getMember(familyId, targetUserId));
+	}
+
+	@Transactional
+	public FamilyMemberResponse changeMyNickname(Long familyId, Long userId, NicknameUpdateRequest request) {
+		validateMember(familyId, userId);
+		FamilyMember member = getMember(familyId, userId);
+
+		member.changeNickname(request.nickname());
+
+		return FamilyMemberResponse.from(member);
 	}
 
 	@Transactional
