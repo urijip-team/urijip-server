@@ -764,6 +764,11 @@ class FamilyServiceTest {
 		assertThat(familyService.hasFamily(dad.getId())).isFalse();
 	}
 
+	@Test
+	void leaveFamilyWithoutFamilyDoesNothing() {
+		assertThatCode(() -> familyService.leaveFamily(mom.getId())).doesNotThrowAnyException();
+	}
+
 	private User saveUser(String email, String name) {
 		return userRepository.saveAndFlush(User.builder()
 				.email(email)
