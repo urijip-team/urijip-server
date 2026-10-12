@@ -66,6 +66,17 @@ public class FamilyService {
 		return FamilyResponse.from(family);
 	}
 
+	@Transactional
+	public FamilyResponse reissueInviteCode(Long familyId, Long userId) {
+		validateOwner(familyId, userId);
+		Family family = familyRepository.findById(familyId)
+				.orElseThrow(() -> new BusinessException(ErrorCode.FAMILY_NOT_FOUND));
+
+		family.changeInviteCode(newInviteCode());
+
+		return FamilyResponse.from(family);
+	}
+
 	@Transactional(readOnly = true)
 	public FamilyResponse getMyFamily(Long userId) {
 		return familyMemberRepository.findFirstByUserId(userId)
@@ -86,6 +97,14 @@ public class FamilyService {
 	public void validateMember(Long familyId, Long userId) {
 		if (!familyMemberRepository.existsByFamilyIdAndUserId(familyId, userId)) {
 			throw new BusinessException(ErrorCode.FAMILY_NOT_MEMBER);
+		}
+	}
+
+	@Transactional(readOnly = true)
+	public void validateOwner(Long familyId, Long userId) {
+		validateMember(familyId, userId);
+		if (!familyMemberRepository.existsByFamilyIdAndUserIdAndRole(familyId, userId, FamilyRole.OWNER)) {
+			throw new BusinessException(ErrorCode.NOT_FAMILY_OWNER);
 		}
 	}
 

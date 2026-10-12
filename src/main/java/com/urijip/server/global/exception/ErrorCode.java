@@ -14,6 +14,7 @@ public enum ErrorCode {
 	LOGIN_FAILED(HttpStatus.UNAUTHORIZED, "이메일 또는 비밀번호가 올바르지 않습니다"),
 	ACCESS_DENIED(HttpStatus.FORBIDDEN, "접근 권한이 없습니다"),
 	FAMILY_NOT_MEMBER(HttpStatus.FORBIDDEN, "해당 가족의 멤버가 아닙니다"),
+	NOT_FAMILY_OWNER(HttpStatus.FORBIDDEN, "방장 권한이 필요합니다"),
 	USER_SUSPENDED(HttpStatus.FORBIDDEN, "정지된 계정입니다"),
 	USER_NOT_FOUND(HttpStatus.NOT_FOUND, "존재하지 않는 회원입니다"),
 	FAMILY_NOT_FOUND(HttpStatus.NOT_FOUND, "참여한 가족이 없습니다"),

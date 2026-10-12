@@ -363,6 +363,114 @@ class FamilyServiceTest {
 				.containsExactly("김엄마");
 	}
 
+	@Test
+	void validateOwnerPassesForOwner() {
+		FamilyResponse created = familyService.create(mom.getId(), new FamilyCreateRequest("김씨네"));
+
+		assertThatCode(() -> familyService.validateOwner(created.id(), mom.getId())).doesNotThrowAnyException();
+	}
+
+	@Test
+	void validateOwnerRejectsOrdinaryMember() {
+		FamilyResponse created = familyService.create(mom.getId(), new FamilyCreateRequest("김씨네"));
+		User dad = saveUser("dad@example.com", "김아빠");
+		familyService.join(dad.getId(), new FamilyJoinRequest(created.inviteCode()));
+
+		assertThatThrownBy(() -> familyService.validateOwner(created.id(), dad.getId()))
+				.isInstanceOf(BusinessException.class)
+				.extracting("errorCode")
+				.isEqualTo(ErrorCode.NOT_FAMILY_OWNER);
+	}
+
+	@Test
+	void validateOwnerRejectsUserWhoIsNotMember() {
+		FamilyResponse created = familyService.create(mom.getId(), new FamilyCreateRequest("김씨네"));
+		User dad = saveUser("dad@example.com", "김아빠");
+
+		assertThatThrownBy(() -> familyService.validateOwner(created.id(), dad.getId()))
+				.isInstanceOf(BusinessException.class)
+				.extracting("errorCode")
+				.isEqualTo(ErrorCode.FAMILY_NOT_MEMBER);
+	}
+
+	@Test
+	void reissueInviteCodeReturnsFamilyWithNewCode() {
+		FamilyResponse created = familyService.create(mom.getId(), new FamilyCreateRequest("김씨네"));
+
+		FamilyResponse response = familyService.reissueInviteCode(created.id(), mom.getId());
+
+		assertThat(response.id()).isEqualTo(created.id());
+		assertThat(response.name()).isEqualTo("김씨네");
+		assertThat(response.inviteCode()).matches("[A-HJ-NP-Z2-9]{6}").isNotEqualTo(created.inviteCode());
+	}
+
+	@Test
+	void reissueInviteCodeSavesNewCode() {
+		FamilyResponse created = familyService.create(mom.getId(), new FamilyCreateRequest("김씨네"));
+
+		FamilyResponse response = familyService.reissueInviteCode(created.id(), mom.getId());
+
+		assertThat(familyRepository.existsByInviteCode(response.inviteCode())).isTrue();
+		assertThat(familyRepository.existsByInviteCode(created.inviteCode())).isFalse();
+		assertThat(familyService.getMyFamily(mom.getId())).isEqualTo(response);
+	}
+
+	@Test
+	void oldInviteCodeCannotBeUsedAfterReissue() {
+		FamilyResponse created = familyService.create(mom.getId(), new FamilyCreateRequest("김씨네"));
+		User dad = saveUser("dad@example.com", "김아빠");
+		familyService.reissueInviteCode(created.id(), mom.getId());
+
+		assertThatThrownBy(() -> familyService.join(dad.getId(), new FamilyJoinRequest(created.inviteCode())))
+				.isInstanceOf(BusinessException.class)
+				.extracting("errorCode")
+				.isEqualTo(ErrorCode.INVITE_CODE_NOT_FOUND);
+	}
+
+	@Test
+	void newInviteCodeCanBeUsedAfterReissue() {
+		FamilyResponse created = familyService.create(mom.getId(), new FamilyCreateRequest("김씨네"));
+		User dad = saveUser("dad@example.com", "김아빠");
+		FamilyResponse reissued = familyService.reissueInviteCode(created.id(), mom.getId());
+
+		familyService.join(dad.getId(), new FamilyJoinRequest(reissued.inviteCode()));
+
+		assertThat(familyService.getMembers(created.id(), mom.getId())).hasSize(2);
+	}
+
+	@Test
+	void reissueInviteCodeRejectsOrdinaryMember() {
+		FamilyResponse created = familyService.create(mom.getId(), new FamilyCreateRequest("김씨네"));
+		User dad = saveUser("dad@example.com", "김아빠");
+		familyService.join(dad.getId(), new FamilyJoinRequest(created.inviteCode()));
+
+		assertThatThrownBy(() -> familyService.reissueInviteCode(created.id(), dad.getId()))
+				.isInstanceOf(BusinessException.class)
+				.extracting("errorCode")
+				.isEqualTo(ErrorCode.NOT_FAMILY_OWNER);
+		assertThat(familyRepository.existsByInviteCode(created.inviteCode())).isTrue();
+	}
+
+	@Test
+	void reissueInviteCodeRejectsUserWhoIsNotMember() {
+		FamilyResponse created = familyService.create(mom.getId(), new FamilyCreateRequest("김씨네"));
+		User dad = saveUser("dad@example.com", "김아빠");
+
+		assertThatThrownBy(() -> familyService.reissueInviteCode(created.id(), dad.getId()))
+				.isInstanceOf(BusinessException.class)
+				.extracting("errorCode")
+				.isEqualTo(ErrorCode.FAMILY_NOT_MEMBER);
+		assertThat(familyRepository.existsByInviteCode(created.inviteCode())).isTrue();
+	}
+
+	@Test
+	void reissueInviteCodeRejectsUnknownFamilyId() {
+		assertThatThrownBy(() -> familyService.reissueInviteCode(999_999L, mom.getId()))
+				.isInstanceOf(BusinessException.class)
+				.extracting("errorCode")
+				.isEqualTo(ErrorCode.FAMILY_NOT_MEMBER);
+	}
+
 	private User saveUser(String email, String name) {
 		return userRepository.saveAndFlush(User.builder()
 				.email(email)
