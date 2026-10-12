@@ -415,6 +415,18 @@ class FamilyServiceTest {
 		assertThat(familyService.getMyFamily(mom.getId())).isEqualTo(response);
 	}
 
+	@Test
+	void oldInviteCodeCannotBeUsedAfterReissue() {
+		FamilyResponse created = familyService.create(mom.getId(), new FamilyCreateRequest("김씨네"));
+		User dad = saveUser("dad@example.com", "김아빠");
+		familyService.reissueInviteCode(created.id(), mom.getId());
+
+		assertThatThrownBy(() -> familyService.join(dad.getId(), new FamilyJoinRequest(created.inviteCode())))
+				.isInstanceOf(BusinessException.class)
+				.extracting("errorCode")
+				.isEqualTo(ErrorCode.INVITE_CODE_NOT_FOUND);
+	}
+
 	private User saveUser(String email, String name) {
 		return userRepository.saveAndFlush(User.builder()
 				.email(email)
