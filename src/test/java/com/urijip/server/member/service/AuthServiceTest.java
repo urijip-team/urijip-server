@@ -480,6 +480,15 @@ class AuthServiceTest {
 		assertThat(refreshTokenRepository.count()).isZero();
 	}
 
+	@Test
+	void withdrawMarksUserAsWithdrawn() {
+		Long momId = signupMom().id();
+
+		authService.withdraw(momId);
+
+		assertThat(userRepository.findById(momId).orElseThrow().getStatus()).isEqualTo(UserStatus.WITHDRAWN);
+	}
+
 	private Long signupAdmin() {
 		User user = userRepository.findById(signupMom().id()).orElseThrow();
 		ReflectionTestUtils.setField(user, "role", Role.ADMIN);
