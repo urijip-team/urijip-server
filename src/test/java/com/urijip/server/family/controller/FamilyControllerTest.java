@@ -197,6 +197,19 @@ class FamilyControllerTest {
 		then(familyService).should(never()).join(any(), any());
 	}
 
+	@Test
+	void getMyFamilyReturnsFamilyOfAccessTokenUser() {
+		given(familyService.getMyFamily(2L)).willReturn(new FamilyResponse(3L, "김씨네", "A3K9P2"));
+
+		MvcTestResult result = getMyFamily(2L);
+
+		assertThat(result).hasStatusOk();
+		assertThat(result).bodyJson().extractingPath("$.success").isEqualTo(true);
+		assertThat(result).bodyJson().extractingPath("$.data.id").isEqualTo(3);
+		assertThat(result).bodyJson().extractingPath("$.data.name").isEqualTo("김씨네");
+		assertThat(result).bodyJson().extractingPath("$.data.inviteCode").isEqualTo("A3K9P2");
+	}
+
 	private MvcTestResult create(Long userId, String body) {
 		return mvc.post().uri("/api/families")
 				.header("Authorization", "Bearer " + jwtProvider.createAccessToken(userId, "USER"))
@@ -210,6 +223,12 @@ class FamilyControllerTest {
 				.header("Authorization", "Bearer " + jwtProvider.createAccessToken(userId, "USER"))
 				.contentType(MediaType.APPLICATION_JSON)
 				.content(body)
+				.exchange();
+	}
+
+	private MvcTestResult getMyFamily(Long userId) {
+		return mvc.get().uri("/api/families/me")
+				.header("Authorization", "Bearer " + jwtProvider.createAccessToken(userId, "USER"))
 				.exchange();
 	}
 
