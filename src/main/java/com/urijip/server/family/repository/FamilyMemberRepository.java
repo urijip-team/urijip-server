@@ -10,6 +10,8 @@ public interface FamilyMemberRepository extends JpaRepository<FamilyMember, Long
 
 	boolean existsByUserId(Long userId);
 
+	boolean existsByFamilyIdAndUserId(Long familyId, Long userId);
+
 	@EntityGraph(attributePaths = "family")
 	Optional<FamilyMember> findFirstByUserId(Long userId);
 
