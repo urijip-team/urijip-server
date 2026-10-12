@@ -640,6 +640,21 @@ class FamilyServiceTest {
 				.containsExactly("김엄마");
 	}
 
+	@Test
+	void ordinaryMemberLeavesFamily() {
+		FamilyResponse created = familyService.create(mom.getId(), new FamilyCreateRequest("김씨네"));
+		User dad = saveUser("dad@example.com", "김아빠");
+		familyService.join(dad.getId(), new FamilyJoinRequest(created.inviteCode()));
+
+		familyService.removeMember(created.id(), dad.getId(), dad.getId());
+
+		assertThat(familyService.getMembers(created.id(), mom.getId()))
+				.extracting(FamilyMemberResponse::name)
+				.containsExactly("김엄마");
+		assertThat(familyService.hasFamily(dad.getId())).isFalse();
+		assertThat(familyRepository.count()).isEqualTo(1);
+	}
+
 	private User saveUser(String email, String name) {
 		return userRepository.saveAndFlush(User.builder()
 				.email(email)
