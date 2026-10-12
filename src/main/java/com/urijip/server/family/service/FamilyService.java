@@ -1,9 +1,11 @@
 package com.urijip.server.family.service;
 
+import java.util.List;
 import java.util.Locale;
 
 import com.urijip.server.family.dto.request.FamilyCreateRequest;
 import com.urijip.server.family.dto.request.FamilyJoinRequest;
+import com.urijip.server.family.dto.response.FamilyMemberResponse;
 import com.urijip.server.family.dto.response.FamilyResponse;
 import com.urijip.server.family.entity.Family;
 import com.urijip.server.family.entity.FamilyMember;
@@ -69,6 +71,13 @@ public class FamilyService {
 		return familyMemberRepository.findFirstByUserId(userId)
 				.map(member -> FamilyResponse.from(member.getFamily()))
 				.orElseThrow(() -> new BusinessException(ErrorCode.FAMILY_NOT_FOUND));
+	}
+
+	@Transactional(readOnly = true)
+	public List<FamilyMemberResponse> getMembers(Long familyId, Long userId) {
+		return familyMemberRepository.findByFamilyIdOrderByJoinedAtAscIdAsc(familyId).stream()
+				.map(FamilyMemberResponse::from)
+				.toList();
 	}
 
 	@Transactional(readOnly = true)
