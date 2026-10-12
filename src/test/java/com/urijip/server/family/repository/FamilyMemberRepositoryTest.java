@@ -112,6 +112,13 @@ class FamilyMemberRepositoryTest {
 		assertThat(familyMemberRepository.existsByFamilyIdAndUserId(family.getId(), dad.getId())).isFalse();
 	}
 
+	@Test
+	void existsByFamilyIdAndUserIdIsFalseForAnotherFamilyId() {
+		familyMemberRepository.saveAndFlush(member(mom, FamilyRole.OWNER));
+
+		assertThat(familyMemberRepository.existsByFamilyIdAndUserId(family.getId() + 1, mom.getId())).isFalse();
+	}
+
 	private FamilyMember member(User user, FamilyRole role) {
 		return FamilyMember.builder()
 				.family(family)
