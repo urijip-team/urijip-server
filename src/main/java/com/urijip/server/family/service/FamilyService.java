@@ -66,6 +66,17 @@ public class FamilyService {
 		return FamilyResponse.from(family);
 	}
 
+	@Transactional
+	public FamilyResponse reissueInviteCode(Long familyId, Long userId) {
+		validateOwner(familyId, userId);
+		Family family = familyRepository.findById(familyId)
+				.orElseThrow(() -> new BusinessException(ErrorCode.FAMILY_NOT_FOUND));
+
+		family.changeInviteCode(newInviteCode());
+
+		return FamilyResponse.from(family);
+	}
+
 	@Transactional(readOnly = true)
 	public FamilyResponse getMyFamily(Long userId) {
 		return familyMemberRepository.findFirstByUserId(userId)
