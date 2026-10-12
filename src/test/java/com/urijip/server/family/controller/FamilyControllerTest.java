@@ -10,6 +10,7 @@ import java.util.List;
 
 import com.urijip.server.family.dto.request.FamilyCreateRequest;
 import com.urijip.server.family.dto.request.FamilyJoinRequest;
+import com.urijip.server.family.dto.request.FamilyOwnerTransferRequest;
 import com.urijip.server.family.dto.response.FamilyMemberResponse;
 import com.urijip.server.family.dto.response.FamilyResponse;
 import com.urijip.server.family.entity.FamilyRole;
@@ -336,6 +337,23 @@ class FamilyControllerTest {
 		then(familyService).should(never()).reissueInviteCode(any(), any());
 	}
 
+	@Test
+	void transferOwnerReturnsMembersWithNewRoles() {
+		given(familyService.transferOwner(3L, 1L, new FamilyOwnerTransferRequest(2L))).willReturn(List.of(
+				new FamilyMemberResponse(1L, "김엄마", null, null, FamilyRole.MEMBER),
+				new FamilyMemberResponse(2L, "김아빠", null, null, FamilyRole.OWNER)));
+
+		MvcTestResult result = transferOwner(1L, 3L, """
+				{"userId": 2}
+				""");
+
+		assertThat(result).hasStatusOk();
+		assertThat(result).bodyJson().extractingPath("$.success").isEqualTo(true);
+		assertThat(result).bodyJson().extractingPath("$.data[0].role").isEqualTo("MEMBER");
+		assertThat(result).bodyJson().extractingPath("$.data[1].userId").isEqualTo(2);
+		assertThat(result).bodyJson().extractingPath("$.data[1].role").isEqualTo("OWNER");
+	}
+
 	private MvcTestResult create(Long userId, String body) {
 		return mvc.post().uri("/api/families")
 				.header("Authorization", "Bearer " + jwtProvider.createAccessToken(userId, "USER"))
@@ -367,6 +385,14 @@ class FamilyControllerTest {
 	private MvcTestResult reissueInviteCode(Long userId, Long familyId) {
 		return mvc.post().uri("/api/families/{familyId}/invite-code", familyId)
 				.header("Authorization", "Bearer " + jwtProvider.createAccessToken(userId, "USER"))
+				.exchange();
+	}
+
+	private MvcTestResult transferOwner(Long userId, Long familyId, String body) {
+		return mvc.patch().uri("/api/families/{familyId}/owner", familyId)
+				.header("Authorization", "Bearer " + jwtProvider.createAccessToken(userId, "USER"))
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(body)
 				.exchange();
 	}
 
