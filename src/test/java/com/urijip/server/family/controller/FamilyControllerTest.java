@@ -210,6 +210,17 @@ class FamilyControllerTest {
 		assertThat(result).bodyJson().extractingPath("$.data.inviteCode").isEqualTo("A3K9P2");
 	}
 
+	@Test
+	void getMyFamilyByUserWithoutFamilyReturnsNotFound() {
+		given(familyService.getMyFamily(any())).willThrow(new BusinessException(ErrorCode.FAMILY_NOT_FOUND));
+
+		MvcTestResult result = getMyFamily(2L);
+
+		assertThat(result).hasStatus(HttpStatus.NOT_FOUND);
+		assertThat(result).bodyJson().extractingPath("$.success").isEqualTo(false);
+		assertThat(result).bodyJson().extractingPath("$.error.code").isEqualTo("FAMILY_NOT_FOUND");
+	}
+
 	private MvcTestResult create(Long userId, String body) {
 		return mvc.post().uri("/api/families")
 				.header("Authorization", "Bearer " + jwtProvider.createAccessToken(userId, "USER"))
