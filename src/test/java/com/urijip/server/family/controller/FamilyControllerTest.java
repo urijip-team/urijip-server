@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
+import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.never;
 
 import java.util.List;
@@ -421,6 +422,18 @@ class FamilyControllerTest {
 		removeMember(1L, 3L, 2L);
 
 		then(familyService).should().removeMember(3L, 1L, 2L);
+	}
+
+	@Test
+	void removeMemberByOrdinaryMemberReturnsForbidden() {
+		willThrow(new BusinessException(ErrorCode.NOT_FAMILY_OWNER))
+				.given(familyService).removeMember(any(), any(), any());
+
+		MvcTestResult result = removeMember(1L, 3L, 2L);
+
+		assertThat(result).hasStatus(HttpStatus.FORBIDDEN);
+		assertThat(result).bodyJson().extractingPath("$.success").isEqualTo(false);
+		assertThat(result).bodyJson().extractingPath("$.error.code").isEqualTo("NOT_FAMILY_OWNER");
 	}
 
 	private MvcTestResult create(Long userId, String body) {
