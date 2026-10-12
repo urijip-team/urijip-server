@@ -22,4 +22,7 @@ public interface FamilyMemberRepository extends JpaRepository<FamilyMember, Long
 	@EntityGraph(attributePaths = "user")
 	List<FamilyMember> findByFamilyIdOrderByJoinedAtAscIdAsc(Long familyId);
 
+	@EntityGraph(attributePaths = {"family", "user"})
+	Optional<FamilyMember> findByFamilyIdAndUserId(Long familyId, Long userId);
+
 }

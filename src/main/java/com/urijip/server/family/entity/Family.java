@@ -57,4 +57,8 @@ public class Family extends BaseTimeEntity {
 		this.inviteCode = inviteCode;
 	}
 
+	public void changeOwner(User owner) {
+		this.owner = owner;
+	}
+
 }

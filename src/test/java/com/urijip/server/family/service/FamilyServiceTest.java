@@ -10,6 +10,7 @@ import java.util.List;
 import com.urijip.server.TestcontainersConfiguration;
 import com.urijip.server.family.dto.request.FamilyCreateRequest;
 import com.urijip.server.family.dto.request.FamilyJoinRequest;
+import com.urijip.server.family.dto.request.FamilyOwnerTransferRequest;
 import com.urijip.server.family.dto.response.FamilyMemberResponse;
 import com.urijip.server.family.dto.response.FamilyResponse;
 import com.urijip.server.family.entity.Family;
@@ -466,6 +467,103 @@ class FamilyServiceTest {
 	@Test
 	void reissueInviteCodeRejectsUnknownFamilyId() {
 		assertThatThrownBy(() -> familyService.reissueInviteCode(999_999L, mom.getId()))
+				.isInstanceOf(BusinessException.class)
+				.extracting("errorCode")
+				.isEqualTo(ErrorCode.FAMILY_NOT_MEMBER);
+	}
+
+	@Test
+	void transferOwnerSwapsRoles() {
+		FamilyResponse created = familyService.create(mom.getId(), new FamilyCreateRequest("김씨네"));
+		User dad = saveUser("dad@example.com", "김아빠");
+		familyService.join(dad.getId(), new FamilyJoinRequest(created.inviteCode()));
+
+		List<FamilyMemberResponse> members = familyService.transferOwner(created.id(), mom.getId(), new FamilyOwnerTransferRequest(dad.getId()));
+
+		assertThat(members).containsExactly(
+				new FamilyMemberResponse(mom.getId(), "김엄마", null, null, FamilyRole.MEMBER),
+				new FamilyMemberResponse(dad.getId(), "김아빠", null, null, FamilyRole.OWNER));
+	}
+
+	@Test
+	void transferOwnerChangesOwnerOfFamily() {
+		FamilyResponse created = familyService.create(mom.getId(), new FamilyCreateRequest("김씨네"));
+		User dad = saveUser("dad@example.com", "김아빠");
+		familyService.join(dad.getId(), new FamilyJoinRequest(created.inviteCode()));
+
+		familyService.transferOwner(created.id(), mom.getId(), new FamilyOwnerTransferRequest(dad.getId()));
+
+		Family family = familyRepository.findById(created.id()).orElseThrow();
+		assertThat(family.getOwner().getId()).isEqualTo(dad.getId());
+	}
+
+	@Test
+	void transferOwnerMovesOwnerPermission() {
+		FamilyResponse created = familyService.create(mom.getId(), new FamilyCreateRequest("김씨네"));
+		User dad = saveUser("dad@example.com", "김아빠");
+		familyService.join(dad.getId(), new FamilyJoinRequest(created.inviteCode()));
+		familyService.transferOwner(created.id(), mom.getId(), new FamilyOwnerTransferRequest(dad.getId()));
+
+		assertThatThrownBy(() -> familyService.reissueInviteCode(created.id(), mom.getId()))
+				.isInstanceOf(BusinessException.class)
+				.extracting("errorCode")
+				.isEqualTo(ErrorCode.NOT_FAMILY_OWNER);
+		assertThatCode(() -> familyService.reissueInviteCode(created.id(), dad.getId())).doesNotThrowAnyException();
+	}
+
+	@Test
+	void transferOwnerRejectsOrdinaryMember() {
+		FamilyResponse created = familyService.create(mom.getId(), new FamilyCreateRequest("김씨네"));
+		User dad = saveUser("dad@example.com", "김아빠");
+		familyService.join(dad.getId(), new FamilyJoinRequest(created.inviteCode()));
+
+		assertThatThrownBy(() -> familyService.transferOwner(created.id(), dad.getId(), new FamilyOwnerTransferRequest(dad.getId())))
+				.isInstanceOf(BusinessException.class)
+				.extracting("errorCode")
+				.isEqualTo(ErrorCode.NOT_FAMILY_OWNER);
+		assertThat(familyService.getMembers(created.id(), mom.getId()))
+				.filteredOn(member -> member.role() == FamilyRole.OWNER)
+				.extracting(FamilyMemberResponse::userId)
+				.containsExactly(mom.getId());
+	}
+
+	@Test
+	void transferOwnerRejectsTargetWhoIsNotMember() {
+		FamilyResponse created = familyService.create(mom.getId(), new FamilyCreateRequest("김씨네"));
+		User dad = saveUser("dad@example.com", "김아빠");
+
+		assertThatThrownBy(() -> familyService.transferOwner(created.id(), mom.getId(), new FamilyOwnerTransferRequest(dad.getId())))
+				.isInstanceOf(BusinessException.class)
+				.extracting("errorCode")
+				.isEqualTo(ErrorCode.FAMILY_MEMBER_NOT_FOUND);
+		assertThat(familyService.getMembers(created.id(), mom.getId()))
+				.filteredOn(member -> member.role() == FamilyRole.OWNER)
+				.extracting(FamilyMemberResponse::userId)
+				.containsExactly(mom.getId());
+	}
+
+	@Test
+	void transferOwnerRejectsTransferToSelf() {
+		FamilyResponse created = familyService.create(mom.getId(), new FamilyCreateRequest("김씨네"));
+		User dad = saveUser("dad@example.com", "김아빠");
+		familyService.join(dad.getId(), new FamilyJoinRequest(created.inviteCode()));
+
+		assertThatThrownBy(() -> familyService.transferOwner(created.id(), mom.getId(), new FamilyOwnerTransferRequest(mom.getId())))
+				.isInstanceOf(BusinessException.class)
+				.extracting("errorCode")
+				.isEqualTo(ErrorCode.INVALID_INPUT);
+		assertThat(familyService.getMembers(created.id(), mom.getId()))
+				.filteredOn(member -> member.role() == FamilyRole.OWNER)
+				.extracting(FamilyMemberResponse::userId)
+				.containsExactly(mom.getId());
+	}
+
+	@Test
+	void transferOwnerRejectsRequesterWhoIsNotMember() {
+		FamilyResponse created = familyService.create(mom.getId(), new FamilyCreateRequest("김씨네"));
+		User dad = saveUser("dad@example.com", "김아빠");
+
+		assertThatThrownBy(() -> familyService.transferOwner(created.id(), dad.getId(), new FamilyOwnerTransferRequest(mom.getId())))
 				.isInstanceOf(BusinessException.class)
 				.extracting("errorCode")
 				.isEqualTo(ErrorCode.FAMILY_NOT_MEMBER);

@@ -10,6 +10,7 @@ import java.util.List;
 
 import com.urijip.server.family.dto.request.FamilyCreateRequest;
 import com.urijip.server.family.dto.request.FamilyJoinRequest;
+import com.urijip.server.family.dto.request.FamilyOwnerTransferRequest;
 import com.urijip.server.family.dto.response.FamilyMemberResponse;
 import com.urijip.server.family.dto.response.FamilyResponse;
 import com.urijip.server.family.entity.FamilyRole;
@@ -336,6 +337,75 @@ class FamilyControllerTest {
 		then(familyService).should(never()).reissueInviteCode(any(), any());
 	}
 
+	@Test
+	void transferOwnerReturnsMembersWithNewRoles() {
+		given(familyService.transferOwner(3L, 1L, new FamilyOwnerTransferRequest(2L))).willReturn(List.of(
+				new FamilyMemberResponse(1L, "김엄마", null, null, FamilyRole.MEMBER),
+				new FamilyMemberResponse(2L, "김아빠", null, null, FamilyRole.OWNER)));
+
+		MvcTestResult result = transferOwner(1L, 3L, """
+				{"userId": 2}
+				""");
+
+		assertThat(result).hasStatusOk();
+		assertThat(result).bodyJson().extractingPath("$.success").isEqualTo(true);
+		assertThat(result).bodyJson().extractingPath("$.data[0].role").isEqualTo("MEMBER");
+		assertThat(result).bodyJson().extractingPath("$.data[1].userId").isEqualTo(2);
+		assertThat(result).bodyJson().extractingPath("$.data[1].role").isEqualTo("OWNER");
+	}
+
+	@Test
+	void transferOwnerByOrdinaryMemberReturnsForbidden() {
+		given(familyService.transferOwner(any(), any(), any()))
+				.willThrow(new BusinessException(ErrorCode.NOT_FAMILY_OWNER));
+
+		MvcTestResult result = transferOwner(1L, 3L, """
+				{"userId": 2}
+				""");
+
+		assertThat(result).hasStatus(HttpStatus.FORBIDDEN);
+		assertThat(result).bodyJson().extractingPath("$.success").isEqualTo(false);
+		assertThat(result).bodyJson().extractingPath("$.error.code").isEqualTo("NOT_FAMILY_OWNER");
+	}
+
+	@Test
+	void transferOwnerToUserWhoIsNotMemberReturnsNotFound() {
+		given(familyService.transferOwner(any(), any(), any()))
+				.willThrow(new BusinessException(ErrorCode.FAMILY_MEMBER_NOT_FOUND));
+
+		MvcTestResult result = transferOwner(1L, 3L, """
+				{"userId": 2}
+				""");
+
+		assertThat(result).hasStatus(HttpStatus.NOT_FOUND);
+		assertThat(result).bodyJson().extractingPath("$.success").isEqualTo(false);
+		assertThat(result).bodyJson().extractingPath("$.error.code").isEqualTo("FAMILY_MEMBER_NOT_FOUND");
+	}
+
+	@Test
+	void transferOwnerWithoutUserIdReturnsBadRequest() {
+		MvcTestResult result = transferOwner(1L, 3L, "{}");
+
+		assertThat(result).hasStatus(HttpStatus.BAD_REQUEST);
+		assertThat(result).bodyJson().extractingPath("$.error.code").isEqualTo("INVALID_INPUT");
+		assertThat(result).bodyJson().extractingPath("$.error.message").asString().contains("userId: ");
+		then(familyService).should(never()).transferOwner(any(), any(), any());
+	}
+
+	@Test
+	void transferOwnerWithoutAccessTokenReturnsUnauthorized() {
+		MvcTestResult result = mvc.patch().uri("/api/families/3/owner")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("""
+						{"userId": 2}
+						""")
+				.exchange();
+
+		assertThat(result).hasStatus(HttpStatus.UNAUTHORIZED);
+		assertThat(result).bodyJson().extractingPath("$.error.code").isEqualTo("INVALID_TOKEN");
+		then(familyService).should(never()).transferOwner(any(), any(), any());
+	}
+
 	private MvcTestResult create(Long userId, String body) {
 		return mvc.post().uri("/api/families")
 				.header("Authorization", "Bearer " + jwtProvider.createAccessToken(userId, "USER"))
@@ -367,6 +437,14 @@ class FamilyControllerTest {
 	private MvcTestResult reissueInviteCode(Long userId, Long familyId) {
 		return mvc.post().uri("/api/families/{familyId}/invite-code", familyId)
 				.header("Authorization", "Bearer " + jwtProvider.createAccessToken(userId, "USER"))
+				.exchange();
+	}
+
+	private MvcTestResult transferOwner(Long userId, Long familyId, String body) {
+		return mvc.patch().uri("/api/families/{familyId}/owner", familyId)
+				.header("Authorization", "Bearer " + jwtProvider.createAccessToken(userId, "USER"))
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(body)
 				.exchange();
 	}
 
