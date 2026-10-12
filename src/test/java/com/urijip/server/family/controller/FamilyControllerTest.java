@@ -436,6 +436,18 @@ class FamilyControllerTest {
 		assertThat(result).bodyJson().extractingPath("$.error.code").isEqualTo("NOT_FAMILY_OWNER");
 	}
 
+	@Test
+	void leaveByOwnerWithOtherMembersReturnsConflict() {
+		willThrow(new BusinessException(ErrorCode.OWNER_CANNOT_LEAVE))
+				.given(familyService).removeMember(any(), any(), any());
+
+		MvcTestResult result = removeMember(1L, 3L, 2L);
+
+		assertThat(result).hasStatus(HttpStatus.CONFLICT);
+		assertThat(result).bodyJson().extractingPath("$.success").isEqualTo(false);
+		assertThat(result).bodyJson().extractingPath("$.error.code").isEqualTo("OWNER_CANNOT_LEAVE");
+	}
+
 	private MvcTestResult create(Long userId, String body) {
 		return mvc.post().uri("/api/families")
 				.header("Authorization", "Bearer " + jwtProvider.createAccessToken(userId, "USER"))
