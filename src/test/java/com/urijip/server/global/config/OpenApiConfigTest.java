@@ -25,6 +25,15 @@ class OpenApiConfigTest {
 		assertThat(apiDocs()).bodyJson().extractingPath("$.info.title").isEqualTo("우리집 API");
 	}
 
+	@Test
+	void apiDocsDeclareBearerJwtScheme() {
+		MvcTestResult result = apiDocs();
+
+		assertThat(result).bodyJson().extractingPath("$.components.securitySchemes.bearerAuth.type").isEqualTo("http");
+		assertThat(result).bodyJson().extractingPath("$.components.securitySchemes.bearerAuth.scheme").isEqualTo("bearer");
+		assertThat(result).bodyJson().extractingPath("$.components.securitySchemes.bearerAuth.bearerFormat").isEqualTo("JWT");
+	}
+
 	private MvcTestResult apiDocs() {
 		return mvc.get().uri("/v3/api-docs").exchange();
 	}
