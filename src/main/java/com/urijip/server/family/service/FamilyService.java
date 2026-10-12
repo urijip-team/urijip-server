@@ -72,6 +72,13 @@ public class FamilyService {
 	}
 
 	@Transactional(readOnly = true)
+	public void validateMember(Long familyId, Long userId) {
+		if (!familyMemberRepository.existsByFamilyIdAndUserId(familyId, userId)) {
+			throw new BusinessException(ErrorCode.FAMILY_NOT_MEMBER);
+		}
+	}
+
+	@Transactional(readOnly = true)
 	public boolean hasFamily(Long userId) {
 		return familyMemberRepository.existsByUserId(userId);
 	}
