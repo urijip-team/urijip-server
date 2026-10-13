@@ -61,6 +61,18 @@ public class User extends BaseTimeEntity {
 		this.status = UserStatus.ACTIVE;
 	}
 
+	public void updateProfile(String name, LocalDate birthday, String statusMessage) {
+		if (name != null) {
+			this.name = name;
+		}
+		if (birthday != null) {
+			this.birthday = birthday;
+		}
+		if (statusMessage != null) {
+			this.statusMessage = statusMessage.isBlank() ? null : statusMessage;
+		}
+	}
+
 	public void withdraw() {
 		this.status = UserStatus.WITHDRAWN;
 	}

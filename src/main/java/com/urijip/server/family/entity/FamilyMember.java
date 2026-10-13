@@ -64,4 +64,8 @@ public class FamilyMember {
 		this.role = role;
 	}
 
+	public void changeNickname(String nickname) {
+		this.nickname = (nickname == null || nickname.isBlank()) ? null : nickname;
+	}
+
 }
