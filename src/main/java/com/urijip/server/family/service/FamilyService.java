@@ -1,5 +1,7 @@
 package com.urijip.server.family.service;
 
+import java.util.Collection;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 
@@ -20,6 +22,7 @@ import com.urijip.server.global.exception.ErrorCode;
 import com.urijip.server.member.entity.User;
 import com.urijip.server.member.service.UserService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -31,6 +34,7 @@ public class FamilyService {
 	private final FamilyMemberRepository familyMemberRepository;
 	private final UserService userService;
 	private final InviteCodeGenerator inviteCodeGenerator;
+	private final ApplicationEventPublisher eventPublisher;
 
 	@Transactional
 	public FamilyResponse create(Long userId, FamilyCreateRequest request) {
@@ -71,8 +75,7 @@ public class FamilyService {
 	@Transactional
 	public FamilyResponse reissueInviteCode(Long familyId, Long userId) {
 		validateOwner(familyId, userId);
-		Family family = familyRepository.findById(familyId)
-				.orElseThrow(() -> new BusinessException(ErrorCode.FAMILY_NOT_FOUND));
+		Family family = getFamily(familyId);
 
 		family.changeInviteCode(newInviteCode());
 
@@ -139,6 +142,19 @@ public class FamilyService {
 	}
 
 	@Transactional(readOnly = true)
+	public Family getFamily(Long familyId) {
+		return familyRepository.findById(familyId)
+				.orElseThrow(() -> new BusinessException(ErrorCode.FAMILY_NOT_FOUND));
+	}
+
+	@Transactional(readOnly = true)
+	public List<User> getMemberUsers(Long familyId) {
+		return familyMemberRepository.findByFamilyIdOrderByJoinedAtAscIdAsc(familyId).stream()
+				.map(FamilyMember::getUser)
+				.toList();
+	}
+
+	@Transactional(readOnly = true)
 	public void validateMember(Long familyId, Long userId) {
 		if (!familyMemberRepository.existsByFamilyIdAndUserId(familyId, userId)) {
 			throw new BusinessException(ErrorCode.FAMILY_NOT_MEMBER);
@@ -150,6 +166,18 @@ public class FamilyService {
 		validateMember(familyId, userId);
 		if (!familyMemberRepository.existsByFamilyIdAndUserIdAndRole(familyId, userId, FamilyRole.OWNER)) {
 			throw new BusinessException(ErrorCode.NOT_FAMILY_OWNER);
+		}
+	}
+
+	// 요청으로 받은 회원들이 모두 이 가족의 멤버인지 검사한다. 한 명이라도 아니면 FAMILY_MEMBER_NOT_FOUND.
+	@Transactional(readOnly = true)
+	public void validateMembers(Long familyId, Collection<Long> userIds) {
+		Collection<Long> distinct = new HashSet<>(userIds);
+		if (distinct.isEmpty()) {
+			return;
+		}
+		if (familyMemberRepository.countByFamilyIdAndUserIdIn(familyId, distinct) != distinct.size()) {
+			throw new BusinessException(ErrorCode.FAMILY_MEMBER_NOT_FOUND);
 		}
 	}
 
@@ -176,6 +204,7 @@ public class FamilyService {
 
 		familyMemberRepository.delete(member);
 		if (owner) {
+			eventPublisher.publishEvent(new FamilyDeletedEvent(familyId));
 			familyRepository.delete(member.getFamily());
 		}
 	}

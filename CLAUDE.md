@@ -66,12 +66,14 @@ URL, 요청·응답 필드, 테이블·컬럼 이름은 API 명세서와 ERD를 
 - 접속 정보는 `DB_URL`, `DB_USERNAME`, `DB_PASSWORD` 환경변수로 주입하고, 없으면 로컬 Compose 값을 쓴다.
 - `local`의 `ddl-auto: update`는 초기 개발용이다. 운영 배포 전에 마이그레이션 도구로 바꾼다.
 - `created_at`이 있는 엔티티는 `global/entity/BaseTimeEntity`를 상속한다. 시간을 직접 넣지 않는다.
+- 가족에 딸린 테이블(`family_id` FK)을 만들면 `FamilyDeletedEvent`를 받아 그 가족의 행을 지운다. 마지막 멤버가 나가 가족이 삭제될 때 FK 때문에 실패하지 않게 하기 위해서다. 예: `ScheduleService.onFamilyDeleted`.
 
 ## 시간
 
 - 서버 기본 시간대는 `Asia/Seoul`이다. `UrijipServerApplication.main`에서 고정한다.
 - 엔티티의 시간은 `LocalDateTime`이다. 응답 날짜는 ISO-8601이고 Jackson 기본값이 이미 그렇다.
-- API 명세서의 `+09:00` 오프셋은 `LocalDateTime`으로는 붙지 않는다. 응답 DTO에서 `OffsetDateTime`으로 바꿔 내보낸다.
+- API 명세서의 `+09:00` 오프셋은 `LocalDateTime`으로는 붙지 않는다. 응답 DTO에서 `OffsetDateTime`으로 바꿔 내보낸다. 변환은 `global/time/SeoulTime`을 쓴다(테스트·CI는 JVM 시간대가 다를 수 있어 시간대를 직접 지정한다).
+- 요청의 `OffsetDateTime`은 Jackson이 UTC로 맞춰 읽는다. 같은 시각이므로 `SeoulTime.toLocal`로 바꿔 저장하면 된다.
 
 ## 보안
 
@@ -107,6 +109,7 @@ com.urijip.server
     ├── entity/      # BaseTimeEntity
     ├── exception/   # ErrorCode, BusinessException, GlobalExceptionHandler
     ├── response/    # ApiResponse
+    ├── time/        # SeoulTime (LocalDateTime ↔ +09:00)
     └── security/    # JWT 설정, 토큰 발급·검증
 ```
 

@@ -871,6 +871,47 @@ class FamilyServiceTest {
 				.isEqualTo(ErrorCode.FAMILY_NOT_MEMBER);
 	}
 
+	@Test
+	void validateMembersAcceptsMembersAndDuplicates() {
+		FamilyResponse created = familyService.create(mom.getId(), new FamilyCreateRequest("김씨네"));
+		User dad = saveUser("dad@example.com", "김아빠");
+		familyService.join(dad.getId(), new FamilyJoinRequest(created.inviteCode()));
+
+		assertThatCode(() -> familyService.validateMembers(created.id(), List.of(mom.getId(), dad.getId(),
+				dad.getId()))).doesNotThrowAnyException();
+		assertThatCode(() -> familyService.validateMembers(created.id(), List.of())).doesNotThrowAnyException();
+	}
+
+	@Test
+	void validateMembersRejectsUserOutsideFamily() {
+		FamilyResponse created = familyService.create(mom.getId(), new FamilyCreateRequest("김씨네"));
+		User dad = saveUser("dad@example.com", "김아빠");
+
+		assertThatThrownBy(() -> familyService.validateMembers(created.id(), List.of(mom.getId(), dad.getId())))
+				.isInstanceOf(BusinessException.class)
+				.extracting("errorCode")
+				.isEqualTo(ErrorCode.FAMILY_MEMBER_NOT_FOUND);
+	}
+
+	@Test
+	void getMemberUsersReturnsUsersInJoinOrder() {
+		FamilyResponse created = familyService.create(mom.getId(), new FamilyCreateRequest("김씨네"));
+		User dad = saveUser("dad@example.com", "김아빠");
+		familyService.join(dad.getId(), new FamilyJoinRequest(created.inviteCode()));
+
+		assertThat(familyService.getMemberUsers(created.id()))
+				.extracting(User::getId)
+				.containsExactly(mom.getId(), dad.getId());
+	}
+
+	@Test
+	void getFamilyOfUnknownIdIsNotFound() {
+		assertThatThrownBy(() -> familyService.getFamily(999_999L))
+				.isInstanceOf(BusinessException.class)
+				.extracting("errorCode")
+				.isEqualTo(ErrorCode.FAMILY_NOT_FOUND);
+	}
+
 	private User saveUser(String email, String name) {
 		return userRepository.saveAndFlush(User.builder()
 				.email(email)
