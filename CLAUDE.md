@@ -75,6 +75,11 @@ URL, 요청·응답 필드, 테이블·컬럼 이름은 API 명세서와 ERD를 
 - API 명세서의 `+09:00` 오프셋은 `LocalDateTime`으로는 붙지 않는다. 응답 DTO에서 `OffsetDateTime`으로 바꿔 내보낸다. 변환은 `global/time/SeoulTime`을 쓴다(테스트·CI는 JVM 시간대가 다를 수 있어 시간대를 직접 지정한다).
 - 요청의 `OffsetDateTime`은 Jackson이 UTC로 맞춰 읽는다. 같은 시각이므로 `SeoulTime.toLocal`로 바꿔 저장하면 된다.
 
+## PATCH 요청
+
+- 보낸 필드만 바꾼다. 요청 DTO는 보통 record이고, 빠진 필드는 `null`이라 그대로 둔다.
+- `null`을 보내 값을 지워야 하는 필드가 있으면 record로는 "안 보냄"과 "`null`을 보냄"을 구분할 수 없다(`Optional`도 둘 다 `Optional.empty()`가 된다). 이때는 setter가 불렸는지 기록하는 클래스로 만든다. 예: `TodoUpdateRequest`.
+
 ## 보안
 
 - `global/config/SecurityConfig`가 경로별 규칙을 정한다. 회원가입·로그인·재발급, 관리자 로그인, Swagger, `/actuator/health`만 열려 있고 나머지는 Access 토큰이 필요하다. 인증 없이 쓰는 API를 추가하면 `PUBLIC_PATHS`에 넣는다.
