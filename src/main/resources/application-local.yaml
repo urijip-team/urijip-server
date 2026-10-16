@@ -5,3 +5,6 @@ spring:
 
 jwt:
   secret: local-dev-secret-key-do-not-use-in-production-0123456789
+
+aes:
+  key: aHRBAJ/jQTME/l1zaBV/sKYyssjqgHbAKi65Oq0Np9o=
