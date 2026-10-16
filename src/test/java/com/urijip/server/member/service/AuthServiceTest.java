@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.within;
 
+import java.math.BigDecimal;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
@@ -19,6 +20,9 @@ import com.urijip.server.global.exception.ErrorCode;
 import com.urijip.server.global.security.AccessTokenClaims;
 import com.urijip.server.global.security.JwtProperties;
 import com.urijip.server.global.security.JwtProvider;
+import com.urijip.server.location.dto.request.LocationUpdateRequest;
+import com.urijip.server.location.repository.UserLocationRepository;
+import com.urijip.server.location.service.LocationService;
 import com.urijip.server.member.dto.request.LoginRequest;
 import com.urijip.server.member.dto.request.LogoutRequest;
 import com.urijip.server.member.dto.request.ReissueRequest;
@@ -69,6 +73,12 @@ class AuthServiceTest {
 
 	@Autowired
 	private PaymentInfoRepository paymentInfoRepository;
+
+	@Autowired
+	private LocationService locationService;
+
+	@Autowired
+	private UserLocationRepository userLocationRepository;
 
 	@Autowired
 	private PasswordEncoder passwordEncoder;
@@ -701,6 +711,26 @@ class AuthServiceTest {
 		authService.withdraw(momId);
 
 		assertThat(paymentInfoRepository.findById(dadId)).isPresent();
+	}
+
+	@Test
+	void withdrawDeletesLocation() {
+		Long momId = signupMom().id();
+		locationService.updateMyLocation(momId, new LocationUpdateRequest(new BigDecimal("37.5665"),
+				new BigDecimal("126.978")));
+
+		authService.withdraw(momId);
+
+		assertThat(userLocationRepository.findById(momId)).isEmpty();
+	}
+
+	@Test
+	void withdrawWithoutLocationSucceeds() {
+		Long momId = signupMom().id();
+
+		authService.withdraw(momId);
+
+		assertThat(userRepository.findById(momId).orElseThrow().getStatus()).isEqualTo(UserStatus.WITHDRAWN);
 	}
 
 	private Long signupAdmin() {
