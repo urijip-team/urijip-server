@@ -61,4 +61,8 @@ public class Family extends BaseTimeEntity {
 		this.owner = owner;
 	}
 
+	public void changeStatus(FamilyStatus status) {
+		this.status = status;
+	}
+
 }

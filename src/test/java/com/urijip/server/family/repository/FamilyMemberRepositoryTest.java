@@ -2,6 +2,9 @@ package com.urijip.server.family.repository;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.tuple;
+
+import java.util.List;
 
 import com.urijip.server.TestcontainersConfiguration;
 import com.urijip.server.family.entity.Family;
@@ -188,6 +191,40 @@ class FamilyMemberRepositoryTest {
 
 		assertThat(familyMemberRepository.countByFamilyId(family.getId())).isEqualTo(2);
 		assertThat(familyMemberRepository.countByFamilyId(family.getId() + 1)).isZero();
+	}
+
+	@Test
+	void countByFamilyIdsCountsMembersPerFamily() {
+		User dad = saveUser("dad@example.com", "김아빠");
+		User son = saveUser("son@example.com", "박아들");
+		Family other = familyRepository.saveAndFlush(Family.builder()
+				.name("박씨네")
+				.inviteCode("B7Q4M1")
+				.owner(son)
+				.build());
+		Family empty = familyRepository.saveAndFlush(Family.builder()
+				.name("빈집")
+				.inviteCode("C2W8N5")
+				.owner(dad)
+				.build());
+		familyMemberRepository.saveAndFlush(member(mom, FamilyRole.OWNER));
+		familyMemberRepository.saveAndFlush(member(dad, FamilyRole.MEMBER));
+		familyMemberRepository.saveAndFlush(FamilyMember.builder()
+				.family(other)
+				.user(son)
+				.role(FamilyRole.OWNER)
+				.build());
+
+		List<FamilyMemberCount> counts = familyMemberRepository.countByFamilyIds(
+				List.of(family.getId(), other.getId(), empty.getId()));
+
+		assertThat(counts).extracting(FamilyMemberCount::getFamilyId, FamilyMemberCount::getMemberCount)
+				.containsExactlyInAnyOrder(tuple(family.getId(), 2L), tuple(other.getId(), 1L));
+	}
+
+	@Test
+	void countByFamilyIdsWithEmptyIdsReturnsEmpty() {
+		assertThat(familyMemberRepository.countByFamilyIds(List.of())).isEmpty();
 	}
 
 	private FamilyMember member(User user, FamilyRole role) {
