@@ -1,5 +1,6 @@
 package com.urijip.server.family.repository;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -15,6 +16,8 @@ public interface FamilyMemberRepository extends JpaRepository<FamilyMember, Long
 	boolean existsByFamilyIdAndUserId(Long familyId, Long userId);
 
 	long countByFamilyId(Long familyId);
+
+	long countByFamilyIdAndUserIdIn(Long familyId, Collection<Long> userIds);
 
 	boolean existsByFamilyIdAndUserIdAndRole(Long familyId, Long userId, FamilyRole role);
 
