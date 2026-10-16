@@ -29,12 +29,14 @@ import com.urijip.server.member.dto.response.ReissueResponse;
 import com.urijip.server.member.dto.response.SignupResponse;
 import com.urijip.server.member.entity.AdminLevel;
 import com.urijip.server.member.entity.DeviceToken;
+import com.urijip.server.member.entity.PaymentInfo;
 import com.urijip.server.member.entity.Platform;
 import com.urijip.server.member.entity.RefreshToken;
 import com.urijip.server.member.entity.Role;
 import com.urijip.server.member.entity.User;
 import com.urijip.server.member.entity.UserStatus;
 import com.urijip.server.member.repository.DeviceTokenRepository;
+import com.urijip.server.member.repository.PaymentInfoRepository;
 import com.urijip.server.member.repository.RefreshTokenRepository;
 import com.urijip.server.member.repository.UserRepository;
 import org.junit.jupiter.api.Test;
@@ -64,6 +66,9 @@ class AuthServiceTest {
 
 	@Autowired
 	private DeviceTokenRepository deviceTokenRepository;
+
+	@Autowired
+	private PaymentInfoRepository paymentInfoRepository;
 
 	@Autowired
 	private PasswordEncoder passwordEncoder;
@@ -677,6 +682,27 @@ class AuthServiceTest {
 				.containsExactly("fcm-dad");
 	}
 
+	@Test
+	void withdrawDeletesPaymentInfo() {
+		Long momId = signupMom().id();
+		savePaymentInfo(momId);
+
+		authService.withdraw(momId);
+
+		assertThat(paymentInfoRepository.findById(momId)).isEmpty();
+	}
+
+	@Test
+	void withdrawKeepsPaymentInfoOfOtherUsers() {
+		Long momId = signupMom().id();
+		Long dadId = authService.signup(new SignupRequest("dad@example.com", "password123", "김아빠")).id();
+		savePaymentInfo(dadId);
+
+		authService.withdraw(momId);
+
+		assertThat(paymentInfoRepository.findById(dadId)).isPresent();
+	}
+
 	private Long signupAdmin() {
 		User user = userRepository.findById(signupMom().id()).orElseThrow();
 		ReflectionTestUtils.setField(user, "role", Role.ADMIN);
@@ -697,6 +723,11 @@ class AuthServiceTest {
 	private void saveDeviceToken(Long userId, String fcmToken) {
 		User user = userRepository.findById(userId).orElseThrow();
 		deviceTokenRepository.saveAndFlush(new DeviceToken(user, fcmToken, Platform.ANDROID));
+	}
+
+	private void savePaymentInfo(Long userId) {
+		User user = userRepository.findById(userId).orElseThrow();
+		paymentInfoRepository.saveAndFlush(new PaymentInfo(user, "국민은행", "encrypted", "5678", user.getName(), null));
 	}
 
 	private void changeStatus(Long userId, UserStatus status) {
