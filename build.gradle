@@ -48,4 +48,6 @@ dependencies {
 
 tasks.named('test') {
 	useJUnitPlatform()
+	// 운영과 같은 시간대로 테스트한다. 서버는 main에서 Asia/Seoul로 고정하지만 테스트는 main을 거치지 않는다.
+	systemProperty 'user.timezone', 'Asia/Seoul'
 }

@@ -70,9 +70,9 @@ URL, 요청·응답 필드, 테이블·컬럼 이름은 API 명세서와 ERD를 
 
 ## 시간
 
-- 서버 기본 시간대는 `Asia/Seoul`이다. `UrijipServerApplication.main`에서 고정한다.
+- 서버 기본 시간대는 `Asia/Seoul`이다. `UrijipServerApplication.main`에서 고정한다. 테스트는 `main`을 거치지 않으므로 `build.gradle`의 `test` 태스크에서 `user.timezone`으로 같은 시간대를 준다(CI는 UTC).
 - 엔티티의 시간은 `LocalDateTime`이다. 응답 날짜는 ISO-8601이고 Jackson 기본값이 이미 그렇다.
-- API 명세서의 `+09:00` 오프셋은 `LocalDateTime`으로는 붙지 않는다. 응답 DTO에서 `OffsetDateTime`으로 바꿔 내보낸다. 변환은 `global/time/SeoulTime`을 쓴다(테스트·CI는 JVM 시간대가 다를 수 있어 시간대를 직접 지정한다).
+- API 명세서의 `+09:00` 오프셋은 `LocalDateTime`으로는 붙지 않는다. 응답 DTO에서 `OffsetDateTime`으로 바꿔 내보낸다. 변환은 `global/time/SeoulTime`을 쓴다(JVM 기본 시간대에 기대지 않도록 시간대를 직접 지정한다).
 - 요청의 `OffsetDateTime`은 Jackson이 UTC로 맞춰 읽는다. 같은 시각이므로 `SeoulTime.toLocal`로 바꿔 저장하면 된다.
 
 ## PATCH 요청
