@@ -24,6 +24,7 @@ public enum ErrorCode {
 	TODO_NOT_FOUND(HttpStatus.NOT_FOUND, "존재하지 않는 할 일입니다"),
 	PAYMENT_INFO_NOT_FOUND(HttpStatus.NOT_FOUND, "등록된 송금 정보가 없습니다"),
 	EMAIL_DUPLICATED(HttpStatus.CONFLICT, "이미 가입된 이메일입니다"),
+	USER_WITHDRAWN(HttpStatus.CONFLICT, "탈퇴한 회원입니다"),
 	OWNER_CANNOT_LEAVE(HttpStatus.CONFLICT, "방장은 방장을 위임한 뒤에 나갈 수 있습니다"),
 	ALREADY_FAMILY_MEMBER(HttpStatus.CONFLICT, "이미 가족에 참여하고 있습니다"),
 	INTERNAL_SERVER_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "서버 오류가 발생했습니다");
