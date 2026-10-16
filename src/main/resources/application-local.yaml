@@ -8,3 +8,12 @@ jwt:
 
 aes:
   key: aHRBAJ/jQTME/l1zaBV/sKYyssjqgHbAKi65Oq0Np9o=
+
+# compose.yaml의 LocalStack(S3 흉내). 버킷은 컨테이너가 뜰 때 만들어진다.
+storage:
+  s3:
+    bucket: urijip-local
+    region: ap-northeast-2
+    endpoint: http://localhost:4566
+    access-key: test
+    secret-key: test

@@ -19,6 +19,7 @@ URL, 요청·응답 필드, 테이블·컬럼 이름은 API 명세서와 ERD를 
 - Spring Web MVC, Spring Data JPA, Spring Security, Validation, Actuator, Lombok
 - springdoc-openapi (Swagger UI)
 - MySQL 8.4 (로컬은 Docker Compose, 테스트는 Testcontainers)
+- AWS S3 (사진 저장. 로컬과 테스트는 LocalStack)
 
 ## 명령
 
@@ -68,6 +69,13 @@ URL, 요청·응답 필드, 테이블·컬럼 이름은 API 명세서와 ERD를 
 - `created_at`이 있는 엔티티는 `global/entity/BaseTimeEntity`를 상속한다. 시간을 직접 넣지 않는다.
 - 가족에 딸린 테이블(`family_id` FK)을 만들면 `FamilyDeletedEvent`를 받아 그 가족의 행을 지운다. 마지막 멤버가 나가 가족이 삭제될 때 FK 때문에 실패하지 않게 하기 위해서다. 예: `ScheduleService.onFamilyDeleted`.
 
+## 파일 저장 (S3)
+
+- 사진 같은 파일은 `global/storage/FileStorage`로 S3에 올리고 지운다. 버킷은 비공개다. DB에는 URL이 아닌 S3 key를 저장하고, 응답할 때 `FileStorage.createUrl`로 일정 시간(`storage.s3.url-expiration`, 1시간)만 유효한 서명 URL을 만든다.
+- 로컬은 `compose.yaml`의 LocalStack이 S3를 대신한다. 버킷은 `docker/localstack/init-s3.sh`가 만든다. LocalStack은 2026.x부터 인증 토큰이 필요해서 `4.14.0`으로 고정했다. 이미지를 바꾸면 토큰 없이 뜨는지 확인한다.
+- 운영은 `S3_BUCKET`(필수), `AWS_REGION`(기본 `ap-northeast-2`)을 주고, 자격 증명은 AWS 기본 방식(IAM 역할이나 `AWS_ACCESS_KEY_ID` 환경변수)을 쓴다.
+- DB 행을 지울 때 S3 파일은 트랜잭션이 커밋된 뒤에 지운다. 예: `PhotoFilesDeletedEvent`.
+
 ## 시간
 
 - 서버 기본 시간대는 `Asia/Seoul`이다. `UrijipServerApplication.main`에서 고정한다. 테스트는 `main`을 거치지 않으므로 `build.gradle`의 `test` 태스크에서 `user.timezone`으로 같은 시간대를 준다(CI는 UTC).
@@ -91,6 +99,7 @@ URL, 요청·응답 필드, 테이블·컬럼 이름은 API 명세서와 ERD를 
 ## 테스트
 
 - DB가 필요한 테스트는 `@Import(TestcontainersConfiguration.class)`로 실제 MySQL을 쓴다. H2는 쓰지 않는다.
+- S3를 실제로 쓰는 테스트는 `LocalStackTestConfiguration`도 함께 `@Import`한다. LocalStack은 서명 없는 요청도 허용하므로, 버킷이 비공개인지는 실제 S3에서 확인해야 한다.
 - `@WebMvcTest`는 `@Configuration` 클래스를 읽지 않는다. 컨트롤러 테스트에는 `SecurityConfig`를 `@Import`한다. 빠뜨리면 모든 요청이 401로 막힌다.
 - 단언은 AssertJ(`assertThat`)를 쓴다. MockMvc는 `MockMvcTester`를 쓴다.
 
@@ -109,12 +118,14 @@ com.urijip.server
 ├── family/
 ├── chat/
 ├── schedule/
+├── photo/
 └── global/          # 도메인에 속하지 않는 것
     ├── config/      # 설정 클래스
     ├── entity/      # BaseTimeEntity
     ├── exception/   # ErrorCode, BusinessException, GlobalExceptionHandler
     ├── response/    # ApiResponse
     ├── time/        # SeoulTime (LocalDateTime ↔ +09:00)
+    ├── storage/     # FileStorage (S3 업로드·삭제·서명 URL)
     └── security/    # JWT 설정, 토큰 발급·검증
 ```
 
