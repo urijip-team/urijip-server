@@ -14,11 +14,15 @@ import com.urijip.server.global.exception.BusinessException;
 import com.urijip.server.global.exception.ErrorCode;
 import com.urijip.server.global.security.JwtProvider;
 import com.urijip.server.member.dto.request.DeviceTokenRequest;
+import com.urijip.server.member.dto.request.PaymentInfoRequest;
 import com.urijip.server.member.dto.request.ProfileUpdateRequest;
+import com.urijip.server.member.dto.response.AccountNumberResponse;
+import com.urijip.server.member.dto.response.PaymentInfoResponse;
 import com.urijip.server.member.dto.response.ProfileResponse;
 import com.urijip.server.member.entity.Platform;
 import com.urijip.server.member.service.AuthService;
 import com.urijip.server.member.service.DeviceTokenService;
+import com.urijip.server.member.service.PaymentInfoService;
 import com.urijip.server.member.service.ProfileService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -51,6 +55,9 @@ class UserControllerTest {
 
 	@MockitoBean
 	private ProfileService profileService;
+
+	@MockitoBean
+	private PaymentInfoService paymentInfoService;
 
 	@Test
 	void getProfileReturnsProfile() {
@@ -282,6 +289,141 @@ class UserControllerTest {
 		then(deviceTokenService).should(never()).register(any(), any());
 	}
 
+	@Test
+	void registerPaymentInfoReturnsMaskedPaymentInfo() {
+		given(paymentInfoService.register(1L, new PaymentInfoRequest("국민은행", "12345678905678", "김엄마",
+				"https://toss.me/example")))
+				.willReturn(new PaymentInfoResponse("국민은행", "****-5678", "김엄마", "https://toss.me/example"));
+
+		MvcTestResult result = registerPaymentInfo(1L, """
+				{"bankName": "국민은행", "accountNumber": "12345678905678", "accountHolder": "김엄마",
+				 "transferLink": "https://toss.me/example"}
+				""");
+
+		assertThat(result).hasStatusOk();
+		assertThat(result).bodyJson().extractingPath("$.success").isEqualTo(true);
+		assertThat(result).bodyJson().extractingPath("$.data.bankName").isEqualTo("국민은행");
+		assertThat(result).bodyJson().extractingPath("$.data.maskedAccount").isEqualTo("****-5678");
+		assertThat(result).bodyJson().extractingPath("$.data.accountHolder").isEqualTo("김엄마");
+		assertThat(result).bodyJson().extractingPath("$.data.transferLink").isEqualTo("https://toss.me/example");
+		assertThat(result).bodyJson().doesNotHavePath("$.data.accountNumber");
+	}
+
+	@ParameterizedTest
+	@ValueSource(strings = {"https://toss.me/example", "https://qr.kakaopay.com/FABCDE123"})
+	void registerPaymentInfoAcceptsTossAndKakaoPayLinks(String link) {
+		registerPaymentInfo(7L, """
+				{"bankName": "국민은행", "accountNumber": "1234567890", "accountHolder": "김엄마", "transferLink": "%s"}
+				""".formatted(link));
+
+		then(paymentInfoService).should().register(7L, new PaymentInfoRequest("국민은행", "1234567890", "김엄마", link));
+	}
+
+	@Test
+	void registerPaymentInfoAcceptsMissingTransferLink() {
+		registerPaymentInfo(7L, """
+				{"bankName": "국민은행", "accountNumber": "1234567890", "accountHolder": "김엄마"}
+				""");
+
+		then(paymentInfoService).should().register(7L, new PaymentInfoRequest("국민은행", "1234567890", "김엄마", null));
+	}
+
+	@ParameterizedTest
+	@CsvSource(delimiter = '|', textBlock = """
+			bankName      | {"bankName": " ", "accountNumber": "1234567890", "accountHolder": "김엄마"}
+			accountNumber | {"bankName": "국민은행", "accountHolder": "김엄마"}
+			accountNumber | {"bankName": "국민은행", "accountNumber": "123-456-7890", "accountHolder": "김엄마"}
+			accountNumber | {"bankName": "국민은행", "accountNumber": "123456789", "accountHolder": "김엄마"}
+			accountNumber | {"bankName": "국민은행", "accountNumber": "12345678901234567", "accountHolder": "김엄마"}
+			accountHolder | {"bankName": "국민은행", "accountNumber": "1234567890"}
+			transferLink  | {"bankName": "국민은행", "accountNumber": "1234567890", "accountHolder": "김엄마", "transferLink": "https://evil.com/pay"}
+			transferLink  | {"bankName": "국민은행", "accountNumber": "1234567890", "accountHolder": "김엄마", "transferLink": "http://toss.me/example"}
+			transferLink  | {"bankName": "국민은행", "accountNumber": "1234567890", "accountHolder": "김엄마", "transferLink": "https://toss.me.evil.com/x"}
+			transferLink  | {"bankName": "국민은행", "accountNumber": "1234567890", "accountHolder": "김엄마", "transferLink": "https://toss.me/"}
+			""")
+	void registerPaymentInfoWithInvalidInputReturnsBadRequest(String field, String body) {
+		MvcTestResult result = registerPaymentInfo(1L, body);
+
+		assertThat(result).hasStatus(HttpStatus.BAD_REQUEST);
+		assertThat(result).bodyJson().extractingPath("$.error.code").isEqualTo("INVALID_INPUT");
+		assertThat(result).bodyJson().extractingPath("$.error.message").asString().contains(field + ": ");
+		then(paymentInfoService).should(never()).register(any(), any());
+	}
+
+	@Test
+	void registerPaymentInfoWithoutAccessTokenReturnsUnauthorized() {
+		MvcTestResult result = mvc.put().uri("/api/users/me/payment-info")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("""
+						{"bankName": "국민은행", "accountNumber": "1234567890", "accountHolder": "김엄마"}
+						""")
+				.exchange();
+
+		assertThat(result).hasStatus(HttpStatus.UNAUTHORIZED);
+		assertThat(result).bodyJson().extractingPath("$.error.code").isEqualTo("INVALID_TOKEN");
+		then(paymentInfoService).should(never()).register(any(), any());
+	}
+
+	@Test
+	void getPaymentInfoReturnsMaskedPaymentInfo() {
+		given(paymentInfoService.getPaymentInfo(2L, 1L))
+				.willReturn(new PaymentInfoResponse("국민은행", "****-5678", "김엄마", null));
+
+		MvcTestResult result = mvc.get().uri("/api/users/1/payment-info")
+				.header("Authorization", "Bearer " + jwtProvider.createAccessToken(2L, "USER"))
+				.exchange();
+
+		assertThat(result).hasStatusOk();
+		assertThat(result).bodyJson().extractingPath("$.data.maskedAccount").isEqualTo("****-5678");
+		assertThat(result).bodyJson().extractingPath("$.data.transferLink").isNull();
+	}
+
+	@Test
+	void getPaymentInfoWithoutRegisteredInfoReturnsNotFound() {
+		given(paymentInfoService.getPaymentInfo(any(), any()))
+				.willThrow(new BusinessException(ErrorCode.PAYMENT_INFO_NOT_FOUND));
+
+		MvcTestResult result = mvc.get().uri("/api/users/1/payment-info")
+				.header("Authorization", "Bearer " + jwtProvider.createAccessToken(2L, "USER"))
+				.exchange();
+
+		assertThat(result).hasStatus(HttpStatus.NOT_FOUND);
+		assertThat(result).bodyJson().extractingPath("$.error.code").isEqualTo("PAYMENT_INFO_NOT_FOUND");
+	}
+
+	@Test
+	void getAccountNumberReturnsFullNumber() {
+		given(paymentInfoService.getAccountNumber(2L, 1L)).willReturn(new AccountNumberResponse("12345678905678"));
+
+		MvcTestResult result = mvc.get().uri("/api/users/1/payment-info/account")
+				.header("Authorization", "Bearer " + jwtProvider.createAccessToken(2L, "USER"))
+				.exchange();
+
+		assertThat(result).hasStatusOk();
+		assertThat(result).bodyJson().extractingPath("$.data.accountNumber").isEqualTo("12345678905678");
+	}
+
+	@Test
+	void getAccountNumberOfUserOutsideFamilyReturnsForbidden() {
+		given(paymentInfoService.getAccountNumber(any(), any()))
+				.willThrow(new BusinessException(ErrorCode.FAMILY_NOT_MEMBER));
+
+		MvcTestResult result = mvc.get().uri("/api/users/1/payment-info/account")
+				.header("Authorization", "Bearer " + jwtProvider.createAccessToken(2L, "USER"))
+				.exchange();
+
+		assertThat(result).hasStatus(HttpStatus.FORBIDDEN);
+		assertThat(result).bodyJson().extractingPath("$.error.code").isEqualTo("FAMILY_NOT_MEMBER");
+	}
+
+	@Test
+	void getAccountNumberWithoutAccessTokenReturnsUnauthorized() {
+		MvcTestResult result = mvc.get().uri("/api/users/1/payment-info/account").exchange();
+
+		assertThat(result).hasStatus(HttpStatus.UNAUTHORIZED);
+		then(paymentInfoService).should(never()).getAccountNumber(any(), any());
+	}
+
 	private MvcTestResult getProfile(Long userId, String targetUserId) {
 		return mvc.get().uri("/api/users/{userId}", targetUserId)
 				.header("Authorization", "Bearer " + jwtProvider.createAccessToken(userId, "USER"))
@@ -304,6 +446,14 @@ class UserControllerTest {
 
 	private MvcTestResult registerDeviceToken(Long userId, String body) {
 		return mvc.put().uri("/api/users/me/device-token")
+				.header("Authorization", "Bearer " + jwtProvider.createAccessToken(userId, "USER"))
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(body)
+				.exchange();
+	}
+
+	private MvcTestResult registerPaymentInfo(Long userId, String body) {
+		return mvc.put().uri("/api/users/me/payment-info")
 				.header("Authorization", "Bearer " + jwtProvider.createAccessToken(userId, "USER"))
 				.contentType(MediaType.APPLICATION_JSON)
 				.content(body)

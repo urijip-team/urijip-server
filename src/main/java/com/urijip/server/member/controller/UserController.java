@@ -2,10 +2,14 @@ package com.urijip.server.member.controller;
 
 import com.urijip.server.global.response.ApiResponse;
 import com.urijip.server.member.dto.request.DeviceTokenRequest;
+import com.urijip.server.member.dto.request.PaymentInfoRequest;
 import com.urijip.server.member.dto.request.ProfileUpdateRequest;
+import com.urijip.server.member.dto.response.AccountNumberResponse;
+import com.urijip.server.member.dto.response.PaymentInfoResponse;
 import com.urijip.server.member.dto.response.ProfileResponse;
 import com.urijip.server.member.service.AuthService;
 import com.urijip.server.member.service.DeviceTokenService;
+import com.urijip.server.member.service.PaymentInfoService;
 import com.urijip.server.member.service.ProfileService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -27,6 +31,7 @@ public class UserController {
 	private final AuthService authService;
 	private final DeviceTokenService deviceTokenService;
 	private final ProfileService profileService;
+	private final PaymentInfoService paymentInfoService;
 
 	@GetMapping("/{userId}")
 	public ApiResponse<ProfileResponse> getProfile(@AuthenticationPrincipal Long userId,
@@ -51,6 +56,24 @@ public class UserController {
 			@Valid @RequestBody DeviceTokenRequest request) {
 		deviceTokenService.register(userId, request);
 		return ApiResponse.success(null);
+	}
+
+	@PutMapping("/me/payment-info")
+	public ApiResponse<PaymentInfoResponse> registerPaymentInfo(@AuthenticationPrincipal Long userId,
+			@Valid @RequestBody PaymentInfoRequest request) {
+		return ApiResponse.success(paymentInfoService.register(userId, request));
+	}
+
+	@GetMapping("/{userId}/payment-info")
+	public ApiResponse<PaymentInfoResponse> getPaymentInfo(@AuthenticationPrincipal Long userId,
+			@PathVariable("userId") Long targetUserId) {
+		return ApiResponse.success(paymentInfoService.getPaymentInfo(userId, targetUserId));
+	}
+
+	@GetMapping("/{userId}/payment-info/account")
+	public ApiResponse<AccountNumberResponse> getAccountNumber(@AuthenticationPrincipal Long userId,
+			@PathVariable("userId") Long targetUserId) {
+		return ApiResponse.success(paymentInfoService.getAccountNumber(userId, targetUserId));
 	}
 
 }
