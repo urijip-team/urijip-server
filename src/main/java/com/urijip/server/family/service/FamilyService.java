@@ -20,6 +20,7 @@ import com.urijip.server.family.repository.FamilyMemberRepository;
 import com.urijip.server.family.repository.FamilyRepository;
 import com.urijip.server.global.exception.BusinessException;
 import com.urijip.server.global.exception.ErrorCode;
+import com.urijip.server.global.security.FamilyMembershipChecker;
 import com.urijip.server.member.entity.User;
 import com.urijip.server.member.service.UserService;
 import lombok.RequiredArgsConstructor;
@@ -29,7 +30,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
-public class FamilyService {
+public class FamilyService implements FamilyMembershipChecker {
 
 	private final FamilyRepository familyRepository;
 	private final FamilyMemberRepository familyMemberRepository;
@@ -160,6 +161,7 @@ public class FamilyService {
 				.toList();
 	}
 
+	@Override
 	@Transactional(readOnly = true)
 	public void validateMember(Long familyId, Long userId) {
 		if (!familyMemberRepository.existsByFamilyIdAndUserId(familyId, userId)) {

@@ -96,6 +96,15 @@ URL, 요청·응답 필드, 테이블·컬럼 이름은 API 명세서와 ERD를 
 - 인증은 JWT(Access 30분, Refresh 14일), 비밀번호는 BCrypt다. 앱 API는 `/api/...`, 관리자 API는 `/admin/...`(ADMIN만)이다.
 - 가족에 속한 데이터는 같은 가족 멤버만 조회·수정할 수 있다. `/api/families/{familyId}/...`는 요청자가 그 가족의 멤버인지 검사한다.
 
+## WebSocket (STOMP)
+
+- 설정은 `global/config/WebSocketConfig`다. 앱은 `/ws`로 연결하고 `/pub/...`로 보내고 `/sub/...`를 구독한다. 하트비트는 10초다.
+- `/ws` 핸드셰이크는 열려 있고(`PUBLIC_PATHS`), 인증은 CONNECT 프레임의 `Authorization: Bearer` 헤더로 `global/security/StompAuthChannelInterceptor`가 한다.
+- 구독은 `/sub/family/{familyId}/{이름}`만 허용하고 가족 멤버인지 검사한다. 다른 구독 경로가 필요하면 인터셉터의 패턴을 고친다.
+- 연결·구독이 거절되면 `StompErrorHandler`가 ERROR 프레임의 `message` 헤더에 에러 코드(`INVALID_TOKEN`, `FAMILY_NOT_MEMBER` 등)를 넣고 연결을 끊는다.
+- `@MessageMapping` 메서드는 `Principal`을 받아 `Long.valueOf(principal.getName())`로 회원 id를 얻는다. 처리 중 예외는 `StompExceptionHandler`가 로그만 남기고 메시지를 버린다.
+- 가족에게 보내는 메시지는 DB 트랜잭션이 커밋된 뒤에 보낸다. 예: `LocationChangedEvent` → `LocationBroadcaster`.
+
 ## 테스트
 
 - DB가 필요한 테스트는 `@Import(TestcontainersConfiguration.class)`로 실제 MySQL을 쓴다. H2는 쓰지 않는다.

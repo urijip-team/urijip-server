@@ -17,6 +17,7 @@ import com.urijip.server.family.dto.response.FamilyResponse;
 import com.urijip.server.family.service.FamilyService;
 import com.urijip.server.global.exception.BusinessException;
 import com.urijip.server.global.exception.ErrorCode;
+import com.urijip.server.location.dto.request.LocationSendRequest;
 import com.urijip.server.location.dto.request.LocationSharingRequest;
 import com.urijip.server.location.dto.request.LocationUpdateRequest;
 import com.urijip.server.location.dto.response.FamilyLocationResponse;
@@ -30,11 +31,14 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
+import org.springframework.test.context.event.ApplicationEvents;
+import org.springframework.test.context.event.RecordApplicationEvents;
 import org.springframework.transaction.annotation.Transactional;
 
 @SpringBootTest
 @Import(TestcontainersConfiguration.class)
 @Transactional
+@RecordApplicationEvents
 class LocationServiceTest {
 
 	private static final LocationUpdateRequest SEOUL = new LocationUpdateRequest(new BigDecimal("37.5665"),
@@ -51,6 +55,9 @@ class LocationServiceTest {
 
 	@Autowired
 	private UserRepository userRepository;
+
+	@Autowired
+	private ApplicationEvents events;
 
 	private User mom;
 
@@ -209,6 +216,75 @@ class LocationServiceTest {
 		List<FamilyLocationResponse> locations = locationService.getFamilyLocations(familyId, mom.getId());
 
 		assertThat(locations).extracting(FamilyLocationResponse::userId).containsExactly(mom.getId());
+	}
+
+	@Test
+	void updateMyLocationPublishesEventForFamily() {
+		locationService.updateMyLocation(dad.getId(), SEOUL);
+
+		assertThat(events.stream(LocationChangedEvent.class)).singleElement().satisfies(event -> {
+			assertThat(event.familyId()).isEqualTo(familyId);
+			assertThat(event.message().userId()).isEqualTo(dad.getId());
+			assertThat(event.message().sharingEnabled()).isTrue();
+			assertThat(event.message().latitude()).isEqualTo(37.5665);
+			assertThat(event.message().longitude()).isEqualTo(126.978);
+			assertThat(event.message().updatedAt()).isNotNull();
+		});
+	}
+
+	@Test
+	void updateMyLocationWithoutFamilyPublishesNothing() {
+		User alone = saveUser("alone@example.com", "혼자");
+
+		locationService.updateMyLocation(alone.getId(), SEOUL);
+
+		assertThat(events.stream(LocationChangedEvent.class)).isEmpty();
+		assertThat(userLocationRepository.findById(alone.getId())).isPresent();
+	}
+
+	@Test
+	void ignoredUpdateWhileSharingIsOffPublishesNothing() {
+		locationService.changeSharing(dad.getId(), new LocationSharingRequest(false));
+		events.clear();
+
+		locationService.updateMyLocation(dad.getId(), SEOUL);
+
+		assertThat(events.stream(LocationChangedEvent.class)).isEmpty();
+	}
+
+	@Test
+	void changeSharingPublishesEventWithoutLocation() {
+		locationService.updateMyLocation(dad.getId(), SEOUL);
+		events.clear();
+
+		locationService.changeSharing(dad.getId(), new LocationSharingRequest(false));
+
+		assertThat(events.stream(LocationChangedEvent.class)).singleElement().satisfies(event -> {
+			assertThat(event.familyId()).isEqualTo(familyId);
+			assertThat(event.message().sharingEnabled()).isFalse();
+			assertThat(event.message().latitude()).isNull();
+			assertThat(event.message().updatedAt()).isNull();
+		});
+	}
+
+	@Test
+	void sendLocationSavesLocation() {
+		locationService.sendLocation(dad.getId(),
+				new LocationSendRequest(familyId, new BigDecimal("37.5665"), new BigDecimal("126.978")));
+
+		assertThat(userLocationRepository.findById(dad.getId()).orElseThrow().getLatitude())
+				.isEqualByComparingTo("37.5665");
+	}
+
+	@Test
+	void sendLocationToOtherFamilyThrowsFamilyNotMember() {
+		LocationSendRequest request = new LocationSendRequest(familyId, new BigDecimal("37.5665"),
+				new BigDecimal("126.978"));
+
+		assertThatThrownBy(() -> locationService.sendLocation(stranger.getId(), request))
+				.isInstanceOf(BusinessException.class)
+				.extracting("errorCode").isEqualTo(ErrorCode.FAMILY_NOT_MEMBER);
+		assertThat(userLocationRepository.findById(stranger.getId())).isEmpty();
 	}
 
 	@Test
