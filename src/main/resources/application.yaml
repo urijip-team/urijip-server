@@ -9,7 +9,16 @@ spring:
     password: ${DB_PASSWORD:urijip}
   jpa:
     open-in-view: false
+  servlet:
+    multipart:
+      # 사진 업로드: 한 장 10MB, 한 번에 최대 10장
+      max-file-size: 10MB
+      max-request-size: 100MB
 
 jwt:
   access-expiration: 30m
   refresh-expiration: 14d
+
+storage:
+  s3:
+    url-expiration: 1h

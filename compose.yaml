@@ -11,6 +11,15 @@ services:
       - '3306:3306'
     volumes:
       - 'mysql-data:/var/lib/mysql'
+  localstack:
+    # S3 대신 쓴다. 2026.x부터는 인증 토큰이 있어야 실행되므로, 토큰 없이 쓸 수 있는 마지막 버전으로 고정한다.
+    image: 'localstack/localstack:4.14.0'
+    environment:
+      - 'SERVICES=s3'
+    ports:
+      - '4566:4566'
+    volumes:
+      - './docker/localstack/init-s3.sh:/etc/localstack/init/ready.d/init-s3.sh:ro'
 
 volumes:
   mysql-data:
