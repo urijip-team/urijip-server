@@ -7,6 +7,7 @@ import com.urijip.server.global.exception.BusinessException;
 import com.urijip.server.global.exception.ErrorCode;
 import com.urijip.server.global.security.JwtProperties;
 import com.urijip.server.global.security.JwtProvider;
+import com.urijip.server.location.service.LocationService;
 import com.urijip.server.member.dto.request.LoginRequest;
 import com.urijip.server.member.dto.request.LogoutRequest;
 import com.urijip.server.member.dto.request.ReissueRequest;
@@ -40,6 +41,7 @@ public class AuthService {
 	private final JwtProvider jwtProvider;
 	private final JwtProperties jwtProperties;
 	private final FamilyService familyService;
+	private final LocationService locationService;
 
 	@Transactional
 	public SignupResponse signup(SignupRequest request) {
@@ -113,6 +115,7 @@ public class AuthService {
 		refreshTokenRepository.deleteByUserId(userId);
 		deviceTokenRepository.deleteByUserId(userId);
 		paymentInfoRepository.deleteById(userId);
+		locationService.deleteLocation(userId);
 		user.withdraw();
 	}
 
