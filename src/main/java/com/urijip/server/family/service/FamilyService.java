@@ -4,6 +4,7 @@ import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Optional;
 
 import com.urijip.server.family.dto.request.FamilyCreateRequest;
 import com.urijip.server.family.dto.request.FamilyJoinRequest;
@@ -127,9 +128,14 @@ public class FamilyService {
 
 	@Transactional(readOnly = true)
 	public FamilyResponse getMyFamily(Long userId) {
-		return familyMemberRepository.findFirstByUserId(userId)
-				.map(member -> FamilyResponse.from(member.getFamily()))
+		return findFamilyOf(userId)
 				.orElseThrow(() -> new BusinessException(ErrorCode.FAMILY_NOT_FOUND));
+	}
+
+	@Transactional(readOnly = true)
+	public Optional<FamilyResponse> findFamilyOf(Long userId) {
+		return familyMemberRepository.findFirstByUserId(userId)
+				.map(member -> FamilyResponse.from(member.getFamily()));
 	}
 
 	@Transactional(readOnly = true)

@@ -905,6 +905,15 @@ class FamilyServiceTest {
 	}
 
 	@Test
+	void findFamilyOfReturnsFamilyOrEmpty() {
+		FamilyResponse created = familyService.create(mom.getId(), new FamilyCreateRequest("김씨네"));
+		User dad = saveUser("dad@example.com", "김아빠");
+
+		assertThat(familyService.findFamilyOf(mom.getId())).contains(created);
+		assertThat(familyService.findFamilyOf(dad.getId())).isEmpty();
+	}
+
+	@Test
 	void getFamilyOfUnknownIdIsNotFound() {
 		assertThatThrownBy(() -> familyService.getFamily(999_999L))
 				.isInstanceOf(BusinessException.class)
