@@ -5,14 +5,18 @@ import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import com.urijip.server.global.exception.BusinessException;
+import com.urijip.server.global.exception.ErrorCode;
 import com.urijip.server.global.response.PageResponse;
 import com.urijip.server.member.dto.response.AdminUserResponse;
 import com.urijip.server.member.service.UserService;
 import com.urijip.server.photo.dto.response.PhotoResponse;
 import com.urijip.server.photo.service.PhotoService;
+import com.urijip.server.report.dto.request.AdminReportHandleRequest;
 import com.urijip.server.report.dto.request.AdminReportSearchRequest;
 import com.urijip.server.report.dto.response.AdminReportResponse;
 import com.urijip.server.report.entity.Report;
+import com.urijip.server.report.entity.ReportStatus;
 import com.urijip.server.report.entity.ReportTargetType;
 import com.urijip.server.report.repository.ReportRepository;
 import lombok.RequiredArgsConstructor;
@@ -47,6 +51,31 @@ public class AdminReportService {
 			case USER -> AdminReportResponse.of(report, users.get(report.getTargetId()), null);
 			case PHOTO -> AdminReportResponse.of(report, null, photos.get(report.getTargetId()));
 		}));
+	}
+
+	// 처리를 기다리는 신고만 처리할 수 있다.
+	@Transactional
+	public AdminReportResponse handle(Long reportId, Long adminId, AdminReportHandleRequest request) {
+		Report report = reportRepository.findById(reportId)
+				.orElseThrow(() -> new BusinessException(ErrorCode.REPORT_NOT_FOUND));
+		if (!report.isPending()) {
+			throw new BusinessException(ErrorCode.REPORT_ALREADY_HANDLED);
+		}
+
+		switch (request.action()) {
+			case REJECT -> report.handle(userService.getUser(adminId), ReportStatus.REJECTED);
+		}
+
+		return toResponse(report);
+	}
+
+	private AdminReportResponse toResponse(Report report) {
+		return switch (report.getTargetType()) {
+			case USER -> AdminReportResponse.of(report, userService.getUsers(List.of(report.getTargetId())).stream()
+					.findFirst().map(AdminUserResponse::from).orElse(null), null);
+			case PHOTO -> AdminReportResponse.of(report, null,
+					photoService.getPhotos(List.of(report.getTargetId())).stream().findFirst().orElse(null));
+		};
 	}
 
 	private List<Long> targetIds(Page<Report> reports, ReportTargetType targetType) {

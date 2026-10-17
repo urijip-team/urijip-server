@@ -1,25 +1,35 @@
 package com.urijip.server.report.controller;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.then;
+import static org.mockito.Mockito.never;
 
 import java.time.OffsetDateTime;
 import java.util.List;
 
 import com.urijip.server.global.config.SecurityConfig;
+import com.urijip.server.global.exception.BusinessException;
+import com.urijip.server.global.exception.ErrorCode;
 import com.urijip.server.global.response.PageResponse;
 import com.urijip.server.global.security.JwtProvider;
 import com.urijip.server.photo.dto.response.PhotoResponse;
+import com.urijip.server.report.dto.request.AdminReportHandleRequest;
 import com.urijip.server.report.dto.request.AdminReportSearchRequest;
+import com.urijip.server.report.dto.request.ReportAction;
 import com.urijip.server.report.dto.response.AdminReportResponse;
 import com.urijip.server.report.entity.ReportStatus;
 import com.urijip.server.report.entity.ReportTargetType;
 import com.urijip.server.report.service.AdminReportService;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.assertj.MockMvcTester;
 import org.springframework.test.web.servlet.assertj.MvcTestResult;
@@ -101,6 +111,64 @@ class AdminReportControllerTest {
 	@Test
 	void searchWithoutAccessTokenReturnsUnauthorized() {
 		assertThat(mvc.get().uri("/admin/reports").exchange()).hasStatus(HttpStatus.UNAUTHORIZED);
+	}
+
+	@Test
+	void handleReturnsHandledReport() {
+		AdminReportResponse rejected = new AdminReportResponse(7L, ReportTargetType.USER, 3L, null, null, "욕설",
+				ReportStatus.REJECTED, REPORT.reporter(), new AdminReportResponse.HandledBy(100L, "관리자"),
+				REPORT.createdAt());
+		given(adminReportService.handle(7L, 100L, new AdminReportHandleRequest(ReportAction.REJECT)))
+				.willReturn(rejected);
+
+		MvcTestResult result = handle("""
+				{"action": "REJECT"}
+				""");
+
+		assertThat(result).hasStatusOk();
+		assertThat(result).bodyJson().extractingPath("$.data.status").isEqualTo("REJECTED");
+		assertThat(result).bodyJson().extractingPath("$.data.handledBy.id").isEqualTo(100);
+	}
+
+	@ParameterizedTest
+	@ValueSource(strings = {"{}", "{\"action\": \"BAN\"}"})
+	void handleWithInvalidActionReturnsBadRequest(String body) {
+		MvcTestResult result = handle(body);
+
+		assertThat(result).hasStatus(HttpStatus.BAD_REQUEST);
+		then(adminReportService).should(never()).handle(any(), any(), any());
+	}
+
+	@Test
+	void handleAlreadyHandledReportReturnsConflict() {
+		given(adminReportService.handle(any(), any(), any()))
+				.willThrow(new BusinessException(ErrorCode.REPORT_ALREADY_HANDLED));
+
+		MvcTestResult result = handle("""
+				{"action": "REJECT"}
+				""");
+
+		assertThat(result).hasStatus(HttpStatus.CONFLICT);
+		assertThat(result).bodyJson().extractingPath("$.error.code").isEqualTo("REPORT_ALREADY_HANDLED");
+	}
+
+	@Test
+	void handleByUserIsForbidden() {
+		MvcTestResult result = mvc.patch().uri("/admin/reports/7")
+				.header("Authorization", "Bearer " + jwtProvider.createAccessToken(1L, "USER"))
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("{\"action\": \"REJECT\"}")
+				.exchange();
+
+		assertThat(result).hasStatus(HttpStatus.FORBIDDEN);
+	}
+
+	private MvcTestResult handle(String body) {
+		return mvc.patch().uri("/admin/reports/7")
+				.header("Authorization", admin())
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(body)
+				.exchange();
 	}
 
 	private String admin() {

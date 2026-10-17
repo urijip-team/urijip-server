@@ -12,12 +12,15 @@ import com.urijip.server.global.exception.ErrorCode;
 import com.urijip.server.global.response.PageResponse;
 import com.urijip.server.member.entity.Role;
 import com.urijip.server.member.entity.User;
+import com.urijip.server.member.entity.UserStatus;
 import com.urijip.server.member.repository.UserRepository;
 import com.urijip.server.photo.entity.Album;
 import com.urijip.server.photo.entity.Photo;
 import com.urijip.server.photo.repository.AlbumRepository;
 import com.urijip.server.photo.repository.PhotoRepository;
+import com.urijip.server.report.dto.request.AdminReportHandleRequest;
 import com.urijip.server.report.dto.request.AdminReportSearchRequest;
+import com.urijip.server.report.dto.request.ReportAction;
 import com.urijip.server.report.dto.response.AdminReportResponse;
 import com.urijip.server.report.entity.Report;
 import com.urijip.server.report.entity.ReportStatus;
@@ -136,6 +139,32 @@ class AdminReportServiceTest {
 		assertThat(adminReportService.search(new AdminReportSearchRequest(ReportStatus.REJECTED, 0, 10)).content())
 				.extracting(AdminReportResponse::id)
 				.containsExactly(rejected.getId());
+	}
+
+	@Test
+	void rejectMarksReportRejectedByAdmin() {
+		Report report = reportRepository.save(new Report(mom, ReportTargetType.USER, troll.getId(), "욕설"));
+
+		AdminReportResponse response = adminReportService.handle(report.getId(), admin.getId(),
+				new AdminReportHandleRequest(ReportAction.REJECT));
+
+		assertThat(response.status()).isEqualTo(ReportStatus.REJECTED);
+		assertThat(response.handledBy()).isEqualTo(new AdminReportResponse.HandledBy(admin.getId(), "관리자"));
+		assertThat(response.targetUser().id()).isEqualTo(troll.getId());
+		assertThat(report.getStatus()).isEqualTo(ReportStatus.REJECTED);
+		assertThat(report.getHandledBy().getId()).isEqualTo(admin.getId());
+		assertThat(troll.getStatus()).isEqualTo(UserStatus.ACTIVE);
+	}
+
+	@Test
+	void handledReportCannotBeHandledAgain() {
+		Report report = reportRepository.save(new Report(mom, ReportTargetType.USER, troll.getId(), "욕설"));
+		adminReportService.handle(report.getId(), admin.getId(), new AdminReportHandleRequest(ReportAction.REJECT));
+
+		assertError(() -> adminReportService.handle(report.getId(), admin.getId(),
+				new AdminReportHandleRequest(ReportAction.REJECT)), ErrorCode.REPORT_ALREADY_HANDLED);
+		assertError(() -> adminReportService.handle(999_999L, admin.getId(),
+				new AdminReportHandleRequest(ReportAction.REJECT)), ErrorCode.REPORT_NOT_FOUND);
 	}
 
 	private Photo savePhoto(Long familyId) {
