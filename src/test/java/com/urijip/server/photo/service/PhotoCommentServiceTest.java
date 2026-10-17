@@ -21,6 +21,7 @@ import com.urijip.server.photo.entity.PhotoComment;
 import com.urijip.server.photo.repository.AlbumRepository;
 import com.urijip.server.photo.repository.PhotoCommentRepository;
 import com.urijip.server.photo.repository.PhotoRepository;
+import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -36,6 +37,12 @@ class PhotoCommentServiceTest {
 
 	@Autowired
 	private PhotoCommentService photoCommentService;
+
+	@Autowired
+	private PhotoService photoService;
+
+	@Autowired
+	private EntityManager entityManager;
 
 	@Autowired
 	private FamilyService familyService;
@@ -145,6 +152,20 @@ class PhotoCommentServiceTest {
 		familyService.removeMember(family.id(), dad.getId(), dad.getId());
 
 		assertError(() -> photoCommentService.delete(comment.getId(), dad.getId()), ErrorCode.FAMILY_NOT_MEMBER);
+	}
+
+	@Test
+	void deletingPhotoDeletesItsComments() {
+		photoCommentRepository.save(new PhotoComment(photo, dad, "사라질 댓글"));
+		// 실제로는 댓글 작성과 사진 삭제가 다른 트랜잭션이다. 벌크 삭제는 영속성 컨텍스트를 거치지 않으므로 비워 둔다.
+		entityManager.flush();
+		entityManager.clear();
+
+		photoService.delete(photo.getId(), mom.getId());
+		entityManager.flush();
+
+		assertThat(photoCommentRepository.count()).isZero();
+		assertThat(photoRepository.findById(photo.getId())).isEmpty();
 	}
 
 	private Photo savePhoto(Long familyId) {

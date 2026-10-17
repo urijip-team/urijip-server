@@ -6,6 +6,9 @@ import java.util.Optional;
 import com.urijip.server.photo.entity.PhotoComment;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 public interface PhotoCommentRepository extends JpaRepository<PhotoComment, Long> {
 
@@ -15,5 +18,10 @@ public interface PhotoCommentRepository extends JpaRepository<PhotoComment, Long
 
 	@EntityGraph(attributePaths = {"photo", "photo.album"})
 	Optional<PhotoComment> findWithPhotoById(Long commentId);
+
+	// 사진을 지우기 전에 댓글을 쿼리 한 번으로 지운다. 영속성 컨텍스트를 거치지 않는다.
+	@Modifying
+	@Query("delete from PhotoComment c where c.photo.id = :photoId")
+	int deleteByPhotoId(@Param("photoId") Long photoId);
 
 }

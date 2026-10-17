@@ -76,6 +76,16 @@ class PhotoCommentRepositoryTest {
 				.containsExactly("첫 댓글", "두 번째");
 	}
 
+	@Test
+	void deleteByPhotoIdDeletesOnlyThatPhotoComments() {
+		photoCommentRepository.saveAndFlush(new PhotoComment(beach, mom, "1"));
+		photoCommentRepository.saveAndFlush(new PhotoComment(beach, mom, "2"));
+		photoCommentRepository.saveAndFlush(new PhotoComment(mountain, mom, "남음"));
+
+		assertThat(photoCommentRepository.deleteByPhotoId(beach.getId())).isEqualTo(2);
+		assertThat(photoCommentRepository.findAll()).extracting(PhotoComment::getContent).containsExactly("남음");
+	}
+
 	private Photo photo(Album album, String name) {
 		return photoRepository.saveAndFlush(Photo.builder()
 				.album(album)
