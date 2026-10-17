@@ -68,6 +68,7 @@ URL, 요청·응답 필드, 테이블·컬럼 이름은 API 명세서와 ERD를 
 - `local`의 `ddl-auto: update`는 초기 개발용이다. 운영 배포 전에 마이그레이션 도구로 바꾼다.
 - `created_at`이 있는 엔티티는 `global/entity/BaseTimeEntity`를 상속한다. 시간을 직접 넣지 않는다.
 - 가족에 딸린 테이블(`family_id` FK)을 만들면 `FamilyDeletedEvent`를 받아 그 가족의 행을 지운다. 마지막 멤버가 나가 가족이 삭제될 때 FK 때문에 실패하지 않게 하기 위해서다. 예: `ScheduleService.onFamilyDeleted`.
+- 행이 많을 수 있는 테이블은 `@Modifying` JPQL로 한 번에 지운다. 예: `ChatMessageRepository.deleteByFamilyId`. 벌크 삭제는 영속성 컨텍스트를 거치지 않아서, 같은 트랜잭션에서 읽어 둔 엔티티가 지워진 행을 가리킨 채 남는다. 테스트에서 저장과 삭제를 한 트랜잭션에 몰아 쓰면 flush 때 실패하므로, 그 사이에 `EntityManager`의 `flush()`·`clear()`로 트랜잭션 경계를 흉내 낸다.
 
 ## 파일 저장 (S3)
 
