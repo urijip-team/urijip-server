@@ -92,6 +92,12 @@ public class PhotoService {
 		remove(photo);
 	}
 
+	// 관리자가 신고된 사진을 지울 때 쓴다. 올린 사람인지 보지 않으며, 이미 없는 사진이면 아무것도 하지 않는다.
+	@Transactional
+	public void deleteByAdmin(Long photoId) {
+		photoRepository.findWithAlbumById(photoId).ifPresent(this::remove);
+	}
+
 	// 관리자가 신고된 사진을 볼 때 쓴다. 가족 멤버인지 보지 않으며, 없는 id는 건너뛴다.
 	@Transactional(readOnly = true)
 	public List<PhotoResponse> getPhotos(Collection<Long> photoIds) {

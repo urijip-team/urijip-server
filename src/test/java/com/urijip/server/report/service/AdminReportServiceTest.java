@@ -157,6 +157,37 @@ class AdminReportServiceTest {
 	}
 
 	@Test
+	void deletePhotoDeletesReportedPhotoAndMarksDone() {
+		Report report = reportRepository.save(new Report(mom, ReportTargetType.PHOTO, photo.getId(), "부적절"));
+
+		AdminReportResponse response = adminReportService.handle(report.getId(), admin.getId(),
+				new AdminReportHandleRequest(ReportAction.DELETE_PHOTO));
+
+		assertThat(response.status()).isEqualTo(ReportStatus.DONE);
+		assertThat(response.targetPhoto()).isNull();
+		assertThat(photoRepository.findById(photo.getId())).isEmpty();
+	}
+
+	@Test
+	void deletePhotoMarksDoneEvenIfPhotoIsAlreadyGone() {
+		Report report = reportRepository.save(new Report(mom, ReportTargetType.PHOTO, 999_999L, "부적절"));
+
+		AdminReportResponse response = adminReportService.handle(report.getId(), admin.getId(),
+				new AdminReportHandleRequest(ReportAction.DELETE_PHOTO));
+
+		assertThat(response.status()).isEqualTo(ReportStatus.DONE);
+	}
+
+	@Test
+	void deletePhotoIsNotAllowedForUserReport() {
+		Report report = reportRepository.save(new Report(mom, ReportTargetType.USER, troll.getId(), "욕설"));
+
+		assertError(() -> adminReportService.handle(report.getId(), admin.getId(),
+				new AdminReportHandleRequest(ReportAction.DELETE_PHOTO)), ErrorCode.REPORT_ACTION_NOT_ALLOWED);
+		assertThat(report.getStatus()).isEqualTo(ReportStatus.PENDING);
+	}
+
+	@Test
 	void suspendUserSuspendsReportedUserAndMarksDone() {
 		Report report = reportRepository.save(new Report(mom, ReportTargetType.USER, troll.getId(), "욕설"));
 

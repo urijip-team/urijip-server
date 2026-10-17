@@ -67,6 +67,14 @@ public class AdminReportService {
 		}
 
 		switch (request.action()) {
+			// 올린 사람이 먼저 지워 사진이 없어도 신고의 목적은 이뤄졌으므로 처리 완료로 둔다.
+			case DELETE_PHOTO -> {
+				if (report.getTargetType() != ReportTargetType.PHOTO) {
+					throw new BusinessException(ErrorCode.REPORT_ACTION_NOT_ALLOWED);
+				}
+				photoService.deleteByAdmin(report.getTargetId());
+				report.handle(userService.getUser(adminId), ReportStatus.DONE);
+			}
 			case SUSPEND_USER -> {
 				if (report.getTargetType() != ReportTargetType.USER) {
 					throw new BusinessException(ErrorCode.REPORT_ACTION_NOT_ALLOWED);

@@ -140,6 +140,19 @@ class AdminReportControllerTest {
 	}
 
 	@Test
+	void handleWithActionNotMatchingTargetReturnsBadRequest() {
+		given(adminReportService.handle(7L, 100L, new AdminReportHandleRequest(ReportAction.DELETE_PHOTO)))
+				.willThrow(new BusinessException(ErrorCode.REPORT_ACTION_NOT_ALLOWED));
+
+		MvcTestResult result = handle("""
+				{"action": "DELETE_PHOTO"}
+				""");
+
+		assertThat(result).hasStatus(HttpStatus.BAD_REQUEST);
+		assertThat(result).bodyJson().extractingPath("$.error.code").isEqualTo("REPORT_ACTION_NOT_ALLOWED");
+	}
+
+	@Test
 	void handleAlreadyHandledReportReturnsConflict() {
 		given(adminReportService.handle(any(), any(), any()))
 				.willThrow(new BusinessException(ErrorCode.REPORT_ALREADY_HANDLED));

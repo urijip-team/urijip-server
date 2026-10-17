@@ -222,6 +222,20 @@ class PhotoServiceTest {
 	}
 
 	@Test
+	void deleteByAdminRemovesPhotoOfAnyUploader() {
+		List<PhotoResponse> photos = photoService.upload(album.id(), dad.getId(),
+				List.of(TestImages.jpeg(10, 10), TestImages.jpeg(10, 10)));
+
+		photoService.deleteByAdmin(photos.get(0).id());
+		photoService.deleteByAdmin(999_999L);
+
+		assertThat(photoRepository.findById(photos.get(0).id())).isEmpty();
+		assertThat(albumRepository.findById(album.id()).orElseThrow().getCoverPhoto().getId())
+				.isEqualTo(photos.get(1).id());
+		assertThat(events.stream(PhotoFilesDeletedEvent.class)).hasSize(1);
+	}
+
+	@Test
 	void getAccessiblePhotoChecksFamilyMembership() {
 		PhotoResponse photo = photoService.upload(album.id(), dad.getId(), List.of(TestImages.jpeg(10, 10)))
 				.getFirst();
