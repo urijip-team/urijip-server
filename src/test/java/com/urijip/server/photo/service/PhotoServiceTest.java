@@ -222,6 +222,18 @@ class PhotoServiceTest {
 	}
 
 	@Test
+	void getAccessiblePhotoChecksFamilyMembership() {
+		PhotoResponse photo = photoService.upload(album.id(), dad.getId(), List.of(TestImages.jpeg(10, 10)))
+				.getFirst();
+		User stranger = saveUser("stranger@example.com", "남");
+
+		assertThat(photoService.getAccessiblePhoto(photo.id(), mom.getId()).getId()).isEqualTo(photo.id());
+		assertError(() -> photoService.getAccessiblePhoto(photo.id(), stranger.getId()),
+				ErrorCode.FAMILY_NOT_MEMBER);
+		assertError(() -> photoService.getAccessiblePhoto(999_999L, mom.getId()), ErrorCode.PHOTO_NOT_FOUND);
+	}
+
+	@Test
 	void deletingFamilyRemovesAlbumsAndPhotosEvenWithCover() {
 		photoService.upload(album.id(), mom.getId(), List.of(TestImages.jpeg(10, 10), TestImages.jpeg(10, 10)));
 		albumService.create(family.id(), mom.getId(), new AlbumCreateRequest("빈 앨범"));

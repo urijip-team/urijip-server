@@ -81,9 +81,8 @@ public class PhotoService {
 	// 올린 사람만 지울 수 있다. 대표 사진이면 남은 사진 중 가장 최근 것이 대표가 된다.
 	@Transactional
 	public void delete(Long photoId, Long userId) {
-		Photo photo = photoRepository.findWithAlbumById(photoId)
-				.orElseThrow(() -> new BusinessException(ErrorCode.PHOTO_NOT_FOUND));
-		Album album = albumService.getAccessibleAlbum(photo.getAlbum().getId(), userId);
+		Photo photo = getAccessiblePhoto(photoId, userId);
+		Album album = photo.getAlbum();
 		if (!photo.getUploader().getId().equals(userId)) {
 			throw new BusinessException(ErrorCode.NOT_PHOTO_UPLOADER);
 		}
@@ -95,6 +94,15 @@ public class PhotoService {
 		photoRepository.delete(photo);
 
 		eventPublisher.publishEvent(new PhotoFilesDeletedEvent(List.of(photo.getImageKey(), photo.getThumbnailKey())));
+	}
+
+	// 사진이 없으면 404, 요청자가 사진이 있는 가족의 멤버가 아니면 403.
+	@Transactional(readOnly = true)
+	public Photo getAccessiblePhoto(Long photoId, Long userId) {
+		Photo photo = photoRepository.findWithAlbumById(photoId)
+				.orElseThrow(() -> new BusinessException(ErrorCode.PHOTO_NOT_FOUND));
+		albumService.getAccessibleAlbum(photo.getAlbum().getId(), userId);
+		return photo;
 	}
 
 	// albums와 photos가 서로를 참조하므로 대표 사진을 먼저 비운다. Hibernate는 UPDATE를 DELETE보다 먼저 실행한다.
