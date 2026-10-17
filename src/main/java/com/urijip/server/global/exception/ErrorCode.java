@@ -11,6 +11,7 @@ public enum ErrorCode {
 	INVALID_INPUT(HttpStatus.BAD_REQUEST, "입력값이 올바르지 않습니다"),
 	INVALID_IMAGE(HttpStatus.BAD_REQUEST, "JPEG 또는 PNG 이미지만 올릴 수 있습니다"),
 	TOO_MANY_PHOTOS(HttpStatus.BAD_REQUEST, "사진은 한 번에 10장까지 올릴 수 있습니다"),
+	CANNOT_REPORT_SELF(HttpStatus.BAD_REQUEST, "자기 자신은 신고할 수 없습니다"),
 	TOKEN_EXPIRED(HttpStatus.UNAUTHORIZED, "토큰이 만료되었습니다"),
 	INVALID_TOKEN(HttpStatus.UNAUTHORIZED, "유효하지 않은 토큰입니다"),
 	LOGIN_FAILED(HttpStatus.UNAUTHORIZED, "이메일 또는 비밀번호가 올바르지 않습니다"),
@@ -34,6 +35,7 @@ public enum ErrorCode {
 	USER_WITHDRAWN(HttpStatus.CONFLICT, "탈퇴한 회원입니다"),
 	OWNER_CANNOT_LEAVE(HttpStatus.CONFLICT, "방장은 방장을 위임한 뒤에 나갈 수 있습니다"),
 	ALREADY_FAMILY_MEMBER(HttpStatus.CONFLICT, "이미 가족에 참여하고 있습니다"),
+	ALREADY_REPORTED(HttpStatus.CONFLICT, "이미 신고해서 처리를 기다리는 대상입니다"),
 	INTERNAL_SERVER_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "서버 오류가 발생했습니다");
 
 	private final HttpStatus status;
