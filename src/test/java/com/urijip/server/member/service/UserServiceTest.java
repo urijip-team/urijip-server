@@ -3,6 +3,8 @@ package com.urijip.server.member.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import java.util.List;
+
 import com.urijip.server.TestcontainersConfiguration;
 import com.urijip.server.global.exception.BusinessException;
 import com.urijip.server.global.exception.ErrorCode;
@@ -37,6 +39,19 @@ class UserServiceTest {
 
 		assertThat(found.getId()).isEqualTo(saved.getId());
 		assertThat(found.getEmail()).isEqualTo("mom@example.com");
+	}
+
+	@Test
+	void getUsersSkipsUnknownIds() {
+		User mom = userRepository.save(User.builder()
+				.email("mom@example.com")
+				.password("encoded-password")
+				.name("김엄마")
+				.build());
+
+		assertThat(userService.getUsers(List.of(mom.getId(), 999_999L)))
+				.extracting(User::getId)
+				.containsExactly(mom.getId());
 	}
 
 	@Test

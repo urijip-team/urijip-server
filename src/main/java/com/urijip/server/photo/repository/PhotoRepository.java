@@ -20,6 +20,9 @@ public interface PhotoRepository extends JpaRepository<Photo, Long> {
 	@EntityGraph(attributePaths = {"album", "album.family"})
 	Optional<Photo> findWithAlbumById(Long photoId);
 
+	@EntityGraph(attributePaths = "uploader")
+	List<Photo> findByIdIn(Collection<Long> photoIds);
+
 	Optional<Photo> findFirstByAlbumIdAndIdNotOrderByIdDesc(Long albumId, Long excludedPhotoId);
 
 	// 여러 앨범의 사진 수를 쿼리 한 번으로 센다. 사진이 없는 앨범은 결과에 없다.

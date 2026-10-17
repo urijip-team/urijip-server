@@ -60,4 +60,13 @@ public class Report extends BaseTimeEntity {
 		this.status = ReportStatus.PENDING;
 	}
 
+	public boolean isPending() {
+		return status == ReportStatus.PENDING;
+	}
+
+	public void handle(User admin, ReportStatus result) {
+		this.handledBy = admin;
+		this.status = result;
+	}
+
 }

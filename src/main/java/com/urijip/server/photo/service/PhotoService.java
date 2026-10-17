@@ -1,6 +1,7 @@
 package com.urijip.server.photo.service;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Stream;
@@ -80,23 +81,27 @@ public class PhotoService {
 		}
 	}
 
-	// 올린 사람만 지울 수 있다. 대표 사진이면 남은 사진 중 가장 최근 것이 대표가 된다. 댓글도 함께 지운다.
+	// 올린 사람만 지울 수 있다.
 	@Transactional
 	public void delete(Long photoId, Long userId) {
 		Photo photo = getAccessiblePhoto(photoId, userId);
-		Album album = photo.getAlbum();
 		if (!photo.getUploader().getId().equals(userId)) {
 			throw new BusinessException(ErrorCode.NOT_PHOTO_UPLOADER);
 		}
 
-		if (album.getCoverPhoto() != null && album.getCoverPhoto().getId().equals(photoId)) {
-			album.changeCoverPhoto(photoRepository.findFirstByAlbumIdAndIdNotOrderByIdDesc(album.getId(), photoId)
-					.orElse(null));
-		}
-		photoCommentRepository.deleteByPhotoId(photoId);
-		photoRepository.delete(photo);
+		remove(photo);
+	}
 
-		eventPublisher.publishEvent(new PhotoFilesDeletedEvent(List.of(photo.getImageKey(), photo.getThumbnailKey())));
+	// 관리자가 신고된 사진을 지울 때 쓴다. 올린 사람인지 보지 않으며, 이미 없는 사진이면 아무것도 하지 않는다.
+	@Transactional
+	public void deleteByAdmin(Long photoId) {
+		photoRepository.findWithAlbumById(photoId).ifPresent(this::remove);
+	}
+
+	// 관리자가 신고된 사진을 볼 때 쓴다. 가족 멤버인지 보지 않으며, 없는 id는 건너뛴다.
+	@Transactional(readOnly = true)
+	public List<PhotoResponse> getPhotos(Collection<Long> photoIds) {
+		return photoRepository.findByIdIn(photoIds).stream().map(this::toResponse).toList();
 	}
 
 	// 사진이 없으면 404, 요청자가 사진이 있는 가족의 멤버가 아니면 403.
@@ -124,6 +129,19 @@ public class PhotoService {
 		albumRepository.deleteAll(albums);
 
 		eventPublisher.publishEvent(new PhotoFilesDeletedEvent(keys));
+	}
+
+	// 대표 사진이면 남은 사진 중 가장 최근 것이 대표가 된다. 댓글도 함께 지우고, S3 파일은 커밋 뒤에 지운다.
+	private void remove(Photo photo) {
+		Album album = photo.getAlbum();
+		if (album.getCoverPhoto() != null && album.getCoverPhoto().getId().equals(photo.getId())) {
+			album.changeCoverPhoto(photoRepository.findFirstByAlbumIdAndIdNotOrderByIdDesc(album.getId(),
+					photo.getId()).orElse(null));
+		}
+		photoCommentRepository.deleteByPhotoId(photo.getId());
+		photoRepository.delete(photo);
+
+		eventPublisher.publishEvent(new PhotoFilesDeletedEvent(List.of(photo.getImageKey(), photo.getThumbnailKey())));
 	}
 
 	private UploadedPhoto uploadFile(Long familyId, Long albumId, ProcessedImage image, List<String> uploadedKeys) {

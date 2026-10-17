@@ -12,6 +12,7 @@ public enum ErrorCode {
 	INVALID_IMAGE(HttpStatus.BAD_REQUEST, "JPEG 또는 PNG 이미지만 올릴 수 있습니다"),
 	TOO_MANY_PHOTOS(HttpStatus.BAD_REQUEST, "사진은 한 번에 10장까지 올릴 수 있습니다"),
 	CANNOT_REPORT_SELF(HttpStatus.BAD_REQUEST, "자기 자신은 신고할 수 없습니다"),
+	REPORT_ACTION_NOT_ALLOWED(HttpStatus.BAD_REQUEST, "신고 대상에 맞지 않는 처리입니다"),
 	TOKEN_EXPIRED(HttpStatus.UNAUTHORIZED, "토큰이 만료되었습니다"),
 	INVALID_TOKEN(HttpStatus.UNAUTHORIZED, "유효하지 않은 토큰입니다"),
 	LOGIN_FAILED(HttpStatus.UNAUTHORIZED, "이메일 또는 비밀번호가 올바르지 않습니다"),
@@ -30,12 +31,14 @@ public enum ErrorCode {
 	ALBUM_NOT_FOUND(HttpStatus.NOT_FOUND, "존재하지 않는 앨범입니다"),
 	PHOTO_NOT_FOUND(HttpStatus.NOT_FOUND, "존재하지 않는 사진입니다"),
 	COMMENT_NOT_FOUND(HttpStatus.NOT_FOUND, "존재하지 않는 댓글입니다"),
+	REPORT_NOT_FOUND(HttpStatus.NOT_FOUND, "존재하지 않는 신고입니다"),
 	PAYMENT_INFO_NOT_FOUND(HttpStatus.NOT_FOUND, "등록된 송금 정보가 없습니다"),
 	EMAIL_DUPLICATED(HttpStatus.CONFLICT, "이미 가입된 이메일입니다"),
 	USER_WITHDRAWN(HttpStatus.CONFLICT, "탈퇴한 회원입니다"),
 	OWNER_CANNOT_LEAVE(HttpStatus.CONFLICT, "방장은 방장을 위임한 뒤에 나갈 수 있습니다"),
 	ALREADY_FAMILY_MEMBER(HttpStatus.CONFLICT, "이미 가족에 참여하고 있습니다"),
 	ALREADY_REPORTED(HttpStatus.CONFLICT, "이미 신고해서 처리를 기다리는 대상입니다"),
+	REPORT_ALREADY_HANDLED(HttpStatus.CONFLICT, "이미 처리된 신고입니다"),
 	INTERNAL_SERVER_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "서버 오류가 발생했습니다");
 
 	private final HttpStatus status;
