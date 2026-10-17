@@ -221,6 +221,44 @@ class AdminReportServiceTest {
 	}
 
 	@Test
+	void deletingPhotoCompletesOtherPendingReportsOnSamePhoto() {
+		User dad = saveUser("dad@example.com", "김아빠");
+		Report report = reportRepository.save(new Report(mom, ReportTargetType.PHOTO, photo.getId(), "부적절"));
+		Report other = reportRepository.save(new Report(dad, ReportTargetType.PHOTO, photo.getId(), "불쾌함"));
+		Report unrelated = reportRepository.save(new Report(mom, ReportTargetType.USER, troll.getId(), "욕설"));
+
+		adminReportService.handle(report.getId(), admin.getId(),
+				new AdminReportHandleRequest(ReportAction.DELETE_PHOTO));
+
+		assertThat(other.getStatus()).isEqualTo(ReportStatus.DONE);
+		assertThat(other.getHandledBy().getId()).isEqualTo(admin.getId());
+		assertThat(unrelated.getStatus()).isEqualTo(ReportStatus.PENDING);
+	}
+
+	@Test
+	void suspendingUserCompletesOtherPendingReportsOnSameUser() {
+		User dad = saveUser("dad@example.com", "김아빠");
+		Report report = reportRepository.save(new Report(mom, ReportTargetType.USER, troll.getId(), "욕설"));
+		Report other = reportRepository.save(new Report(dad, ReportTargetType.USER, troll.getId(), "스팸"));
+
+		adminReportService.handle(report.getId(), admin.getId(),
+				new AdminReportHandleRequest(ReportAction.SUSPEND_USER));
+
+		assertThat(other.getStatus()).isEqualTo(ReportStatus.DONE);
+	}
+
+	@Test
+	void rejectingLeavesOtherReportsOnSameTargetPending() {
+		User dad = saveUser("dad@example.com", "김아빠");
+		Report report = reportRepository.save(new Report(mom, ReportTargetType.USER, troll.getId(), "욕설"));
+		Report other = reportRepository.save(new Report(dad, ReportTargetType.USER, troll.getId(), "스팸"));
+
+		adminReportService.handle(report.getId(), admin.getId(), new AdminReportHandleRequest(ReportAction.REJECT));
+
+		assertThat(other.getStatus()).isEqualTo(ReportStatus.PENDING);
+	}
+
+	@Test
 	void handledReportCannotBeHandledAgain() {
 		Report report = reportRepository.save(new Report(mom, ReportTargetType.USER, troll.getId(), "욕설"));
 		adminReportService.handle(report.getId(), admin.getId(), new AdminReportHandleRequest(ReportAction.REJECT));

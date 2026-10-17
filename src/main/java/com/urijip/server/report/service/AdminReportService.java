@@ -10,6 +10,7 @@ import com.urijip.server.global.exception.ErrorCode;
 import com.urijip.server.global.response.PageResponse;
 import com.urijip.server.member.dto.request.AdminUserStatusRequest;
 import com.urijip.server.member.dto.response.AdminUserResponse;
+import com.urijip.server.member.entity.User;
 import com.urijip.server.member.entity.UserStatus;
 import com.urijip.server.member.service.AdminUserService;
 import com.urijip.server.member.service.UserService;
@@ -73,19 +74,27 @@ public class AdminReportService {
 					throw new BusinessException(ErrorCode.REPORT_ACTION_NOT_ALLOWED);
 				}
 				photoService.deleteByAdmin(report.getTargetId());
-				report.handle(userService.getUser(adminId), ReportStatus.DONE);
+				completeAllForTarget(report, userService.getUser(adminId));
 			}
 			case SUSPEND_USER -> {
 				if (report.getTargetType() != ReportTargetType.USER) {
 					throw new BusinessException(ErrorCode.REPORT_ACTION_NOT_ALLOWED);
 				}
 				adminUserService.changeStatus(report.getTargetId(), new AdminUserStatusRequest(UserStatus.SUSPENDED));
-				report.handle(userService.getUser(adminId), ReportStatus.DONE);
+				completeAllForTarget(report, userService.getUser(adminId));
 			}
 			case REJECT -> report.handle(userService.getUser(adminId), ReportStatus.REJECTED);
 		}
 
 		return toResponse(report);
+	}
+
+	// 사진을 지우거나 회원을 정지하면 같은 대상의 다른 대기 신고도 해결되므로 함께 처리 완료로 둔다.
+	// 반려는 신고마다 사유가 달라 그 신고 하나만 반려한다.
+	private void completeAllForTarget(Report report, User admin) {
+		report.handle(admin, ReportStatus.DONE);
+		reportRepository.findByTargetTypeAndTargetIdAndStatus(report.getTargetType(), report.getTargetId(),
+				ReportStatus.PENDING).forEach(other -> other.handle(admin, ReportStatus.DONE));
 	}
 
 	private AdminReportResponse toResponse(Report report) {

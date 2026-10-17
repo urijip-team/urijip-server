@@ -1,5 +1,7 @@
 package com.urijip.server.report.repository;
 
+import java.util.List;
+
 import com.urijip.server.report.entity.Report;
 import com.urijip.server.report.entity.ReportStatus;
 import com.urijip.server.report.entity.ReportTargetType;
@@ -14,6 +16,9 @@ public interface ReportRepository extends JpaRepository<Report, Long> {
 
 	boolean existsByReporterIdAndTargetTypeAndTargetIdAndStatus(Long reporterId, ReportTargetType targetType,
 			Long targetId, ReportStatus status);
+
+	List<Report> findByTargetTypeAndTargetIdAndStatus(ReportTargetType targetType, Long targetId,
+			ReportStatus status);
 
 	// status가 null이면 모든 상태를 돌려준다.
 	@EntityGraph(attributePaths = {"reporter", "handledBy"})

@@ -76,6 +76,24 @@ class ReportRepositoryTest {
 	}
 
 	@Test
+	void findByTargetAndStatusReturnsReportsOfAllReporters() {
+		User dad = userRepository.saveAndFlush(User.builder()
+				.email("dad@example.com")
+				.password("encoded-password")
+				.name("김아빠")
+				.build());
+		Report fromMom = reportRepository.save(new Report(mom, ReportTargetType.PHOTO, 42L, "부적절"));
+		Report fromDad = reportRepository.save(new Report(dad, ReportTargetType.PHOTO, 42L, "불쾌함"));
+		reportRepository.save(new Report(mom, ReportTargetType.USER, 42L, "욕설"));
+		reportRepository.saveAndFlush(new Report(mom, ReportTargetType.PHOTO, 43L, "다른 사진"));
+
+		assertThat(reportRepository.findByTargetTypeAndTargetIdAndStatus(ReportTargetType.PHOTO, 42L,
+				ReportStatus.PENDING))
+				.extracting(Report::getId)
+				.containsExactlyInAnyOrder(fromMom.getId(), fromDad.getId());
+	}
+
+	@Test
 	void searchFiltersByStatusNewestFirst() {
 		Report first = reportRepository.save(new Report(mom, ReportTargetType.PHOTO, 1L, "첫 신고"));
 		Report done = reportRepository.save(new Report(mom, ReportTargetType.PHOTO, 2L, "처리된 신고"));
