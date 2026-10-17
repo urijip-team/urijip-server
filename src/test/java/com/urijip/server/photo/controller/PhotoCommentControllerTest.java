@@ -3,6 +3,8 @@ package com.urijip.server.photo.controller;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.then;
+import static org.mockito.Mockito.never;
 
 import java.time.OffsetDateTime;
 import java.util.List;
@@ -11,13 +13,17 @@ import com.urijip.server.global.config.SecurityConfig;
 import com.urijip.server.global.exception.BusinessException;
 import com.urijip.server.global.exception.ErrorCode;
 import com.urijip.server.global.security.JwtProvider;
+import com.urijip.server.photo.dto.request.PhotoCommentCreateRequest;
 import com.urijip.server.photo.dto.response.PhotoCommentResponse;
 import com.urijip.server.photo.service.PhotoCommentService;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.assertj.MockMvcTester;
 import org.springframework.test.web.servlet.assertj.MvcTestResult;
@@ -68,6 +74,45 @@ class PhotoCommentControllerTest {
 	@Test
 	void getCommentsWithoutAccessTokenReturnsUnauthorized() {
 		assertThat(mvc.get().uri("/api/photos/5/comments").exchange()).hasStatus(HttpStatus.UNAUTHORIZED);
+	}
+
+	@Test
+	void createReturnsCreated() {
+		given(photoCommentService.create(5L, 1L, new PhotoCommentCreateRequest("바다 좋다"))).willReturn(COMMENT);
+
+		MvcTestResult result = create("""
+				{"content": "바다 좋다"}
+				""");
+
+		assertThat(result).hasStatus(HttpStatus.CREATED);
+		assertThat(result).bodyJson().extractingPath("$.data.id").isEqualTo(7);
+		assertThat(result).bodyJson().extractingPath("$.data.author.name").isEqualTo("김엄마");
+	}
+
+	@ParameterizedTest
+	@ValueSource(strings = {"{}", "{\"content\": \" \"}"})
+	void createWithBlankContentReturnsBadRequest(String body) {
+		MvcTestResult result = create(body);
+
+		assertThat(result).hasStatus(HttpStatus.BAD_REQUEST);
+		assertThat(result).bodyJson().extractingPath("$.error.code").isEqualTo("INVALID_INPUT");
+		then(photoCommentService).should(never()).create(any(), any(), any());
+	}
+
+	@Test
+	void createWithTooLongContentReturnsBadRequest() {
+		MvcTestResult result = create("{\"content\": \"" + "가".repeat(301) + "\"}");
+
+		assertThat(result).hasStatus(HttpStatus.BAD_REQUEST);
+		then(photoCommentService).should(never()).create(any(), any(), any());
+	}
+
+	private MvcTestResult create(String body) {
+		return mvc.post().uri("/api/photos/5/comments")
+				.header("Authorization", bearer(1L))
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(body)
+				.exchange();
 	}
 
 	private String bearer(Long userId) {

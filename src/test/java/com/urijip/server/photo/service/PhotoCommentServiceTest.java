@@ -13,6 +13,7 @@ import com.urijip.server.global.exception.BusinessException;
 import com.urijip.server.global.exception.ErrorCode;
 import com.urijip.server.member.entity.User;
 import com.urijip.server.member.repository.UserRepository;
+import com.urijip.server.photo.dto.request.PhotoCommentCreateRequest;
 import com.urijip.server.photo.dto.response.PhotoCommentResponse;
 import com.urijip.server.photo.entity.Album;
 import com.urijip.server.photo.entity.Photo;
@@ -94,6 +95,28 @@ class PhotoCommentServiceTest {
 		assertError(() -> photoCommentService.getComments(photo.getId(), stranger.getId()),
 				ErrorCode.FAMILY_NOT_MEMBER);
 		assertError(() -> photoCommentService.getComments(999_999L, mom.getId()), ErrorCode.PHOTO_NOT_FOUND);
+	}
+
+	@Test
+	void createSavesCommentOfFamilyMember() {
+		PhotoCommentResponse response = photoCommentService.create(photo.getId(), dad.getId(),
+				new PhotoCommentCreateRequest("멋지다"));
+
+		PhotoComment saved = photoCommentRepository.findById(response.id()).orElseThrow();
+		assertThat(saved.getContent()).isEqualTo("멋지다");
+		assertThat(saved.getUser().getId()).isEqualTo(dad.getId());
+		assertThat(saved.getPhoto().getId()).isEqualTo(photo.getId());
+		assertThat(response.author()).isEqualTo(new PhotoCommentResponse.Author(dad.getId(), "김아빠"));
+		assertThat(response.createdAt().getOffset().getId()).isEqualTo("+09:00");
+	}
+
+	@Test
+	void createOnOtherFamilyPhotoIsForbidden() {
+		assertError(() -> photoCommentService.create(photo.getId(), stranger.getId(),
+				new PhotoCommentCreateRequest("몰래")), ErrorCode.FAMILY_NOT_MEMBER);
+		assertError(() -> photoCommentService.create(999_999L, mom.getId(), new PhotoCommentCreateRequest("없음")),
+				ErrorCode.PHOTO_NOT_FOUND);
+		assertThat(photoCommentRepository.count()).isZero();
 	}
 
 	private Photo savePhoto(Long familyId) {
