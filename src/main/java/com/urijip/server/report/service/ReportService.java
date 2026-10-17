@@ -1,5 +1,7 @@
 package com.urijip.server.report.service;
 
+import com.urijip.server.global.exception.BusinessException;
+import com.urijip.server.global.exception.ErrorCode;
 import com.urijip.server.member.entity.User;
 import com.urijip.server.member.service.UserService;
 import com.urijip.server.photo.service.PhotoService;
@@ -32,7 +34,12 @@ public class ReportService {
 	// 사진은 가족 멤버만 볼 수 있으므로, 볼 수 있는 사진만 신고할 수 있다.
 	private void checkTarget(Long reporterId, ReportCreateRequest request) {
 		switch (request.targetType()) {
-			case USER -> userService.getUser(request.targetId());
+			case USER -> {
+				if (request.targetId().equals(reporterId)) {
+					throw new BusinessException(ErrorCode.CANNOT_REPORT_SELF);
+				}
+				userService.getUser(request.targetId());
+			}
 			case PHOTO -> photoService.getAccessiblePhoto(request.targetId(), reporterId);
 		}
 	}

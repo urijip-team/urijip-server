@@ -87,6 +87,13 @@ class ReportServiceTest {
 	}
 
 	@Test
+	void reportingSelfIsRejected() {
+		assertError(() -> reportService.create(mom.getId(),
+				new ReportCreateRequest(ReportTargetType.USER, mom.getId(), "욕설")), ErrorCode.CANNOT_REPORT_SELF);
+		assertThat(reportRepository.count()).isZero();
+	}
+
+	@Test
 	void reportPhotoOfOwnFamilySavesReport() {
 		ReportResponse response = reportService.create(mom.getId(),
 				new ReportCreateRequest(ReportTargetType.PHOTO, photo.getId(), "부적절한 사진"));
