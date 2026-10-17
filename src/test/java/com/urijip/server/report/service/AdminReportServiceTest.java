@@ -157,6 +157,39 @@ class AdminReportServiceTest {
 	}
 
 	@Test
+	void suspendUserSuspendsReportedUserAndMarksDone() {
+		Report report = reportRepository.save(new Report(mom, ReportTargetType.USER, troll.getId(), "욕설"));
+
+		AdminReportResponse response = adminReportService.handle(report.getId(), admin.getId(),
+				new AdminReportHandleRequest(ReportAction.SUSPEND_USER));
+
+		assertThat(response.status()).isEqualTo(ReportStatus.DONE);
+		assertThat(response.handledBy().id()).isEqualTo(admin.getId());
+		assertThat(response.targetUser().status()).isEqualTo(UserStatus.SUSPENDED);
+		assertThat(troll.getStatus()).isEqualTo(UserStatus.SUSPENDED);
+	}
+
+	@Test
+	void suspendUserIsNotAllowedForPhotoReport() {
+		Report report = reportRepository.save(new Report(mom, ReportTargetType.PHOTO, photo.getId(), "부적절"));
+
+		assertError(() -> adminReportService.handle(report.getId(), admin.getId(),
+				new AdminReportHandleRequest(ReportAction.SUSPEND_USER)), ErrorCode.REPORT_ACTION_NOT_ALLOWED);
+		assertThat(report.getStatus()).isEqualTo(ReportStatus.PENDING);
+		assertThat(troll.getStatus()).isEqualTo(UserStatus.ACTIVE);
+	}
+
+	@Test
+	void suspendingWithdrawnUserFailsAndKeepsReportPending() {
+		Report report = reportRepository.save(new Report(mom, ReportTargetType.USER, troll.getId(), "욕설"));
+		troll.withdraw();
+
+		assertError(() -> adminReportService.handle(report.getId(), admin.getId(),
+				new AdminReportHandleRequest(ReportAction.SUSPEND_USER)), ErrorCode.USER_WITHDRAWN);
+		assertThat(report.getStatus()).isEqualTo(ReportStatus.PENDING);
+	}
+
+	@Test
 	void handledReportCannotBeHandledAgain() {
 		Report report = reportRepository.save(new Report(mom, ReportTargetType.USER, troll.getId(), "욕설"));
 		adminReportService.handle(report.getId(), admin.getId(), new AdminReportHandleRequest(ReportAction.REJECT));

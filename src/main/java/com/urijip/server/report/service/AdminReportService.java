@@ -8,7 +8,10 @@ import java.util.stream.Collectors;
 import com.urijip.server.global.exception.BusinessException;
 import com.urijip.server.global.exception.ErrorCode;
 import com.urijip.server.global.response.PageResponse;
+import com.urijip.server.member.dto.request.AdminUserStatusRequest;
 import com.urijip.server.member.dto.response.AdminUserResponse;
+import com.urijip.server.member.entity.UserStatus;
+import com.urijip.server.member.service.AdminUserService;
 import com.urijip.server.member.service.UserService;
 import com.urijip.server.photo.dto.response.PhotoResponse;
 import com.urijip.server.photo.service.PhotoService;
@@ -32,6 +35,7 @@ public class AdminReportService {
 
 	private final ReportRepository reportRepository;
 	private final UserService userService;
+	private final AdminUserService adminUserService;
 	private final PhotoService photoService;
 
 	// 신고 대상은 종류별로 한 번에 읽어 페이지 크기만큼 쿼리가 늘지 않게 한다.
@@ -53,7 +57,7 @@ public class AdminReportService {
 		}));
 	}
 
-	// 처리를 기다리는 신고만 처리할 수 있다.
+	// 처리를 기다리는 신고만 처리할 수 있다. 회원 정지는 회원 관리의 정지와 같아서 관리자 계정이나 탈퇴한 회원은 정지할 수 없다.
 	@Transactional
 	public AdminReportResponse handle(Long reportId, Long adminId, AdminReportHandleRequest request) {
 		Report report = reportRepository.findById(reportId)
@@ -63,6 +67,13 @@ public class AdminReportService {
 		}
 
 		switch (request.action()) {
+			case SUSPEND_USER -> {
+				if (report.getTargetType() != ReportTargetType.USER) {
+					throw new BusinessException(ErrorCode.REPORT_ACTION_NOT_ALLOWED);
+				}
+				adminUserService.changeStatus(report.getTargetId(), new AdminUserStatusRequest(UserStatus.SUSPENDED));
+				report.handle(userService.getUser(adminId), ReportStatus.DONE);
+			}
 			case REJECT -> report.handle(userService.getUser(adminId), ReportStatus.REJECTED);
 		}
 
