@@ -168,6 +168,20 @@ class PhotoCommentServiceTest {
 		assertThat(photoRepository.findById(photo.getId())).isEmpty();
 	}
 
+	@Test
+	void deletingFamilyDeletesCommentsWithPhotos() {
+		photoCommentRepository.save(new PhotoComment(photo, dad, "사라질 댓글"));
+		entityManager.flush();
+		entityManager.clear();
+
+		familyService.removeMember(family.id(), dad.getId(), dad.getId());
+		familyService.removeMember(family.id(), mom.getId(), mom.getId());
+		entityManager.flush();
+
+		assertThat(photoCommentRepository.count()).isZero();
+		assertThat(photoRepository.count()).isZero();
+	}
+
 	private Photo savePhoto(Long familyId) {
 		Album album = albumRepository.save(Album.builder()
 				.family(familyService.getFamily(familyId))

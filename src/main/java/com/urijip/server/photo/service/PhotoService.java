@@ -108,9 +108,11 @@ public class PhotoService {
 		return photo;
 	}
 
-	// albums와 photos가 서로를 참조하므로 대표 사진을 먼저 비운다. Hibernate는 UPDATE를 DELETE보다 먼저 실행한다.
+	// 댓글은 사진을 참조하므로 먼저 지운다. albums와 photos가 서로를 참조하므로 대표 사진을 먼저 비운다.
+	// Hibernate는 UPDATE를 DELETE보다 먼저 실행한다.
 	@EventListener
 	public void onFamilyDeleted(FamilyDeletedEvent event) {
+		photoCommentRepository.deleteByFamilyId(event.familyId());
 		List<Album> albums = albumRepository.findByFamilyId(event.familyId());
 		List<Photo> photos = photoRepository.findByAlbumFamilyId(event.familyId());
 		List<String> keys = photos.stream()

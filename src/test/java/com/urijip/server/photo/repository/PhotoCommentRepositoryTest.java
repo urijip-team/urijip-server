@@ -86,6 +86,20 @@ class PhotoCommentRepositoryTest {
 		assertThat(photoCommentRepository.findAll()).extracting(PhotoComment::getContent).containsExactly("남음");
 	}
 
+	@Test
+	void deleteByFamilyIdDeletesOnlyThatFamilyComments() {
+		Family parks = familyRepository.saveAndFlush(
+				Family.builder().name("박씨네").inviteCode("B7Q4M1").owner(mom).build());
+		Album parksAlbum = albumRepository.saveAndFlush(
+				Album.builder().family(parks).title("겨울").createdBy(mom).build());
+		photoCommentRepository.saveAndFlush(new PhotoComment(beach, mom, "1"));
+		photoCommentRepository.saveAndFlush(new PhotoComment(mountain, mom, "2"));
+		photoCommentRepository.saveAndFlush(new PhotoComment(photo(parksAlbum, "snow"), mom, "남음"));
+
+		assertThat(photoCommentRepository.deleteByFamilyId(kims.getId())).isEqualTo(2);
+		assertThat(photoCommentRepository.findAll()).extracting(PhotoComment::getContent).containsExactly("남음");
+	}
+
 	private Photo photo(Album album, String name) {
 		return photoRepository.saveAndFlush(Photo.builder()
 				.album(album)

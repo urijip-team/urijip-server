@@ -24,4 +24,11 @@ public interface PhotoCommentRepository extends JpaRepository<PhotoComment, Long
 	@Query("delete from PhotoComment c where c.photo.id = :photoId")
 	int deleteByPhotoId(@Param("photoId") Long photoId);
 
+	@Modifying
+	@Query("""
+			delete from PhotoComment c
+			where c.photo.id in (select p.id from Photo p where p.album.family.id = :familyId)
+			""")
+	int deleteByFamilyId(@Param("familyId") Long familyId);
+
 }
