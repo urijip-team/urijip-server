@@ -1,0 +1,152 @@
+package com.urijip.server.photo.controller;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.BDDMockito.willThrow;
+import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.then;
+import static org.mockito.Mockito.never;
+
+import java.time.OffsetDateTime;
+import java.util.List;
+
+import com.urijip.server.global.config.SecurityConfig;
+import com.urijip.server.global.exception.BusinessException;
+import com.urijip.server.global.exception.ErrorCode;
+import com.urijip.server.global.security.JwtProvider;
+import com.urijip.server.photo.dto.request.PhotoCommentCreateRequest;
+import com.urijip.server.photo.dto.response.PhotoCommentResponse;
+import com.urijip.server.photo.service.PhotoCommentService;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.springframework.context.annotation.Import;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.test.web.servlet.assertj.MockMvcTester;
+import org.springframework.test.web.servlet.assertj.MvcTestResult;
+
+@WebMvcTest(PhotoCommentController.class)
+@Import(SecurityConfig.class)
+class PhotoCommentControllerTest {
+
+	private static final PhotoCommentResponse COMMENT = new PhotoCommentResponse(7L, "바다 좋다",
+			new PhotoCommentResponse.Author(1L, "김엄마"), OffsetDateTime.parse("2026-10-17T14:00:00+09:00"));
+
+	@Autowired
+	private MockMvcTester mvc;
+
+	@Autowired
+	private JwtProvider jwtProvider;
+
+	@MockitoBean
+	private PhotoCommentService photoCommentService;
+
+	@Test
+	void getCommentsReturnsList() {
+		given(photoCommentService.getComments(5L, 1L)).willReturn(List.of(COMMENT));
+
+		MvcTestResult result = mvc.get().uri("/api/photos/5/comments").header("Authorization", bearer(1L))
+				.exchange();
+
+		assertThat(result).hasStatusOk();
+		assertThat(result).bodyJson().extractingPath("$.data[0].id").isEqualTo(7);
+		assertThat(result).bodyJson().extractingPath("$.data[0].content").isEqualTo("바다 좋다");
+		assertThat(result).bodyJson().extractingPath("$.data[0].author.id").isEqualTo(1);
+		assertThat(result).bodyJson().extractingPath("$.data[0].author.name").isEqualTo("김엄마");
+		assertThat(result).bodyJson().extractingPath("$.data[0].createdAt").isEqualTo("2026-10-17T14:00:00+09:00");
+	}
+
+	@Test
+	void getCommentsOfOtherFamilyReturnsForbidden() {
+		given(photoCommentService.getComments(any(), any()))
+				.willThrow(new BusinessException(ErrorCode.FAMILY_NOT_MEMBER));
+
+		MvcTestResult result = mvc.get().uri("/api/photos/5/comments").header("Authorization", bearer(9L))
+				.exchange();
+
+		assertThat(result).hasStatus(HttpStatus.FORBIDDEN);
+		assertThat(result).bodyJson().extractingPath("$.error.code").isEqualTo("FAMILY_NOT_MEMBER");
+	}
+
+	@Test
+	void getCommentsWithoutAccessTokenReturnsUnauthorized() {
+		assertThat(mvc.get().uri("/api/photos/5/comments").exchange()).hasStatus(HttpStatus.UNAUTHORIZED);
+	}
+
+	@Test
+	void createReturnsCreated() {
+		given(photoCommentService.create(5L, 1L, new PhotoCommentCreateRequest("바다 좋다"))).willReturn(COMMENT);
+
+		MvcTestResult result = create("""
+				{"content": "바다 좋다"}
+				""");
+
+		assertThat(result).hasStatus(HttpStatus.CREATED);
+		assertThat(result).bodyJson().extractingPath("$.data.id").isEqualTo(7);
+		assertThat(result).bodyJson().extractingPath("$.data.author.name").isEqualTo("김엄마");
+	}
+
+	@ParameterizedTest
+	@ValueSource(strings = {"{}", "{\"content\": \" \"}"})
+	void createWithBlankContentReturnsBadRequest(String body) {
+		MvcTestResult result = create(body);
+
+		assertThat(result).hasStatus(HttpStatus.BAD_REQUEST);
+		assertThat(result).bodyJson().extractingPath("$.error.code").isEqualTo("INVALID_INPUT");
+		then(photoCommentService).should(never()).create(any(), any(), any());
+	}
+
+	@Test
+	void createWithTooLongContentReturnsBadRequest() {
+		MvcTestResult result = create("{\"content\": \"" + "가".repeat(301) + "\"}");
+
+		assertThat(result).hasStatus(HttpStatus.BAD_REQUEST);
+		then(photoCommentService).should(never()).create(any(), any(), any());
+	}
+
+	@Test
+	void deleteReturnsOk() {
+		MvcTestResult result = mvc.delete().uri("/api/comments/7").header("Authorization", bearer(1L)).exchange();
+
+		assertThat(result).hasStatusOk();
+		assertThat(result).bodyJson().extractingPath("$.success").isEqualTo(true);
+		then(photoCommentService).should().delete(7L, 1L);
+	}
+
+	@Test
+	void deleteByOtherMemberReturnsForbidden() {
+		willThrow(new BusinessException(ErrorCode.NOT_COMMENT_AUTHOR)).given(photoCommentService).delete(7L, 2L);
+
+		MvcTestResult result = mvc.delete().uri("/api/comments/7").header("Authorization", bearer(2L)).exchange();
+
+		assertThat(result).hasStatus(HttpStatus.FORBIDDEN);
+		assertThat(result).bodyJson().extractingPath("$.error.code").isEqualTo("NOT_COMMENT_AUTHOR");
+	}
+
+	@Test
+	void deleteUnknownCommentReturnsNotFound() {
+		willThrow(new BusinessException(ErrorCode.COMMENT_NOT_FOUND)).given(photoCommentService).delete(8L, 1L);
+
+		MvcTestResult result = mvc.delete().uri("/api/comments/8").header("Authorization", bearer(1L)).exchange();
+
+		assertThat(result).hasStatus(HttpStatus.NOT_FOUND);
+		assertThat(result).bodyJson().extractingPath("$.error.code").isEqualTo("COMMENT_NOT_FOUND");
+	}
+
+	private MvcTestResult create(String body) {
+		return mvc.post().uri("/api/photos/5/comments")
+				.header("Authorization", bearer(1L))
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(body)
+				.exchange();
+	}
+
+	private String bearer(Long userId) {
+		return "Bearer " + jwtProvider.createAccessToken(userId, "USER");
+	}
+
+}

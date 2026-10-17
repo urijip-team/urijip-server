@@ -17,6 +17,7 @@ import com.urijip.server.photo.dto.response.PhotoResponse;
 import com.urijip.server.photo.entity.Album;
 import com.urijip.server.photo.entity.Photo;
 import com.urijip.server.photo.repository.AlbumRepository;
+import com.urijip.server.photo.repository.PhotoCommentRepository;
 import com.urijip.server.photo.repository.PhotoRepository;
 import com.urijip.server.photo.service.ImageProcessor.ProcessedImage;
 import lombok.RequiredArgsConstructor;
@@ -37,6 +38,7 @@ public class PhotoService {
 
 	private final PhotoRepository photoRepository;
 	private final AlbumRepository albumRepository;
+	private final PhotoCommentRepository photoCommentRepository;
 	private final AlbumService albumService;
 	private final UserService userService;
 	private final ImageProcessor imageProcessor;
@@ -78,12 +80,11 @@ public class PhotoService {
 		}
 	}
 
-	// 올린 사람만 지울 수 있다. 대표 사진이면 남은 사진 중 가장 최근 것이 대표가 된다.
+	// 올린 사람만 지울 수 있다. 대표 사진이면 남은 사진 중 가장 최근 것이 대표가 된다. 댓글도 함께 지운다.
 	@Transactional
 	public void delete(Long photoId, Long userId) {
-		Photo photo = photoRepository.findWithAlbumById(photoId)
-				.orElseThrow(() -> new BusinessException(ErrorCode.PHOTO_NOT_FOUND));
-		Album album = albumService.getAccessibleAlbum(photo.getAlbum().getId(), userId);
+		Photo photo = getAccessiblePhoto(photoId, userId);
+		Album album = photo.getAlbum();
 		if (!photo.getUploader().getId().equals(userId)) {
 			throw new BusinessException(ErrorCode.NOT_PHOTO_UPLOADER);
 		}
@@ -92,14 +93,26 @@ public class PhotoService {
 			album.changeCoverPhoto(photoRepository.findFirstByAlbumIdAndIdNotOrderByIdDesc(album.getId(), photoId)
 					.orElse(null));
 		}
+		photoCommentRepository.deleteByPhotoId(photoId);
 		photoRepository.delete(photo);
 
 		eventPublisher.publishEvent(new PhotoFilesDeletedEvent(List.of(photo.getImageKey(), photo.getThumbnailKey())));
 	}
 
-	// albums와 photos가 서로를 참조하므로 대표 사진을 먼저 비운다. Hibernate는 UPDATE를 DELETE보다 먼저 실행한다.
+	// 사진이 없으면 404, 요청자가 사진이 있는 가족의 멤버가 아니면 403.
+	@Transactional(readOnly = true)
+	public Photo getAccessiblePhoto(Long photoId, Long userId) {
+		Photo photo = photoRepository.findWithAlbumById(photoId)
+				.orElseThrow(() -> new BusinessException(ErrorCode.PHOTO_NOT_FOUND));
+		albumService.getAccessibleAlbum(photo.getAlbum().getId(), userId);
+		return photo;
+	}
+
+	// 댓글은 사진을 참조하므로 먼저 지운다. albums와 photos가 서로를 참조하므로 대표 사진을 먼저 비운다.
+	// Hibernate는 UPDATE를 DELETE보다 먼저 실행한다.
 	@EventListener
 	public void onFamilyDeleted(FamilyDeletedEvent event) {
+		photoCommentRepository.deleteByFamilyId(event.familyId());
 		List<Album> albums = albumRepository.findByFamilyId(event.familyId());
 		List<Photo> photos = photoRepository.findByAlbumFamilyId(event.familyId());
 		List<String> keys = photos.stream()

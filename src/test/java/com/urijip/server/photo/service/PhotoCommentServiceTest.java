@@ -1,0 +1,214 @@
+package com.urijip.server.photo.service;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.tuple;
+
+import com.urijip.server.TestcontainersConfiguration;
+import com.urijip.server.family.dto.request.FamilyCreateRequest;
+import com.urijip.server.family.dto.request.FamilyJoinRequest;
+import com.urijip.server.family.dto.response.FamilyResponse;
+import com.urijip.server.family.service.FamilyService;
+import com.urijip.server.global.exception.BusinessException;
+import com.urijip.server.global.exception.ErrorCode;
+import com.urijip.server.member.entity.User;
+import com.urijip.server.member.repository.UserRepository;
+import com.urijip.server.photo.dto.request.PhotoCommentCreateRequest;
+import com.urijip.server.photo.dto.response.PhotoCommentResponse;
+import com.urijip.server.photo.entity.Album;
+import com.urijip.server.photo.entity.Photo;
+import com.urijip.server.photo.entity.PhotoComment;
+import com.urijip.server.photo.repository.AlbumRepository;
+import com.urijip.server.photo.repository.PhotoCommentRepository;
+import com.urijip.server.photo.repository.PhotoRepository;
+import jakarta.persistence.EntityManager;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.annotation.Import;
+import org.springframework.transaction.annotation.Transactional;
+
+// 댓글은 S3를 쓰지 않으므로 사진 행만 직접 만든다.
+@SpringBootTest
+@Import(TestcontainersConfiguration.class)
+@Transactional
+class PhotoCommentServiceTest {
+
+	@Autowired
+	private PhotoCommentService photoCommentService;
+
+	@Autowired
+	private PhotoService photoService;
+
+	@Autowired
+	private EntityManager entityManager;
+
+	@Autowired
+	private FamilyService familyService;
+
+	@Autowired
+	private PhotoCommentRepository photoCommentRepository;
+
+	@Autowired
+	private PhotoRepository photoRepository;
+
+	@Autowired
+	private AlbumRepository albumRepository;
+
+	@Autowired
+	private UserRepository userRepository;
+
+	private User mom;
+
+	private User dad;
+
+	private User stranger;
+
+	private FamilyResponse family;
+
+	private Photo photo;
+
+	@BeforeEach
+	void setUp() {
+		mom = saveUser("mom@example.com", "김엄마");
+		dad = saveUser("dad@example.com", "김아빠");
+		stranger = saveUser("stranger@example.com", "남");
+		family = familyService.create(mom.getId(), new FamilyCreateRequest("김씨네"));
+		familyService.join(dad.getId(), new FamilyJoinRequest(family.inviteCode()));
+		photo = savePhoto(family.id());
+	}
+
+	@Test
+	void getCommentsReturnsOldestFirstWithAuthor() {
+		photoCommentRepository.save(new PhotoComment(photo, mom, "바다 좋다"));
+		photoCommentRepository.save(new PhotoComment(photo, dad, "또 가자"));
+
+		assertThat(photoCommentService.getComments(photo.getId(), dad.getId()))
+				.extracting(PhotoCommentResponse::content, comment -> comment.author().id(),
+						comment -> comment.author().name())
+				.containsExactly(
+						tuple("바다 좋다", mom.getId(), "김엄마"),
+						tuple("또 가자", dad.getId(), "김아빠"));
+	}
+
+	@Test
+	void getCommentsOfPhotoWithoutCommentsReturnsEmpty() {
+		assertThat(photoCommentService.getComments(photo.getId(), mom.getId())).isEmpty();
+	}
+
+	@Test
+	void getCommentsOfOtherFamilyPhotoIsForbidden() {
+		assertError(() -> photoCommentService.getComments(photo.getId(), stranger.getId()),
+				ErrorCode.FAMILY_NOT_MEMBER);
+		assertError(() -> photoCommentService.getComments(999_999L, mom.getId()), ErrorCode.PHOTO_NOT_FOUND);
+	}
+
+	@Test
+	void createSavesCommentOfFamilyMember() {
+		PhotoCommentResponse response = photoCommentService.create(photo.getId(), dad.getId(),
+				new PhotoCommentCreateRequest("멋지다"));
+
+		PhotoComment saved = photoCommentRepository.findById(response.id()).orElseThrow();
+		assertThat(saved.getContent()).isEqualTo("멋지다");
+		assertThat(saved.getUser().getId()).isEqualTo(dad.getId());
+		assertThat(saved.getPhoto().getId()).isEqualTo(photo.getId());
+		assertThat(response.author()).isEqualTo(new PhotoCommentResponse.Author(dad.getId(), "김아빠"));
+		assertThat(response.createdAt().getOffset().getId()).isEqualTo("+09:00");
+	}
+
+	@Test
+	void createOnOtherFamilyPhotoIsForbidden() {
+		assertError(() -> photoCommentService.create(photo.getId(), stranger.getId(),
+				new PhotoCommentCreateRequest("몰래")), ErrorCode.FAMILY_NOT_MEMBER);
+		assertError(() -> photoCommentService.create(999_999L, mom.getId(), new PhotoCommentCreateRequest("없음")),
+				ErrorCode.PHOTO_NOT_FOUND);
+		assertThat(photoCommentRepository.count()).isZero();
+	}
+
+	@Test
+	void deleteByAuthorRemovesComment() {
+		PhotoComment comment = photoCommentRepository.save(new PhotoComment(photo, dad, "지울 댓글"));
+
+		photoCommentService.delete(comment.getId(), dad.getId());
+
+		assertThat(photoCommentRepository.findById(comment.getId())).isEmpty();
+	}
+
+	@Test
+	void onlyAuthorCanDelete() {
+		PhotoComment comment = photoCommentRepository.save(new PhotoComment(photo, dad, "아빠 댓글"));
+
+		assertError(() -> photoCommentService.delete(comment.getId(), mom.getId()), ErrorCode.NOT_COMMENT_AUTHOR);
+		assertError(() -> photoCommentService.delete(comment.getId(), stranger.getId()),
+				ErrorCode.FAMILY_NOT_MEMBER);
+		assertError(() -> photoCommentService.delete(999_999L, dad.getId()), ErrorCode.COMMENT_NOT_FOUND);
+		assertThat(photoCommentRepository.findById(comment.getId())).isPresent();
+	}
+
+	@Test
+	void authorWhoLeftFamilyCannotDelete() {
+		PhotoComment comment = photoCommentRepository.save(new PhotoComment(photo, dad, "아빠 댓글"));
+		familyService.removeMember(family.id(), dad.getId(), dad.getId());
+
+		assertError(() -> photoCommentService.delete(comment.getId(), dad.getId()), ErrorCode.FAMILY_NOT_MEMBER);
+	}
+
+	@Test
+	void deletingPhotoDeletesItsComments() {
+		photoCommentRepository.save(new PhotoComment(photo, dad, "사라질 댓글"));
+		// 실제로는 댓글 작성과 사진 삭제가 다른 트랜잭션이다. 벌크 삭제는 영속성 컨텍스트를 거치지 않으므로 비워 둔다.
+		entityManager.flush();
+		entityManager.clear();
+
+		photoService.delete(photo.getId(), mom.getId());
+		entityManager.flush();
+
+		assertThat(photoCommentRepository.count()).isZero();
+		assertThat(photoRepository.findById(photo.getId())).isEmpty();
+	}
+
+	@Test
+	void deletingFamilyDeletesCommentsWithPhotos() {
+		photoCommentRepository.save(new PhotoComment(photo, dad, "사라질 댓글"));
+		entityManager.flush();
+		entityManager.clear();
+
+		familyService.removeMember(family.id(), dad.getId(), dad.getId());
+		familyService.removeMember(family.id(), mom.getId(), mom.getId());
+		entityManager.flush();
+
+		assertThat(photoCommentRepository.count()).isZero();
+		assertThat(photoRepository.count()).isZero();
+	}
+
+	private Photo savePhoto(Long familyId) {
+		Album album = albumRepository.save(Album.builder()
+				.family(familyService.getFamily(familyId))
+				.title("여름")
+				.createdBy(mom)
+				.build());
+		return photoRepository.save(Photo.builder()
+				.album(album)
+				.uploader(mom)
+				.imageKey("beach.jpg")
+				.thumbnailKey("beach_thumb.jpg")
+				.build());
+	}
+
+	private void assertError(Runnable action, ErrorCode errorCode) {
+		assertThatThrownBy(action::run)
+				.isInstanceOf(BusinessException.class)
+				.extracting("errorCode")
+				.isEqualTo(errorCode);
+	}
+
+	private User saveUser(String email, String name) {
+		return userRepository.save(User.builder()
+				.email(email)
+				.password("encoded-password")
+				.name(name)
+				.build());
+	}
+
+}
