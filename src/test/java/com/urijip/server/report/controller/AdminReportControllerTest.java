@@ -9,6 +9,7 @@ import java.util.List;
 import com.urijip.server.global.config.SecurityConfig;
 import com.urijip.server.global.response.PageResponse;
 import com.urijip.server.global.security.JwtProvider;
+import com.urijip.server.photo.dto.response.PhotoResponse;
 import com.urijip.server.report.dto.request.AdminReportSearchRequest;
 import com.urijip.server.report.dto.response.AdminReportResponse;
 import com.urijip.server.report.entity.ReportStatus;
@@ -27,7 +28,9 @@ import org.springframework.test.web.servlet.assertj.MvcTestResult;
 @Import(SecurityConfig.class)
 class AdminReportControllerTest {
 
-	private static final AdminReportResponse REPORT = new AdminReportResponse(7L, ReportTargetType.PHOTO, 42L,
+	private static final AdminReportResponse REPORT = new AdminReportResponse(7L, ReportTargetType.PHOTO, 42L, null,
+			new PhotoResponse(42L, "https://s3/thumb?sig", "https://s3/image?sig",
+					new PhotoResponse.Uploader(3L, "악플러"), OffsetDateTime.parse("2026-10-16T09:00:00+09:00")),
 			"부적절한 사진", ReportStatus.PENDING, new AdminReportResponse.Reporter(1L, "mom@example.com", "김엄마"),
 			null, OffsetDateTime.parse("2026-10-17T14:00:00+09:00"));
 
@@ -53,6 +56,10 @@ class AdminReportControllerTest {
 		assertThat(result).bodyJson().extractingPath("$.data.content[0].id").isEqualTo(7);
 		assertThat(result).bodyJson().extractingPath("$.data.content[0].targetType").isEqualTo("PHOTO");
 		assertThat(result).bodyJson().extractingPath("$.data.content[0].targetId").isEqualTo(42);
+		assertThat(result).bodyJson().extractingPath("$.data.content[0].targetUser").isNull();
+		assertThat(result).bodyJson().extractingPath("$.data.content[0].targetPhoto.imageUrl")
+				.isEqualTo("https://s3/image?sig");
+		assertThat(result).bodyJson().extractingPath("$.data.content[0].targetPhoto.uploader.id").isEqualTo(3);
 		assertThat(result).bodyJson().extractingPath("$.data.content[0].reason").isEqualTo("부적절한 사진");
 		assertThat(result).bodyJson().extractingPath("$.data.content[0].status").isEqualTo("PENDING");
 		assertThat(result).bodyJson().extractingPath("$.data.content[0].reporter.email")

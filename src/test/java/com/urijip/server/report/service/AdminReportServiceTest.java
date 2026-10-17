@@ -96,6 +96,38 @@ class AdminReportServiceTest {
 	}
 
 	@Test
+	void searchIncludesReportedUserAndPhoto() {
+		reportRepository.save(new Report(mom, ReportTargetType.USER, troll.getId(), "욕설"));
+		reportRepository.save(new Report(mom, ReportTargetType.PHOTO, photo.getId(), "부적절"));
+
+		var content = adminReportService.search(new AdminReportSearchRequest(null, null, null)).content();
+
+		AdminReportResponse photoReport = content.get(0);
+		assertThat(photoReport.targetUser()).isNull();
+		assertThat(photoReport.targetPhoto().id()).isEqualTo(photo.getId());
+		assertThat(photoReport.targetPhoto().imageUrl()).contains("bad.jpg");
+		assertThat(photoReport.targetPhoto().thumbnailUrl()).contains("bad_thumb.jpg");
+		assertThat(photoReport.targetPhoto().uploader().id()).isEqualTo(troll.getId());
+		AdminReportResponse userReport = content.get(1);
+		assertThat(userReport.targetPhoto()).isNull();
+		assertThat(userReport.targetUser().id()).isEqualTo(troll.getId());
+		assertThat(userReport.targetUser().email()).isEqualTo("troll@example.com");
+		assertThat(userReport.targetUser().name()).isEqualTo("악플러");
+	}
+
+	@Test
+	void searchLeavesTargetEmptyWhenTargetIsGone() {
+		reportRepository.save(new Report(mom, ReportTargetType.PHOTO, 999_999L, "지워진 사진"));
+
+		AdminReportResponse report = adminReportService.search(new AdminReportSearchRequest(null, null, null))
+				.content().getFirst();
+
+		assertThat(report.targetId()).isEqualTo(999_999L);
+		assertThat(report.targetPhoto()).isNull();
+		assertThat(report.targetUser()).isNull();
+	}
+
+	@Test
 	void searchFiltersByStatus() {
 		reportRepository.save(new Report(mom, ReportTargetType.USER, troll.getId(), "욕설"));
 		Report rejected = reportRepository.save(new Report(mom, ReportTargetType.PHOTO, photo.getId(), "부적절"));

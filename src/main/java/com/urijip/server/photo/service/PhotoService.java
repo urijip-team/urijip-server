@@ -1,6 +1,7 @@
 package com.urijip.server.photo.service;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Stream;
@@ -97,6 +98,12 @@ public class PhotoService {
 		photoRepository.delete(photo);
 
 		eventPublisher.publishEvent(new PhotoFilesDeletedEvent(List.of(photo.getImageKey(), photo.getThumbnailKey())));
+	}
+
+	// 관리자가 신고된 사진을 볼 때 쓴다. 가족 멤버인지 보지 않으며, 없는 id는 건너뛴다.
+	@Transactional(readOnly = true)
+	public List<PhotoResponse> getPhotos(Collection<Long> photoIds) {
+		return photoRepository.findByIdIn(photoIds).stream().map(this::toResponse).toList();
 	}
 
 	// 사진이 없으면 404, 요청자가 사진이 있는 가족의 멤버가 아니면 403.

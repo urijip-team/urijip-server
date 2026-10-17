@@ -1,5 +1,8 @@
 package com.urijip.server.member.service;
 
+import java.util.Collection;
+import java.util.List;
+
 import com.urijip.server.global.exception.BusinessException;
 import com.urijip.server.global.exception.ErrorCode;
 import com.urijip.server.member.entity.User;
@@ -18,6 +21,12 @@ public class UserService {
 	public User getUser(Long userId) {
 		return userRepository.findById(userId)
 				.orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+	}
+
+	// 없는 id는 건너뛴다.
+	@Transactional(readOnly = true)
+	public List<User> getUsers(Collection<Long> userIds) {
+		return userRepository.findAllById(userIds);
 	}
 
 }
