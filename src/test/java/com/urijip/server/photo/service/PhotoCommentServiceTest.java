@@ -119,6 +119,34 @@ class PhotoCommentServiceTest {
 		assertThat(photoCommentRepository.count()).isZero();
 	}
 
+	@Test
+	void deleteByAuthorRemovesComment() {
+		PhotoComment comment = photoCommentRepository.save(new PhotoComment(photo, dad, "지울 댓글"));
+
+		photoCommentService.delete(comment.getId(), dad.getId());
+
+		assertThat(photoCommentRepository.findById(comment.getId())).isEmpty();
+	}
+
+	@Test
+	void onlyAuthorCanDelete() {
+		PhotoComment comment = photoCommentRepository.save(new PhotoComment(photo, dad, "아빠 댓글"));
+
+		assertError(() -> photoCommentService.delete(comment.getId(), mom.getId()), ErrorCode.NOT_COMMENT_AUTHOR);
+		assertError(() -> photoCommentService.delete(comment.getId(), stranger.getId()),
+				ErrorCode.FAMILY_NOT_MEMBER);
+		assertError(() -> photoCommentService.delete(999_999L, dad.getId()), ErrorCode.COMMENT_NOT_FOUND);
+		assertThat(photoCommentRepository.findById(comment.getId())).isPresent();
+	}
+
+	@Test
+	void authorWhoLeftFamilyCannotDelete() {
+		PhotoComment comment = photoCommentRepository.save(new PhotoComment(photo, dad, "아빠 댓글"));
+		familyService.removeMember(family.id(), dad.getId(), dad.getId());
+
+		assertError(() -> photoCommentService.delete(comment.getId(), dad.getId()), ErrorCode.FAMILY_NOT_MEMBER);
+	}
+
 	private Photo savePhoto(Long familyId) {
 		Album album = albumRepository.save(Album.builder()
 				.family(familyService.getFamily(familyId))

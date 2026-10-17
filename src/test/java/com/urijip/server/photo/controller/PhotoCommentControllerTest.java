@@ -2,6 +2,7 @@ package com.urijip.server.photo.controller;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
 import static org.mockito.Mockito.never;
@@ -105,6 +106,35 @@ class PhotoCommentControllerTest {
 
 		assertThat(result).hasStatus(HttpStatus.BAD_REQUEST);
 		then(photoCommentService).should(never()).create(any(), any(), any());
+	}
+
+	@Test
+	void deleteReturnsOk() {
+		MvcTestResult result = mvc.delete().uri("/api/comments/7").header("Authorization", bearer(1L)).exchange();
+
+		assertThat(result).hasStatusOk();
+		assertThat(result).bodyJson().extractingPath("$.success").isEqualTo(true);
+		then(photoCommentService).should().delete(7L, 1L);
+	}
+
+	@Test
+	void deleteByOtherMemberReturnsForbidden() {
+		willThrow(new BusinessException(ErrorCode.NOT_COMMENT_AUTHOR)).given(photoCommentService).delete(7L, 2L);
+
+		MvcTestResult result = mvc.delete().uri("/api/comments/7").header("Authorization", bearer(2L)).exchange();
+
+		assertThat(result).hasStatus(HttpStatus.FORBIDDEN);
+		assertThat(result).bodyJson().extractingPath("$.error.code").isEqualTo("NOT_COMMENT_AUTHOR");
+	}
+
+	@Test
+	void deleteUnknownCommentReturnsNotFound() {
+		willThrow(new BusinessException(ErrorCode.COMMENT_NOT_FOUND)).given(photoCommentService).delete(8L, 1L);
+
+		MvcTestResult result = mvc.delete().uri("/api/comments/8").header("Authorization", bearer(1L)).exchange();
+
+		assertThat(result).hasStatus(HttpStatus.NOT_FOUND);
+		assertThat(result).bodyJson().extractingPath("$.error.code").isEqualTo("COMMENT_NOT_FOUND");
 	}
 
 	private MvcTestResult create(String body) {

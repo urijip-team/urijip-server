@@ -10,6 +10,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -34,6 +35,12 @@ public class PhotoCommentController {
 	public ApiResponse<PhotoCommentResponse> create(@AuthenticationPrincipal Long userId, @PathVariable Long photoId,
 			@Valid @RequestBody PhotoCommentCreateRequest request) {
 		return ApiResponse.success(photoCommentService.create(photoId, userId, request));
+	}
+
+	@DeleteMapping("/api/comments/{commentId}")
+	public ApiResponse<Void> delete(@AuthenticationPrincipal Long userId, @PathVariable Long commentId) {
+		photoCommentService.delete(commentId, userId);
+		return ApiResponse.success(null);
 	}
 
 }
