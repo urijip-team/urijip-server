@@ -114,6 +114,25 @@ class ReportServiceTest {
 		assertThat(reportRepository.count()).isZero();
 	}
 
+	@Test
+	void reportingSameTargetAgainWhilePendingIsRejected() {
+		ReportCreateRequest request = new ReportCreateRequest(ReportTargetType.PHOTO, photo.getId(), "부적절한 사진");
+		reportService.create(mom.getId(), request);
+
+		assertError(() -> reportService.create(mom.getId(), request), ErrorCode.ALREADY_REPORTED);
+		assertThat(reportRepository.count()).isEqualTo(1);
+	}
+
+	@Test
+	void otherReporterCanReportSameTarget() {
+		reportService.create(mom.getId(), new ReportCreateRequest(ReportTargetType.USER, stranger.getId(), "욕설"));
+		User dad = saveUser("dad@example.com", "김아빠");
+
+		reportService.create(dad.getId(), new ReportCreateRequest(ReportTargetType.USER, stranger.getId(), "욕설"));
+
+		assertThat(reportRepository.count()).isEqualTo(2);
+	}
+
 	private Photo savePhoto(Long familyId) {
 		Album album = albumRepository.save(Album.builder()
 				.family(familyService.getFamily(familyId))

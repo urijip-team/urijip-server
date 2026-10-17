@@ -50,4 +50,25 @@ class ReportRepositoryTest {
 		assertThat(found.getCreatedAt()).isNotNull();
 	}
 
+	@Test
+	void existsByReporterAndTargetMatchesOnlySameReporterTargetAndStatus() {
+		User dad = userRepository.saveAndFlush(User.builder()
+				.email("dad@example.com")
+				.password("encoded-password")
+				.name("김아빠")
+				.build());
+		reportRepository.saveAndFlush(new Report(mom, ReportTargetType.PHOTO, 42L, "부적절한 사진"));
+
+		assertThat(reportRepository.existsByReporterIdAndTargetTypeAndTargetIdAndStatus(mom.getId(),
+				ReportTargetType.PHOTO, 42L, ReportStatus.PENDING)).isTrue();
+		assertThat(reportRepository.existsByReporterIdAndTargetTypeAndTargetIdAndStatus(dad.getId(),
+				ReportTargetType.PHOTO, 42L, ReportStatus.PENDING)).isFalse();
+		assertThat(reportRepository.existsByReporterIdAndTargetTypeAndTargetIdAndStatus(mom.getId(),
+				ReportTargetType.USER, 42L, ReportStatus.PENDING)).isFalse();
+		assertThat(reportRepository.existsByReporterIdAndTargetTypeAndTargetIdAndStatus(mom.getId(),
+				ReportTargetType.PHOTO, 43L, ReportStatus.PENDING)).isFalse();
+		assertThat(reportRepository.existsByReporterIdAndTargetTypeAndTargetIdAndStatus(mom.getId(),
+				ReportTargetType.PHOTO, 42L, ReportStatus.DONE)).isFalse();
+	}
+
 }

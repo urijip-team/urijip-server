@@ -8,6 +8,7 @@ import com.urijip.server.photo.service.PhotoService;
 import com.urijip.server.report.dto.request.ReportCreateRequest;
 import com.urijip.server.report.dto.response.ReportResponse;
 import com.urijip.server.report.entity.Report;
+import com.urijip.server.report.entity.ReportStatus;
 import com.urijip.server.report.repository.ReportRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -25,6 +26,11 @@ public class ReportService {
 	public ReportResponse create(Long reporterId, ReportCreateRequest request) {
 		User reporter = userService.getUser(reporterId);
 		checkTarget(reporterId, request);
+		// 처리를 기다리는 신고가 있으면 다시 받지 않는다. 처리나 반려가 끝난 뒤에는 다시 신고할 수 있다.
+		if (reportRepository.existsByReporterIdAndTargetTypeAndTargetIdAndStatus(reporterId, request.targetType(),
+				request.targetId(), ReportStatus.PENDING)) {
+			throw new BusinessException(ErrorCode.ALREADY_REPORTED);
+		}
 
 		Report report = reportRepository.save(
 				new Report(reporter, request.targetType(), request.targetId(), request.reason()));

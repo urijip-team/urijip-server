@@ -35,6 +35,7 @@ public enum ErrorCode {
 	USER_WITHDRAWN(HttpStatus.CONFLICT, "탈퇴한 회원입니다"),
 	OWNER_CANNOT_LEAVE(HttpStatus.CONFLICT, "방장은 방장을 위임한 뒤에 나갈 수 있습니다"),
 	ALREADY_FAMILY_MEMBER(HttpStatus.CONFLICT, "이미 가족에 참여하고 있습니다"),
+	ALREADY_REPORTED(HttpStatus.CONFLICT, "이미 신고해서 처리를 기다리는 대상입니다"),
 	INTERNAL_SERVER_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "서버 오류가 발생했습니다");
 
 	private final HttpStatus status;
