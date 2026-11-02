@@ -6,9 +6,14 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
 import static org.mockito.Mockito.never;
 
+import java.time.OffsetDateTime;
+import java.util.List;
+
 import com.urijip.server.global.config.SecurityConfig;
+import com.urijip.server.global.response.PageResponse;
 import com.urijip.server.global.security.JwtProvider;
 import com.urijip.server.inquiry.dto.request.InquiryCreateRequest;
+import com.urijip.server.inquiry.dto.request.InquirySearchRequest;
 import com.urijip.server.inquiry.dto.response.InquiryResponse;
 import com.urijip.server.inquiry.service.InquiryService;
 import org.junit.jupiter.api.Test;
@@ -90,6 +95,29 @@ class InquiryControllerTest {
 				.exchange();
 
 		assertThat(result).hasStatus(HttpStatus.UNAUTHORIZED);
+	}
+
+	@Test
+	void getMyInquiriesReturnsPageWithAnswer() {
+		given(inquiryService.getMyInquiries(1L, new InquirySearchRequest(1, 10)))
+				.willReturn(new PageResponse<>(List.of(new InquiryResponse(7L, "로그인이 안 돼요", "내용", "다시 시도해 주세요.",
+						OffsetDateTime.parse("2026-11-02T10:00:00+09:00"))), 1, 10, 11, 2));
+
+		MvcTestResult result = mvc.get().uri("/api/inquiries?page=1&size=10")
+				.header("Authorization", user())
+				.exchange();
+
+		assertThat(result).hasStatusOk();
+		assertThat(result).bodyJson().extractingPath("$.data.content[0].id").isEqualTo(7);
+		assertThat(result).bodyJson().extractingPath("$.data.content[0].answer").isEqualTo("다시 시도해 주세요.");
+		assertThat(result).bodyJson().extractingPath("$.data.content[0].answeredAt")
+				.isEqualTo("2026-11-02T10:00:00+09:00");
+		assertThat(result).bodyJson().extractingPath("$.data.totalElements").isEqualTo(11);
+	}
+
+	@Test
+	void getMyInquiriesWithoutAccessTokenReturnsUnauthorized() {
+		assertThat(mvc.get().uri("/api/inquiries").exchange()).hasStatus(HttpStatus.UNAUTHORIZED);
 	}
 
 	private MvcTestResult create(String body) {
