@@ -15,8 +15,10 @@ import com.urijip.server.family.dto.response.FamilyResponse;
 import com.urijip.server.family.service.FamilyService;
 import com.urijip.server.global.exception.BusinessException;
 import com.urijip.server.global.exception.ErrorCode;
+import com.urijip.server.global.response.PageResponse;
 import com.urijip.server.member.entity.User;
 import com.urijip.server.member.repository.UserRepository;
+import com.urijip.server.sos.dto.request.SosSearchRequest;
 import com.urijip.server.sos.dto.request.SosSendRequest;
 import com.urijip.server.sos.dto.response.SosCreateResponse;
 import com.urijip.server.sos.dto.response.SosResponse;
@@ -215,6 +217,44 @@ class SosServiceTest {
 			assertThat(event.message().sosId()).isEqualTo(sosId);
 			assertThat(event.message().status()).isEqualTo(SosStatus.RESOLVED);
 		});
+	}
+
+	@Test
+	void getHistoryPutsActiveFirst() {
+		Long resolved = send(kid).sosId();
+		sosService.resolve(resolved, mom.getId());
+		Long active = send(mom).sosId();
+		Long newestResolved = send(kid).sosId();
+		sosService.resolve(newestResolved, kid.getId());
+		sosAlertRepository.flush();
+
+		PageResponse<SosResponse> response = sosService.getHistory(familyId, kid.getId(),
+				new SosSearchRequest(null, null));
+
+		assertThat(response.content()).extracting(SosResponse::sosId)
+				.containsExactly(active, newestResolved, resolved);
+		assertThat(response.size()).isEqualTo(20);
+		assertThat(response.totalElements()).isEqualTo(3);
+	}
+
+	@Test
+	void getHistoryShowsMemberWhoLeftByUserName() {
+		send(kid);
+		familyService.changeMyNickname(familyId, kid.getId(), new NicknameUpdateRequest("첫째"));
+		familyService.removeMember(familyId, kid.getId(), kid.getId());
+
+		PageResponse<SosResponse> response = sosService.getHistory(familyId, mom.getId(),
+				new SosSearchRequest(null, null));
+
+		assertThat(response.content()).singleElement()
+				.satisfies(alert -> assertThat(alert.userName()).isEqualTo("김첫째"));
+	}
+
+	@Test
+	void getHistoryByStrangerFails() {
+		assertThatThrownBy(() -> sosService.getHistory(familyId, stranger.getId(), new SosSearchRequest(null, null)))
+				.isInstanceOfSatisfying(BusinessException.class,
+						e -> assertThat(e.getErrorCode()).isEqualTo(ErrorCode.FAMILY_NOT_MEMBER));
 	}
 
 	private SosCreateResponse send(User user) {

@@ -10,7 +10,9 @@ import com.urijip.server.family.dto.response.FamilyMemberResponse;
 import com.urijip.server.family.service.FamilyService;
 import com.urijip.server.global.exception.BusinessException;
 import com.urijip.server.global.exception.ErrorCode;
+import com.urijip.server.global.response.PageResponse;
 import com.urijip.server.member.service.UserService;
+import com.urijip.server.sos.dto.request.SosSearchRequest;
 import com.urijip.server.sos.dto.request.SosSendRequest;
 import com.urijip.server.sos.dto.response.SosCreateResponse;
 import com.urijip.server.sos.dto.response.SosResponse;
@@ -18,6 +20,7 @@ import com.urijip.server.sos.entity.SosAlert;
 import com.urijip.server.sos.repository.SosAlertRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -57,6 +60,14 @@ public class SosService {
 		alert.resolve(userService.getUser(userId));
 		publishChanged(alert, names);
 		return SosResponse.of(alert, names);
+	}
+
+	@Transactional(readOnly = true)
+	public PageResponse<SosResponse> getHistory(Long familyId, Long userId, SosSearchRequest request) {
+		Map<Long, String> names = displayNames(familyId, userId);
+		PageRequest pageable = PageRequest.of(request.pageOrDefault(), request.sizeOrDefault());
+		return PageResponse.from(sosAlertRepository.findHistory(familyId, pageable)
+				.map(alert -> SosResponse.of(alert, names)));
 	}
 
 	// 멤버가 아니면 FAMILY_NOT_MEMBER.
