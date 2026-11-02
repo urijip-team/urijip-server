@@ -95,4 +95,14 @@ class ChatMessageRepositoryTest {
 				List.of(contents).stream().map(content -> ChatMessage.text(family, mom, content)).toList());
 	}
 
+	@Test
+	void systemMessageHasNoSender() {
+		ChatMessage saved = chatMessageRepository.saveAndFlush(ChatMessage.system(kims, "알림"));
+
+		ChatMessage found = chatMessageRepository.findById(saved.getId()).orElseThrow();
+		assertThat(found.getType()).isEqualTo(MessageType.SYSTEM);
+		assertThat(found.getSender()).isNull();
+		assertThat(found.getContent()).isEqualTo("알림");
+	}
+
 }
