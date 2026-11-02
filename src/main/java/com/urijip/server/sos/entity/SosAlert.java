@@ -5,6 +5,7 @@ import java.time.LocalDateTime;
 
 import com.urijip.server.family.entity.Family;
 import com.urijip.server.global.entity.BaseTimeEntity;
+import com.urijip.server.global.time.SeoulTime;
 import com.urijip.server.member.entity.User;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -61,6 +62,16 @@ public class SosAlert extends BaseTimeEntity {
 		this.latitude = latitude;
 		this.longitude = longitude;
 		this.status = SosStatus.ACTIVE;
+	}
+
+	public boolean isResolved() {
+		return status == SosStatus.RESOLVED;
+	}
+
+	public void resolve(User resolver) {
+		this.status = SosStatus.RESOLVED;
+		this.resolvedBy = resolver;
+		this.resolvedAt = LocalDateTime.now(SeoulTime.ZONE);
 	}
 
 }

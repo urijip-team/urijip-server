@@ -67,6 +67,20 @@ class SosAlertRepositoryTest {
 		assertThat(found.getCreatedAt()).isNotNull();
 	}
 
+	@Test
+	void resolveRecordsResolverAndTime() {
+		SosAlert alert = save(kims);
+
+		alert.resolve(mom);
+		sosAlertRepository.saveAndFlush(alert);
+
+		SosAlert found = sosAlertRepository.findById(alert.getId()).orElseThrow();
+		assertThat(found.isResolved()).isTrue();
+		assertThat(found.getStatus()).isEqualTo(SosStatus.RESOLVED);
+		assertThat(found.getResolvedBy().getId()).isEqualTo(mom.getId());
+		assertThat(found.getResolvedAt()).isNotNull();
+	}
+
 	private SosAlert save(Family family) {
 		return sosAlertRepository.saveAndFlush(new SosAlert(family, mom, LATITUDE, LONGITUDE));
 	}
