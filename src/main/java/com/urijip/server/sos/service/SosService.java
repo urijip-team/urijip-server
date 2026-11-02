@@ -8,6 +8,8 @@ import java.util.stream.Collectors;
 import com.urijip.server.chat.service.ChatService;
 import com.urijip.server.family.dto.response.FamilyMemberResponse;
 import com.urijip.server.family.service.FamilyService;
+import com.urijip.server.global.exception.BusinessException;
+import com.urijip.server.global.exception.ErrorCode;
 import com.urijip.server.member.service.UserService;
 import com.urijip.server.sos.dto.request.SosSendRequest;
 import com.urijip.server.sos.dto.response.SosCreateResponse;
@@ -40,6 +42,20 @@ public class SosService {
 		publishChanged(alert, names);
 		chatService.sendSystemMessage(request.familyId(), names.get(userId) + "님이 SOS를 보냈습니다.");
 		return SosCreateResponse.from(alert);
+	}
+
+	// 같은 가족이면 보낸 사람이 아니어도 해제할 수 있다.
+	@Transactional
+	public SosResponse resolve(Long sosId, Long userId) {
+		SosAlert alert = sosAlertRepository.findById(sosId)
+				.orElseThrow(() -> new BusinessException(ErrorCode.SOS_NOT_FOUND));
+		Map<Long, String> names = displayNames(alert.getFamily().getId(), userId);
+		if (alert.isResolved()) {
+			throw new BusinessException(ErrorCode.SOS_ALREADY_RESOLVED);
+		}
+
+		alert.resolve(userService.getUser(userId));
+		return SosResponse.of(alert, names);
 	}
 
 	// 멤버가 아니면 FAMILY_NOT_MEMBER.

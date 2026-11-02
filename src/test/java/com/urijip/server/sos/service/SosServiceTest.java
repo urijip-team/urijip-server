@@ -19,6 +19,7 @@ import com.urijip.server.member.entity.User;
 import com.urijip.server.member.repository.UserRepository;
 import com.urijip.server.sos.dto.request.SosSendRequest;
 import com.urijip.server.sos.dto.response.SosCreateResponse;
+import com.urijip.server.sos.dto.response.SosResponse;
 import com.urijip.server.sos.entity.SosAlert;
 import com.urijip.server.sos.entity.SosStatus;
 import com.urijip.server.sos.repository.SosAlertRepository;
@@ -153,6 +154,54 @@ class SosServiceTest {
 			assertThat(message.getType()).isEqualTo(MessageType.SYSTEM);
 			assertThat(message.getContent()).isEqualTo("첫째님이 SOS를 보냈습니다.");
 		});
+	}
+
+	@Test
+	void anyFamilyMemberCanResolve() {
+		SosCreateResponse sent = send(kid);
+
+		SosResponse response = sosService.resolve(sent.sosId(), mom.getId());
+
+		assertThat(response.status()).isEqualTo(SosStatus.RESOLVED);
+		assertThat(response.userName()).isEqualTo("김첫째");
+		assertThat(response.resolvedBy()).isEqualTo(new SosResponse.ResolvedBy(mom.getId(), "김엄마"));
+		assertThat(response.resolvedAt().getOffset().getId()).isEqualTo("+09:00");
+		SosAlert saved = sosAlertRepository.findById(sent.sosId()).orElseThrow();
+		assertThat(saved.isResolved()).isTrue();
+	}
+
+	@Test
+	void senderCanResolveOwnAlert() {
+		SosResponse response = sosService.resolve(send(kid).sosId(), kid.getId());
+
+		assertThat(response.resolvedBy().userId()).isEqualTo(kid.getId());
+	}
+
+	@Test
+	void resolveTwiceFails() {
+		Long sosId = send(kid).sosId();
+		sosService.resolve(sosId, kid.getId());
+
+		assertThatThrownBy(() -> sosService.resolve(sosId, mom.getId()))
+				.isInstanceOfSatisfying(BusinessException.class,
+						e -> assertThat(e.getErrorCode()).isEqualTo(ErrorCode.SOS_ALREADY_RESOLVED));
+	}
+
+	@Test
+	void resolveByStrangerFails() {
+		Long sosId = send(kid).sosId();
+
+		assertThatThrownBy(() -> sosService.resolve(sosId, stranger.getId()))
+				.isInstanceOfSatisfying(BusinessException.class,
+						e -> assertThat(e.getErrorCode()).isEqualTo(ErrorCode.FAMILY_NOT_MEMBER));
+		assertThat(sosAlertRepository.findById(sosId).orElseThrow().isResolved()).isFalse();
+	}
+
+	@Test
+	void resolveUnknownAlertFails() {
+		assertThatThrownBy(() -> sosService.resolve(-1L, mom.getId()))
+				.isInstanceOfSatisfying(BusinessException.class,
+						e -> assertThat(e.getErrorCode()).isEqualTo(ErrorCode.SOS_NOT_FOUND));
 	}
 
 	private SosCreateResponse send(User user) {

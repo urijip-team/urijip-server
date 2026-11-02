@@ -33,6 +33,7 @@ public enum ErrorCode {
 	COMMENT_NOT_FOUND(HttpStatus.NOT_FOUND, "존재하지 않는 댓글입니다"),
 	REPORT_NOT_FOUND(HttpStatus.NOT_FOUND, "존재하지 않는 신고입니다"),
 	INQUIRY_NOT_FOUND(HttpStatus.NOT_FOUND, "존재하지 않는 문의입니다"),
+	SOS_NOT_FOUND(HttpStatus.NOT_FOUND, "존재하지 않는 SOS입니다"),
 	PAYMENT_INFO_NOT_FOUND(HttpStatus.NOT_FOUND, "등록된 송금 정보가 없습니다"),
 	EMAIL_DUPLICATED(HttpStatus.CONFLICT, "이미 가입된 이메일입니다"),
 	USER_WITHDRAWN(HttpStatus.CONFLICT, "탈퇴한 회원입니다"),
@@ -41,6 +42,7 @@ public enum ErrorCode {
 	ALREADY_REPORTED(HttpStatus.CONFLICT, "이미 신고해서 처리를 기다리는 대상입니다"),
 	REPORT_ALREADY_HANDLED(HttpStatus.CONFLICT, "이미 처리된 신고입니다"),
 	INQUIRY_ALREADY_ANSWERED(HttpStatus.CONFLICT, "이미 답변한 문의입니다"),
+	SOS_ALREADY_RESOLVED(HttpStatus.CONFLICT, "이미 해제된 SOS입니다"),
 	INTERNAL_SERVER_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "서버 오류가 발생했습니다");
 
 	private final HttpStatus status;
