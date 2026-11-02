@@ -2,6 +2,7 @@ package com.urijip.server.inquiry.entity;
 
 import java.time.LocalDateTime;
 
+import com.urijip.server.global.time.SeoulTime;
 import com.urijip.server.member.entity.User;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -54,6 +55,16 @@ public class Inquiry {
 		this.user = user;
 		this.title = title;
 		this.content = content;
+	}
+
+	public boolean isAnswered() {
+		return answeredAt != null;
+	}
+
+	public void answer(User admin, String answer) {
+		this.answeredBy = admin;
+		this.answer = answer;
+		this.answeredAt = LocalDateTime.now(SeoulTime.ZONE);
 	}
 
 }

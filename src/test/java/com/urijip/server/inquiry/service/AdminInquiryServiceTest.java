@@ -1,13 +1,20 @@
 package com.urijip.server.inquiry.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.time.LocalDateTime;
 
 import com.urijip.server.TestcontainersConfiguration;
+import com.urijip.server.global.exception.BusinessException;
+import com.urijip.server.global.exception.ErrorCode;
 import com.urijip.server.global.response.PageResponse;
+import com.urijip.server.inquiry.dto.request.AdminInquiryAnswerRequest;
 import com.urijip.server.inquiry.dto.request.AdminInquirySearchRequest;
+import com.urijip.server.inquiry.dto.request.InquiryCreateRequest;
+import com.urijip.server.inquiry.dto.request.InquirySearchRequest;
 import com.urijip.server.inquiry.dto.response.AdminInquiryResponse;
+import com.urijip.server.inquiry.dto.response.InquiryResponse;
 import com.urijip.server.inquiry.entity.Inquiry;
 import com.urijip.server.inquiry.repository.InquiryRepository;
 import com.urijip.server.member.entity.Role;
@@ -28,6 +35,9 @@ class AdminInquiryServiceTest {
 
 	@Autowired
 	private AdminInquiryService adminInquiryService;
+
+	@Autowired
+	private InquiryService inquiryService;
 
 	@Autowired
 	private InquiryRepository inquiryRepository;
@@ -87,6 +97,50 @@ class AdminInquiryServiceTest {
 		assertThat(found.answer()).isEqualTo("답변입니다");
 		assertThat(found.answeredBy()).isEqualTo(new AdminInquiryResponse.AnsweredBy(admin.getId(), "관리자"));
 		assertThat(found.answeredAt().getOffset().getId()).isEqualTo("+09:00");
+	}
+
+	@Test
+	void answerSavesAnswerAndAdmin() {
+		Inquiry inquiry = inquiryRepository.save(new Inquiry(mom, "미답변", "내용"));
+
+		AdminInquiryResponse response = adminInquiryService.answer(inquiry.getId(), admin.getId(),
+				new AdminInquiryAnswerRequest("다시 시도해 주세요."));
+
+		assertThat(response.answer()).isEqualTo("다시 시도해 주세요.");
+		assertThat(response.answeredBy()).isEqualTo(new AdminInquiryResponse.AnsweredBy(admin.getId(), "관리자"));
+		assertThat(response.answeredAt().getOffset().getId()).isEqualTo("+09:00");
+		assertThat(inquiry.isAnswered()).isTrue();
+	}
+
+	@Test
+	void answeredInquiryIsVisibleToAuthor() {
+		InquiryResponse created = inquiryService.create(mom.getId(), new InquiryCreateRequest("미답변", "내용"));
+
+		adminInquiryService.answer(created.id(), admin.getId(), new AdminInquiryAnswerRequest("다시 시도해 주세요."));
+
+		InquiryResponse mine = inquiryService.getMyInquiries(mom.getId(), new InquirySearchRequest(null, null))
+				.content().getFirst();
+		assertThat(mine.answer()).isEqualTo("다시 시도해 주세요.");
+		assertThat(mine.answeredAt()).isNotNull();
+	}
+
+	@Test
+	void answerTwiceFails() {
+		Inquiry inquiry = inquiryRepository.save(new Inquiry(mom, "미답변", "내용"));
+		adminInquiryService.answer(inquiry.getId(), admin.getId(), new AdminInquiryAnswerRequest("첫 답변"));
+
+		assertThatThrownBy(() -> adminInquiryService.answer(inquiry.getId(), admin.getId(),
+				new AdminInquiryAnswerRequest("둘째 답변")))
+				.isInstanceOfSatisfying(BusinessException.class,
+						e -> assertThat(e.getErrorCode()).isEqualTo(ErrorCode.INQUIRY_ALREADY_ANSWERED));
+		assertThat(inquiry.getAnswer()).isEqualTo("첫 답변");
+	}
+
+	@Test
+	void answerUnknownInquiryFails() {
+		assertThatThrownBy(() -> adminInquiryService.answer(-1L, admin.getId(), new AdminInquiryAnswerRequest("답변")))
+				.isInstanceOfSatisfying(BusinessException.class,
+						e -> assertThat(e.getErrorCode()).isEqualTo(ErrorCode.INQUIRY_NOT_FOUND));
 	}
 
 	private Inquiry saveAnswered(String title) {
