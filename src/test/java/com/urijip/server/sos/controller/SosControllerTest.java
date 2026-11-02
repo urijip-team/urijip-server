@@ -15,6 +15,8 @@ import com.urijip.server.global.exception.ErrorCode;
 import com.urijip.server.global.security.JwtProvider;
 import com.urijip.server.sos.dto.request.SosSendRequest;
 import com.urijip.server.sos.dto.response.SosCreateResponse;
+import com.urijip.server.sos.dto.response.SosResponse;
+import com.urijip.server.sos.entity.SosStatus;
 import com.urijip.server.sos.service.SosService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -31,6 +33,10 @@ import org.springframework.test.web.servlet.assertj.MvcTestResult;
 @WebMvcTest(SosController.class)
 @Import(SecurityConfig.class)
 class SosControllerTest {
+
+	private static final SosResponse RESOLVED = new SosResponse(12L, 2L, "첫째", 35.1595, 126.8526, SosStatus.RESOLVED,
+			OffsetDateTime.parse("2026-10-02T14:00:00+09:00"), new SosResponse.ResolvedBy(1L, "엄마"),
+			OffsetDateTime.parse("2026-10-02T14:10:00+09:00"));
 
 	@Autowired
 	private MockMvcTester mvc;
@@ -89,6 +95,46 @@ class SosControllerTest {
 				.exchange();
 
 		assertThat(result).hasStatus(HttpStatus.UNAUTHORIZED);
+	}
+
+	@Test
+	void resolveReturnsResolvedAlert() {
+		given(sosService.resolve(12L, 1L)).willReturn(RESOLVED);
+
+		MvcTestResult result = mvc.patch().uri("/api/sos/12/resolve").header("Authorization", user()).exchange();
+
+		assertThat(result).hasStatusOk();
+		assertThat(result).bodyJson().extractingPath("$.data.sosId").isEqualTo(12);
+		assertThat(result).bodyJson().extractingPath("$.data.userName").isEqualTo("첫째");
+		assertThat(result).bodyJson().extractingPath("$.data.latitude").isEqualTo(35.1595);
+		assertThat(result).bodyJson().extractingPath("$.data.status").isEqualTo("RESOLVED");
+		assertThat(result).bodyJson().extractingPath("$.data.resolvedBy.name").isEqualTo("엄마");
+		assertThat(result).bodyJson().extractingPath("$.data.resolvedAt").isEqualTo("2026-10-02T14:10:00+09:00");
+	}
+
+	@Test
+	void resolveAlreadyResolvedReturnsConflict() {
+		given(sosService.resolve(12L, 1L)).willThrow(new BusinessException(ErrorCode.SOS_ALREADY_RESOLVED));
+
+		MvcTestResult result = mvc.patch().uri("/api/sos/12/resolve").header("Authorization", user()).exchange();
+
+		assertThat(result).hasStatus(HttpStatus.CONFLICT);
+		assertThat(result).bodyJson().extractingPath("$.error.code").isEqualTo("SOS_ALREADY_RESOLVED");
+	}
+
+	@Test
+	void resolveUnknownReturnsNotFound() {
+		given(sosService.resolve(12L, 1L)).willThrow(new BusinessException(ErrorCode.SOS_NOT_FOUND));
+
+		MvcTestResult result = mvc.patch().uri("/api/sos/12/resolve").header("Authorization", user()).exchange();
+
+		assertThat(result).hasStatus(HttpStatus.NOT_FOUND);
+		assertThat(result).bodyJson().extractingPath("$.error.code").isEqualTo("SOS_NOT_FOUND");
+	}
+
+	@Test
+	void resolveWithoutAccessTokenReturnsUnauthorized() {
+		assertThat(mvc.patch().uri("/api/sos/12/resolve").exchange()).hasStatus(HttpStatus.UNAUTHORIZED);
 	}
 
 	private MvcTestResult send(String body) {
