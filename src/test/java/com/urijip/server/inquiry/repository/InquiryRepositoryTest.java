@@ -2,6 +2,8 @@ package com.urijip.server.inquiry.repository;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.time.LocalDateTime;
+
 import com.urijip.server.TestcontainersConfiguration;
 import com.urijip.server.global.config.JpaAuditingConfig;
 import com.urijip.server.inquiry.entity.Inquiry;
@@ -15,6 +17,7 @@ import org.springframework.context.annotation.Import;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
+import org.springframework.test.util.ReflectionTestUtils;
 
 @DataJpaTest
 @Import({TestcontainersConfiguration.class, JpaAuditingConfig.class})
@@ -58,6 +61,37 @@ class InquiryRepositoryTest {
 
 		assertThat(found.getContent()).extracting(Inquiry::getId).containsExactly(last.getId(), first.getId());
 		assertThat(found.getTotalElements()).isEqualTo(2);
+	}
+
+	@Test
+	void searchPutsUnansweredFirstThenNewest() {
+		Inquiry oldUnanswered = inquiryRepository.save(new Inquiry(mom, "오래된 미답변", "내용"));
+		Inquiry oldAnswered = saveAnswered("오래된 답변 완료");
+		Inquiry newUnanswered = inquiryRepository.save(new Inquiry(mom, "새 미답변", "내용"));
+		Inquiry newAnswered = saveAnswered("새 답변 완료");
+
+		Page<Inquiry> found = inquiryRepository.search(null, PageRequest.of(0, 10));
+
+		assertThat(found.getContent()).extracting(Inquiry::getId).containsExactly(newUnanswered.getId(),
+				oldUnanswered.getId(), newAnswered.getId(), oldAnswered.getId());
+		assertThat(found.getTotalElements()).isEqualTo(4);
+	}
+
+	@Test
+	void searchFiltersByAnswered() {
+		Inquiry unanswered = inquiryRepository.save(new Inquiry(mom, "미답변", "내용"));
+		Inquiry answered = saveAnswered("답변 완료");
+
+		assertThat(inquiryRepository.search(false, PageRequest.of(0, 10)).getContent())
+				.extracting(Inquiry::getId).containsExactly(unanswered.getId());
+		assertThat(inquiryRepository.search(true, PageRequest.of(0, 10)).getContent())
+				.extracting(Inquiry::getId).containsExactly(answered.getId());
+	}
+
+	private Inquiry saveAnswered(String title) {
+		Inquiry inquiry = new Inquiry(mom, title, "내용");
+		ReflectionTestUtils.setField(inquiry, "answeredAt", LocalDateTime.of(2026, 11, 2, 10, 0));
+		return inquiryRepository.saveAndFlush(inquiry);
 	}
 
 	private User saveUser(String email, String name) {
