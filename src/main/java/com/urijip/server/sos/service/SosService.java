@@ -7,6 +7,7 @@ import java.util.stream.Collectors;
 
 import com.urijip.server.chat.service.ChatService;
 import com.urijip.server.family.dto.response.FamilyMemberResponse;
+import com.urijip.server.family.service.FamilyDeletedEvent;
 import com.urijip.server.family.service.FamilyService;
 import com.urijip.server.global.exception.BusinessException;
 import com.urijip.server.global.exception.ErrorCode;
@@ -20,6 +21,7 @@ import com.urijip.server.sos.entity.SosAlert;
 import com.urijip.server.sos.repository.SosAlertRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.context.event.EventListener;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -68,6 +70,11 @@ public class SosService {
 		PageRequest pageable = PageRequest.of(request.pageOrDefault(), request.sizeOrDefault());
 		return PageResponse.from(sosAlertRepository.findHistory(familyId, pageable)
 				.map(alert -> SosResponse.of(alert, names)));
+	}
+
+	@EventListener
+	public void onFamilyDeleted(FamilyDeletedEvent event) {
+		sosAlertRepository.deleteByFamilyId(event.familyId());
 	}
 
 	// 멤버가 아니면 FAMILY_NOT_MEMBER.

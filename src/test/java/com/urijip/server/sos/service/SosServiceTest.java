@@ -25,6 +25,7 @@ import com.urijip.server.sos.dto.response.SosResponse;
 import com.urijip.server.sos.entity.SosAlert;
 import com.urijip.server.sos.entity.SosStatus;
 import com.urijip.server.sos.repository.SosAlertRepository;
+import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -49,6 +50,9 @@ class SosServiceTest {
 
 	@Autowired
 	private ApplicationEvents events;
+
+	@Autowired
+	private EntityManager entityManager;
 
 	@Autowired
 	private ChatMessageRepository chatMessageRepository;
@@ -255,6 +259,21 @@ class SosServiceTest {
 		assertThatThrownBy(() -> sosService.getHistory(familyId, stranger.getId(), new SosSearchRequest(null, null)))
 				.isInstanceOfSatisfying(BusinessException.class,
 						e -> assertThat(e.getErrorCode()).isEqualTo(ErrorCode.FAMILY_NOT_MEMBER));
+	}
+
+	@Test
+	void deletingFamilyDeletesAlerts() {
+		User solo = saveUser("solo@example.com", "혼자");
+		Long soloFamilyId = familyService.create(solo.getId(), new FamilyCreateRequest("혼자 집")).id();
+		sosService.send(solo.getId(), new SosSendRequest(soloFamilyId, LATITUDE, LONGITUDE));
+		Long remaining = send(kid).sosId();
+		// 실제로는 SOS 저장과 가족 삭제가 다른 트랜잭션이다. 벌크 삭제는 영속성 컨텍스트를 거치지 않으므로 비워 둔다.
+		entityManager.flush();
+		entityManager.clear();
+
+		familyService.removeMember(soloFamilyId, solo.getId(), solo.getId());
+
+		assertThat(sosAlertRepository.findAll()).extracting(SosAlert::getId).containsExactly(remaining);
 	}
 
 	private SosCreateResponse send(User user) {
