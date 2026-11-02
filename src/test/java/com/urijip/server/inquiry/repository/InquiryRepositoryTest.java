@@ -1,0 +1,105 @@
+package com.urijip.server.inquiry.repository;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+import java.time.LocalDateTime;
+
+import com.urijip.server.TestcontainersConfiguration;
+import com.urijip.server.global.config.JpaAuditingConfig;
+import com.urijip.server.inquiry.entity.Inquiry;
+import com.urijip.server.member.entity.User;
+import com.urijip.server.member.repository.UserRepository;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
+import org.springframework.context.annotation.Import;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
+import org.springframework.test.util.ReflectionTestUtils;
+
+@DataJpaTest
+@Import({TestcontainersConfiguration.class, JpaAuditingConfig.class})
+class InquiryRepositoryTest {
+
+	@Autowired
+	private InquiryRepository inquiryRepository;
+
+	@Autowired
+	private UserRepository userRepository;
+
+	private User mom;
+
+	@BeforeEach
+	void setUp() {
+		mom = saveUser("mom@example.com", "김엄마");
+	}
+
+	@Test
+	void newInquiryHasNoAnswer() {
+		Inquiry inquiry = inquiryRepository.saveAndFlush(new Inquiry(mom, "로그인이 안 돼요", "비밀번호가 맞는데 실패합니다."));
+
+		Inquiry found = inquiryRepository.findById(inquiry.getId()).orElseThrow();
+		assertThat(found.getUser().getId()).isEqualTo(mom.getId());
+		assertThat(found.getTitle()).isEqualTo("로그인이 안 돼요");
+		assertThat(found.getContent()).isEqualTo("비밀번호가 맞는데 실패합니다.");
+		assertThat(found.getAnswer()).isNull();
+		assertThat(found.getAnsweredBy()).isNull();
+		assertThat(found.getAnsweredAt()).isNull();
+	}
+
+	@Test
+	void findByUserIdReturnsOnlyThatUsersInquiries() {
+		User dad = saveUser("dad@example.com", "김아빠");
+		Inquiry first = inquiryRepository.save(new Inquiry(mom, "첫 문의", "내용"));
+		inquiryRepository.save(new Inquiry(dad, "아빠 문의", "내용"));
+		Inquiry last = inquiryRepository.saveAndFlush(new Inquiry(mom, "둘째 문의", "내용"));
+
+		Page<Inquiry> found = inquiryRepository.findByUserId(mom.getId(),
+				PageRequest.of(0, 10, Sort.by(Sort.Direction.DESC, "id")));
+
+		assertThat(found.getContent()).extracting(Inquiry::getId).containsExactly(last.getId(), first.getId());
+		assertThat(found.getTotalElements()).isEqualTo(2);
+	}
+
+	@Test
+	void searchPutsUnansweredFirstThenNewest() {
+		Inquiry oldUnanswered = inquiryRepository.save(new Inquiry(mom, "오래된 미답변", "내용"));
+		Inquiry oldAnswered = saveAnswered("오래된 답변 완료");
+		Inquiry newUnanswered = inquiryRepository.save(new Inquiry(mom, "새 미답변", "내용"));
+		Inquiry newAnswered = saveAnswered("새 답변 완료");
+
+		Page<Inquiry> found = inquiryRepository.search(null, PageRequest.of(0, 10));
+
+		assertThat(found.getContent()).extracting(Inquiry::getId).containsExactly(newUnanswered.getId(),
+				oldUnanswered.getId(), newAnswered.getId(), oldAnswered.getId());
+		assertThat(found.getTotalElements()).isEqualTo(4);
+	}
+
+	@Test
+	void searchFiltersByAnswered() {
+		Inquiry unanswered = inquiryRepository.save(new Inquiry(mom, "미답변", "내용"));
+		Inquiry answered = saveAnswered("답변 완료");
+
+		assertThat(inquiryRepository.search(false, PageRequest.of(0, 10)).getContent())
+				.extracting(Inquiry::getId).containsExactly(unanswered.getId());
+		assertThat(inquiryRepository.search(true, PageRequest.of(0, 10)).getContent())
+				.extracting(Inquiry::getId).containsExactly(answered.getId());
+	}
+
+	private Inquiry saveAnswered(String title) {
+		Inquiry inquiry = new Inquiry(mom, title, "내용");
+		ReflectionTestUtils.setField(inquiry, "answeredAt", LocalDateTime.of(2026, 11, 2, 10, 0));
+		return inquiryRepository.saveAndFlush(inquiry);
+	}
+
+	private User saveUser(String email, String name) {
+		return userRepository.saveAndFlush(User.builder()
+				.email(email)
+				.password("encoded-password")
+				.name(name)
+				.build());
+	}
+
+}
