@@ -12,6 +12,9 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
 import org.springframework.context.annotation.Import;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 
 @DataJpaTest
 @Import({TestcontainersConfiguration.class, JpaAuditingConfig.class})
@@ -41,6 +44,20 @@ class InquiryRepositoryTest {
 		assertThat(found.getAnswer()).isNull();
 		assertThat(found.getAnsweredBy()).isNull();
 		assertThat(found.getAnsweredAt()).isNull();
+	}
+
+	@Test
+	void findByUserIdReturnsOnlyThatUsersInquiries() {
+		User dad = saveUser("dad@example.com", "김아빠");
+		Inquiry first = inquiryRepository.save(new Inquiry(mom, "첫 문의", "내용"));
+		inquiryRepository.save(new Inquiry(dad, "아빠 문의", "내용"));
+		Inquiry last = inquiryRepository.saveAndFlush(new Inquiry(mom, "둘째 문의", "내용"));
+
+		Page<Inquiry> found = inquiryRepository.findByUserId(mom.getId(),
+				PageRequest.of(0, 10, Sort.by(Sort.Direction.DESC, "id")));
+
+		assertThat(found.getContent()).extracting(Inquiry::getId).containsExactly(last.getId(), first.getId());
+		assertThat(found.getTotalElements()).isEqualTo(2);
 	}
 
 	private User saveUser(String email, String name) {
