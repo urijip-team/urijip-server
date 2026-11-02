@@ -17,6 +17,8 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
 import org.springframework.context.annotation.Import;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 
 @DataJpaTest
 @Import({TestcontainersConfiguration.class, JpaAuditingConfig.class})
@@ -79,6 +81,24 @@ class SosAlertRepositoryTest {
 		assertThat(found.getStatus()).isEqualTo(SosStatus.RESOLVED);
 		assertThat(found.getResolvedBy().getId()).isEqualTo(mom.getId());
 		assertThat(found.getResolvedAt()).isNotNull();
+	}
+
+	@Test
+	void findHistoryPutsActiveFirstThenNewest() {
+		SosAlert oldActive = save(kims);
+		SosAlert oldResolved = save(kims);
+		oldResolved.resolve(mom);
+		SosAlert newActive = save(kims);
+		SosAlert newResolved = save(kims);
+		newResolved.resolve(mom);
+		sosAlertRepository.flush();
+		save(parks);
+
+		Page<SosAlert> found = sosAlertRepository.findHistory(kims.getId(), PageRequest.of(0, 10));
+
+		assertThat(found.getContent()).extracting(SosAlert::getId).containsExactly(newActive.getId(),
+				oldActive.getId(), newResolved.getId(), oldResolved.getId());
+		assertThat(found.getTotalElements()).isEqualTo(4);
 	}
 
 	private SosAlert save(Family family) {
