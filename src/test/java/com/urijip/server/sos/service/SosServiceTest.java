@@ -8,6 +8,7 @@ import java.math.BigDecimal;
 import com.urijip.server.TestcontainersConfiguration;
 import com.urijip.server.family.dto.request.FamilyCreateRequest;
 import com.urijip.server.family.dto.request.FamilyJoinRequest;
+import com.urijip.server.family.dto.request.NicknameUpdateRequest;
 import com.urijip.server.family.dto.response.FamilyResponse;
 import com.urijip.server.family.service.FamilyService;
 import com.urijip.server.global.exception.BusinessException;
@@ -24,11 +25,14 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
+import org.springframework.test.context.event.ApplicationEvents;
+import org.springframework.test.context.event.RecordApplicationEvents;
 import org.springframework.transaction.annotation.Transactional;
 
 @SpringBootTest
 @Import(TestcontainersConfiguration.class)
 @Transactional
+@RecordApplicationEvents
 class SosServiceTest {
 
 	private static final BigDecimal LATITUDE = new BigDecimal("35.1595");
@@ -37,6 +41,9 @@ class SosServiceTest {
 
 	@Autowired
 	private SosService sosService;
+
+	@Autowired
+	private ApplicationEvents events;
 
 	@Autowired
 	private SosAlertRepository sosAlertRepository;
@@ -102,6 +109,33 @@ class SosServiceTest {
 				.isInstanceOfSatisfying(BusinessException.class,
 						e -> assertThat(e.getErrorCode()).isEqualTo(ErrorCode.FAMILY_NOT_MEMBER));
 		assertThat(sosAlertRepository.findAll()).isEmpty();
+	}
+
+	@Test
+	void sendPublishesEventWithDisplayName() {
+		SosCreateResponse response = send(kid);
+
+		assertThat(events.stream(SosChangedEvent.class)).singleElement().satisfies(event -> {
+			assertThat(event.familyId()).isEqualTo(familyId);
+			assertThat(event.message().sosId()).isEqualTo(response.sosId());
+			assertThat(event.message().userId()).isEqualTo(kid.getId());
+			assertThat(event.message().userName()).isEqualTo("김첫째");
+			assertThat(event.message().latitude()).isEqualTo(35.1595);
+			assertThat(event.message().longitude()).isEqualTo(126.8526);
+			assertThat(event.message().status()).isEqualTo(SosStatus.ACTIVE);
+			assertThat(event.message().resolvedBy()).isNull();
+			assertThat(event.message().resolvedAt()).isNull();
+		});
+	}
+
+	@Test
+	void sendUsesNicknameFirst() {
+		familyService.changeMyNickname(familyId, kid.getId(), new NicknameUpdateRequest("첫째"));
+
+		send(kid);
+
+		assertThat(events.stream(SosChangedEvent.class)).singleElement()
+				.satisfies(event -> assertThat(event.message().userName()).isEqualTo("첫째"));
 	}
 
 	private SosCreateResponse send(User user) {
