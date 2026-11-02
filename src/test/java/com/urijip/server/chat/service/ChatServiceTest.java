@@ -203,6 +203,23 @@ class ChatServiceTest {
 	}
 
 	@Test
+	void sendSystemMessageSavesAndPublishesWithoutSender() {
+		chatService.sendSystemMessage(familyId, "김첫째님이 SOS를 보냈습니다.");
+
+		assertThat(chatMessageRepository.findAll()).singleElement().satisfies(saved -> {
+			assertThat(saved.getType()).isEqualTo(MessageType.SYSTEM);
+			assertThat(saved.getSender()).isNull();
+			assertThat(saved.getContent()).isEqualTo("김첫째님이 SOS를 보냈습니다.");
+		});
+		assertThat(events.stream(ChatMessageSentEvent.class)).singleElement().satisfies(event -> {
+			assertThat(event.familyId()).isEqualTo(familyId);
+			assertThat(event.message().type()).isEqualTo(MessageType.SYSTEM);
+			assertThat(event.message().senderId()).isNull();
+			assertThat(event.message().senderName()).isNull();
+		});
+	}
+
+	@Test
 	void deletingFamilyDeletesMessages() {
 		User solo = saveUser("solo@example.com", "혼자");
 		Long soloFamilyId = familyService.create(solo.getId(), new FamilyCreateRequest("혼자 집")).id();

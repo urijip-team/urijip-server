@@ -45,6 +45,14 @@ public class ChatService {
 		return response;
 	}
 
+	// 서버가 이벤트를 알리는 메시지. 보낸 사람 없이 저장하고 가족에게 실시간으로 보낸다.
+	@Transactional
+	public void sendSystemMessage(Long familyId, String content) {
+		ChatMessage message = chatMessageRepository.save(
+				ChatMessage.system(familyService.getFamily(familyId), content));
+		eventPublisher.publishEvent(new ChatMessageSentEvent(familyId, ChatMessageResponse.of(message, null)));
+	}
+
 	// 최신순. size개보다 하나 더 읽어 다음 페이지가 있는지 판단한다.
 	@Transactional(readOnly = true)
 	public CursorResponse<ChatMessageResponse> getMessages(Long familyId, Long userId,
