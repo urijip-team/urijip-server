@@ -8,11 +8,14 @@ import static org.mockito.Mockito.never;
 
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
+import java.util.List;
 
 import com.urijip.server.global.config.SecurityConfig;
 import com.urijip.server.global.exception.BusinessException;
 import com.urijip.server.global.exception.ErrorCode;
+import com.urijip.server.global.response.PageResponse;
 import com.urijip.server.global.security.JwtProvider;
+import com.urijip.server.sos.dto.request.SosSearchRequest;
 import com.urijip.server.sos.dto.request.SosSendRequest;
 import com.urijip.server.sos.dto.response.SosCreateResponse;
 import com.urijip.server.sos.dto.response.SosResponse;
@@ -135,6 +138,35 @@ class SosControllerTest {
 	@Test
 	void resolveWithoutAccessTokenReturnsUnauthorized() {
 		assertThat(mvc.patch().uri("/api/sos/12/resolve").exchange()).hasStatus(HttpStatus.UNAUTHORIZED);
+	}
+
+	@Test
+	void getHistoryReturnsPage() {
+		given(sosService.getHistory(3L, 1L, new SosSearchRequest(1, 10)))
+				.willReturn(new PageResponse<>(List.of(RESOLVED), 1, 10, 11, 2));
+
+		MvcTestResult result = mvc.get().uri("/api/families/3/sos?page=1&size=10")
+				.header("Authorization", user())
+				.exchange();
+
+		assertThat(result).hasStatusOk();
+		assertThat(result).bodyJson().extractingPath("$.data.content[0].sosId").isEqualTo(12);
+		assertThat(result).bodyJson().extractingPath("$.data.totalElements").isEqualTo(11);
+	}
+
+	@Test
+	void getHistoryByNonMemberReturnsForbidden() {
+		given(sosService.getHistory(3L, 1L, new SosSearchRequest(null, null)))
+				.willThrow(new BusinessException(ErrorCode.FAMILY_NOT_MEMBER));
+
+		MvcTestResult result = mvc.get().uri("/api/families/3/sos").header("Authorization", user()).exchange();
+
+		assertThat(result).hasStatus(HttpStatus.FORBIDDEN);
+	}
+
+	@Test
+	void getHistoryWithoutAccessTokenReturnsUnauthorized() {
+		assertThat(mvc.get().uri("/api/families/3/sos").exchange()).hasStatus(HttpStatus.UNAUTHORIZED);
 	}
 
 	private MvcTestResult send(String body) {
