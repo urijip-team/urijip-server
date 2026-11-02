@@ -5,6 +5,7 @@ import java.math.RoundingMode;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import com.urijip.server.chat.service.ChatService;
 import com.urijip.server.family.dto.response.FamilyMemberResponse;
 import com.urijip.server.family.service.FamilyService;
 import com.urijip.server.member.service.UserService;
@@ -27,6 +28,7 @@ public class SosService {
 	private final SosAlertRepository sosAlertRepository;
 	private final FamilyService familyService;
 	private final UserService userService;
+	private final ChatService chatService;
 	private final ApplicationEventPublisher eventPublisher;
 
 	// 위치 공유를 꺼 둔 회원도 보낼 수 있다. 위치는 이 SOS 기록에만 남고 user_locations는 바꾸지 않는다.
@@ -36,6 +38,7 @@ public class SosService {
 		SosAlert alert = sosAlertRepository.save(new SosAlert(familyService.getFamily(request.familyId()),
 				userService.getUser(userId), scale(request.latitude()), scale(request.longitude())));
 		publishChanged(alert, names);
+		chatService.sendSystemMessage(request.familyId(), names.get(userId) + "님이 SOS를 보냈습니다.");
 		return SosCreateResponse.from(alert);
 	}
 

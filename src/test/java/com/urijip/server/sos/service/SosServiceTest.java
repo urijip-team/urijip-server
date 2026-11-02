@@ -6,6 +6,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import java.math.BigDecimal;
 
 import com.urijip.server.TestcontainersConfiguration;
+import com.urijip.server.chat.entity.MessageType;
+import com.urijip.server.chat.repository.ChatMessageRepository;
 import com.urijip.server.family.dto.request.FamilyCreateRequest;
 import com.urijip.server.family.dto.request.FamilyJoinRequest;
 import com.urijip.server.family.dto.request.NicknameUpdateRequest;
@@ -44,6 +46,9 @@ class SosServiceTest {
 
 	@Autowired
 	private ApplicationEvents events;
+
+	@Autowired
+	private ChatMessageRepository chatMessageRepository;
 
 	@Autowired
 	private SosAlertRepository sosAlertRepository;
@@ -136,6 +141,18 @@ class SosServiceTest {
 
 		assertThat(events.stream(SosChangedEvent.class)).singleElement()
 				.satisfies(event -> assertThat(event.message().userName()).isEqualTo("첫째"));
+	}
+
+	@Test
+	void sendPostsSystemMessageToChat() {
+		familyService.changeMyNickname(familyId, kid.getId(), new NicknameUpdateRequest("첫째"));
+
+		send(kid);
+
+		assertThat(chatMessageRepository.findAll()).singleElement().satisfies(message -> {
+			assertThat(message.getType()).isEqualTo(MessageType.SYSTEM);
+			assertThat(message.getContent()).isEqualTo("첫째님이 SOS를 보냈습니다.");
+		});
 	}
 
 	private SosCreateResponse send(User user) {
