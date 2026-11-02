@@ -55,4 +55,8 @@ public class ChatMessage extends BaseTimeEntity {
 		return new ChatMessage(family, sender, MessageType.TEXT, content);
 	}
 
+	public static ChatMessage system(Family family, String content) {
+		return new ChatMessage(family, null, MessageType.SYSTEM, content);
+	}
+
 }
