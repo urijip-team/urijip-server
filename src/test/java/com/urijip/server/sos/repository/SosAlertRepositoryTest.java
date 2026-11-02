@@ -101,6 +101,17 @@ class SosAlertRepositoryTest {
 		assertThat(found.getTotalElements()).isEqualTo(4);
 	}
 
+	@Test
+	void deleteByFamilyIdLeavesOtherFamilies() {
+		save(kims);
+		save(kims);
+		SosAlert other = save(parks);
+
+		assertThat(sosAlertRepository.deleteByFamilyId(kims.getId())).isEqualTo(2);
+
+		assertThat(sosAlertRepository.findAll()).extracting(SosAlert::getId).containsExactly(other.getId());
+	}
+
 	private SosAlert save(Family family) {
 		return sosAlertRepository.saveAndFlush(new SosAlert(family, mom, LATITUDE, LONGITUDE));
 	}
