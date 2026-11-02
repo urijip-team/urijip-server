@@ -55,6 +55,7 @@ public class SosService {
 		}
 
 		alert.resolve(userService.getUser(userId));
+		publishChanged(alert, names);
 		return SosResponse.of(alert, names);
 	}
 

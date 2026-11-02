@@ -204,6 +204,19 @@ class SosServiceTest {
 						e -> assertThat(e.getErrorCode()).isEqualTo(ErrorCode.SOS_NOT_FOUND));
 	}
 
+	@Test
+	void resolvePublishesEvent() {
+		Long sosId = send(kid).sosId();
+
+		sosService.resolve(sosId, mom.getId());
+
+		assertThat(events.stream(SosChangedEvent.class).toList()).last().satisfies(event -> {
+			assertThat(event.familyId()).isEqualTo(familyId);
+			assertThat(event.message().sosId()).isEqualTo(sosId);
+			assertThat(event.message().status()).isEqualTo(SosStatus.RESOLVED);
+		});
+	}
+
 	private SosCreateResponse send(User user) {
 		return sosService.send(user.getId(), new SosSendRequest(familyId, LATITUDE, LONGITUDE));
 	}
