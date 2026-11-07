@@ -7,8 +7,11 @@ import static org.mockito.BDDMockito.then;
 import static org.mockito.Mockito.never;
 
 import com.urijip.server.global.config.SecurityConfig;
+import com.urijip.server.global.exception.BusinessException;
+import com.urijip.server.global.exception.ErrorCode;
 import com.urijip.server.global.security.JwtProvider;
 import com.urijip.server.notice.dto.request.AdminNoticeCreateRequest;
+import com.urijip.server.notice.dto.request.AdminNoticeUpdateRequest;
 import com.urijip.server.notice.dto.response.AdminNoticeResponse;
 import com.urijip.server.notice.service.AdminNoticeService;
 import org.junit.jupiter.api.Test;
@@ -101,6 +104,62 @@ class AdminNoticeControllerTest {
 				.exchange();
 
 		assertThat(result).hasStatus(HttpStatus.UNAUTHORIZED);
+	}
+
+	@Test
+	void updateReturnsUpdatedNotice() {
+		given(adminNoticeService.update(3L, new AdminNoticeUpdateRequest(null, "새벽 3시로 바뀌었습니다.")))
+				.willReturn(new AdminNoticeResponse(3L, "서버 점검 안내", "새벽 3시로 바뀌었습니다.", false, NOTICE.createdBy()));
+
+		MvcTestResult result = update("{\"content\": \"새벽 3시로 바뀌었습니다.\"}", admin());
+
+		assertThat(result).hasStatusOk();
+		assertThat(result).bodyJson().extractingPath("$.data.title").isEqualTo("서버 점검 안내");
+		assertThat(result).bodyJson().extractingPath("$.data.content").isEqualTo("새벽 3시로 바뀌었습니다.");
+	}
+
+	@ParameterizedTest
+	@ValueSource(strings = {"{\"title\": \" \"}", "{\"content\": \"\"}", "{\"content\": \" \\n \"}"})
+	void updateWithBlankFieldReturnsBadRequest(String body) {
+		MvcTestResult result = update(body, admin());
+
+		assertThat(result).hasStatus(HttpStatus.BAD_REQUEST);
+		assertThat(result).bodyJson().extractingPath("$.error.code").isEqualTo("INVALID_INPUT");
+		then(adminNoticeService).should(never()).update(any(), any());
+	}
+
+	@Test
+	void updateWithTooLongTitleReturnsBadRequest() {
+		MvcTestResult result = update("{\"title\": \"%s\"}".formatted("가".repeat(101)), admin());
+
+		assertThat(result).hasStatus(HttpStatus.BAD_REQUEST);
+	}
+
+	@Test
+	void updateUnknownNoticeReturnsNotFound() {
+		given(adminNoticeService.update(3L, new AdminNoticeUpdateRequest("제목", null)))
+				.willThrow(new BusinessException(ErrorCode.NOTICE_NOT_FOUND));
+
+		MvcTestResult result = update("{\"title\": \"제목\"}", admin());
+
+		assertThat(result).hasStatus(HttpStatus.NOT_FOUND);
+		assertThat(result).bodyJson().extractingPath("$.error.code").isEqualTo("NOTICE_NOT_FOUND");
+	}
+
+	@Test
+	void updateByUserIsForbidden() {
+		MvcTestResult result = update("{\"title\": \"제목\"}", user());
+
+		assertThat(result).hasStatus(HttpStatus.FORBIDDEN);
+		then(adminNoticeService).should(never()).update(any(), any());
+	}
+
+	private MvcTestResult update(String body, String authorization) {
+		return mvc.patch().uri("/admin/notices/3")
+				.header("Authorization", authorization)
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(body)
+				.exchange();
 	}
 
 	private MvcTestResult create(String body, String authorization) {
