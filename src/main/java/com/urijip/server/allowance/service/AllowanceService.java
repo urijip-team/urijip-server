@@ -6,10 +6,12 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 import com.urijip.server.allowance.dto.request.AllowanceCreateRequest;
+import com.urijip.server.allowance.dto.request.AllowanceStatusRequest;
 import com.urijip.server.allowance.dto.response.AllowanceCreateResponse;
 import com.urijip.server.allowance.dto.response.AllowanceDetailResponse;
 import com.urijip.server.allowance.dto.response.AllowanceResponse;
 import com.urijip.server.allowance.entity.AllowanceRequest;
+import com.urijip.server.allowance.entity.AllowanceStatus;
 import com.urijip.server.allowance.repository.AllowanceRequestRepository;
 import com.urijip.server.chat.service.ChatService;
 import com.urijip.server.family.dto.response.FamilyMemberResponse;
@@ -60,6 +62,24 @@ public class AllowanceService {
 
 		return AllowanceDetailResponse.of(AllowanceResponse.from(allowance),
 				paymentInfoService.findPaymentInfo(allowance.getRequester().getId()).orElse(null));
+	}
+
+	// 받는 사람만 한 번 처리할 수 있다.
+	@Transactional
+	public AllowanceResponse changeStatus(Long requestId, Long userId, AllowanceStatusRequest request) {
+		if (request.status() == AllowanceStatus.REQUESTED) {
+			throw new BusinessException(ErrorCode.INVALID_INPUT);
+		}
+		AllowanceRequest allowance = getAllowance(requestId);
+		if (!allowance.isReceiver(userId)) {
+			throw new BusinessException(ErrorCode.NOT_ALLOWANCE_RECEIVER);
+		}
+		if (allowance.isHandled()) {
+			throw new BusinessException(ErrorCode.ALLOWANCE_ALREADY_HANDLED);
+		}
+
+		allowance.complete(request.status());
+		return AllowanceResponse.from(allowance);
 	}
 
 	private AllowanceRequest getAllowance(Long requestId) {

@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.urijip.server.TestcontainersConfiguration;
 import com.urijip.server.allowance.dto.request.AllowanceCreateRequest;
+import com.urijip.server.allowance.dto.request.AllowanceStatusRequest;
 import com.urijip.server.allowance.dto.response.AllowanceCreateResponse;
 import com.urijip.server.allowance.dto.response.AllowanceDetailResponse;
 import com.urijip.server.allowance.dto.response.AllowanceResponse;
@@ -27,6 +28,8 @@ import com.urijip.server.member.service.PaymentInfoService;
 import com.urijip.server.member.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
@@ -187,6 +190,63 @@ class AllowanceServiceTest {
 	@Test
 	void getUnknownDetailFails() {
 		assertThatThrownBy(() -> allowanceService.getDetail(-1L, mom.getId()))
+				.isInstanceOfSatisfying(BusinessException.class,
+						e -> assertThat(e.getErrorCode()).isEqualTo(ErrorCode.ALLOWANCE_NOT_FOUND));
+	}
+
+	@ParameterizedTest
+	@EnumSource(value = AllowanceStatus.class, names = {"SENT", "REJECTED"})
+	void receiverCanCompleteRequest(AllowanceStatus result) {
+		Long requestId = request(kid, mom, 30000, null).requestId();
+
+		AllowanceResponse response = allowanceService.changeStatus(requestId, mom.getId(),
+				new AllowanceStatusRequest(result));
+
+		assertThat(response.status()).isEqualTo(result);
+		assertThat(response.completedAt().getOffset().getId()).isEqualTo("+09:00");
+		AllowanceRequest saved = allowanceRequestRepository.findById(requestId).orElseThrow();
+		assertThat(saved.getStatus()).isEqualTo(result);
+		assertThat(saved.getCompletedAt()).isNotNull();
+	}
+
+	@Test
+	void requesterCannotCompleteRequest() {
+		Long requestId = request(kid, mom, 30000, null).requestId();
+
+		assertThatThrownBy(() -> allowanceService.changeStatus(requestId, kid.getId(),
+				new AllowanceStatusRequest(AllowanceStatus.SENT)))
+				.isInstanceOfSatisfying(BusinessException.class,
+						e -> assertThat(e.getErrorCode()).isEqualTo(ErrorCode.NOT_ALLOWANCE_RECEIVER));
+		assertThat(allowanceRequestRepository.findById(requestId).orElseThrow().isHandled()).isFalse();
+	}
+
+	@Test
+	void completingTwiceFails() {
+		Long requestId = request(kid, mom, 30000, null).requestId();
+		allowanceService.changeStatus(requestId, mom.getId(), new AllowanceStatusRequest(AllowanceStatus.REJECTED));
+
+		assertThatThrownBy(() -> allowanceService.changeStatus(requestId, mom.getId(),
+				new AllowanceStatusRequest(AllowanceStatus.SENT)))
+				.isInstanceOfSatisfying(BusinessException.class,
+						e -> assertThat(e.getErrorCode()).isEqualTo(ErrorCode.ALLOWANCE_ALREADY_HANDLED));
+		assertThat(allowanceRequestRepository.findById(requestId).orElseThrow().getStatus())
+				.isEqualTo(AllowanceStatus.REJECTED);
+	}
+
+	@Test
+	void changingBackToRequestedFails() {
+		Long requestId = request(kid, mom, 30000, null).requestId();
+
+		assertThatThrownBy(() -> allowanceService.changeStatus(requestId, mom.getId(),
+				new AllowanceStatusRequest(AllowanceStatus.REQUESTED)))
+				.isInstanceOfSatisfying(BusinessException.class,
+						e -> assertThat(e.getErrorCode()).isEqualTo(ErrorCode.INVALID_INPUT));
+	}
+
+	@Test
+	void changeStatusOfUnknownRequestFails() {
+		assertThatThrownBy(() -> allowanceService.changeStatus(-1L, mom.getId(),
+				new AllowanceStatusRequest(AllowanceStatus.SENT)))
 				.isInstanceOfSatisfying(BusinessException.class,
 						e -> assertThat(e.getErrorCode()).isEqualTo(ErrorCode.ALLOWANCE_NOT_FOUND));
 	}

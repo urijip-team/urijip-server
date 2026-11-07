@@ -23,6 +23,7 @@ public enum ErrorCode {
 	NOT_PHOTO_UPLOADER(HttpStatus.FORBIDDEN, "사진을 올린 사람만 삭제할 수 있습니다"),
 	NOT_COMMENT_AUTHOR(HttpStatus.FORBIDDEN, "댓글을 쓴 사람만 삭제할 수 있습니다"),
 	NOT_ALLOWANCE_PARTICIPANT(HttpStatus.FORBIDDEN, "용돈 요청을 보낸 사람과 받은 사람만 볼 수 있습니다"),
+	NOT_ALLOWANCE_RECEIVER(HttpStatus.FORBIDDEN, "용돈 요청을 받은 사람만 처리할 수 있습니다"),
 	USER_SUSPENDED(HttpStatus.FORBIDDEN, "정지된 계정입니다"),
 	USER_NOT_FOUND(HttpStatus.NOT_FOUND, "존재하지 않는 회원입니다"),
 	FAMILY_NOT_FOUND(HttpStatus.NOT_FOUND, "참여한 가족이 없습니다"),
@@ -47,6 +48,7 @@ public enum ErrorCode {
 	REPORT_ALREADY_HANDLED(HttpStatus.CONFLICT, "이미 처리된 신고입니다"),
 	INQUIRY_ALREADY_ANSWERED(HttpStatus.CONFLICT, "이미 답변한 문의입니다"),
 	SOS_ALREADY_RESOLVED(HttpStatus.CONFLICT, "이미 해제된 SOS입니다"),
+	ALLOWANCE_ALREADY_HANDLED(HttpStatus.CONFLICT, "이미 처리된 용돈 요청입니다"),
 	INTERNAL_SERVER_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "서버 오류가 발생했습니다");
 
 	private final HttpStatus status;
