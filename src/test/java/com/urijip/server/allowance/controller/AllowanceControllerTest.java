@@ -9,9 +9,12 @@ import static org.mockito.Mockito.never;
 import com.urijip.server.allowance.dto.request.AllowanceCreateRequest;
 import com.urijip.server.allowance.dto.request.AllowanceStatusRequest;
 import java.time.OffsetDateTime;
+import java.time.YearMonth;
+import java.util.List;
 
 import com.urijip.server.allowance.dto.response.AllowanceCreateResponse;
 import com.urijip.server.allowance.dto.response.AllowanceDetailResponse;
+import com.urijip.server.allowance.dto.response.AllowanceMonthlyResponse;
 import com.urijip.server.allowance.dto.response.AllowanceResponse;
 import com.urijip.server.allowance.entity.AllowanceStatus;
 import com.urijip.server.allowance.service.AllowanceService;
@@ -222,6 +225,52 @@ class AllowanceControllerTest {
 
 		assertThat(result).hasStatus(HttpStatus.CONFLICT);
 		assertThat(result).bodyJson().extractingPath("$.error.code").isEqualTo("ALLOWANCE_ALREADY_HANDLED");
+	}
+
+	@Test
+	void getMonthlyReturnsRequestsAndTotal() {
+		given(allowanceService.getMonthly(2L, YearMonth.of(2026, 10), "sent")).willReturn(new AllowanceMonthlyResponse(
+				List.of(new AllowanceResponse(45L, 3L, new AllowanceResponse.Person(2L, "김첫째"),
+						new AllowanceResponse.Person(1L, "김엄마"), 30000, "문제집", AllowanceStatus.SENT,
+						OffsetDateTime.parse("2026-10-08T10:00:00+09:00"),
+						OffsetDateTime.parse("2026-10-08T12:30:00+09:00"))), 30000));
+
+		MvcTestResult result = mvc.get().uri("/api/allowance-requests?month=2026-10&type=sent")
+				.header("Authorization", kid())
+				.exchange();
+
+		assertThat(result).hasStatusOk();
+		assertThat(result).bodyJson().extractingPath("$.data.requests[0].id").isEqualTo(45);
+		assertThat(result).bodyJson().extractingPath("$.data.requests[0].status").isEqualTo("SENT");
+		assertThat(result).bodyJson().extractingPath("$.data.totalAmount").isEqualTo(30000);
+	}
+
+	@ParameterizedTest
+	@ValueSource(strings = {"?type=sent", "?month=2026-10", "?month=2026-13&type=sent", "?month=202610&type=sent"})
+	void getMonthlyWithMissingOrInvalidParamReturnsBadRequest(String query) {
+		MvcTestResult result = mvc.get().uri("/api/allowance-requests" + query).header("Authorization", kid()).exchange();
+
+		assertThat(result).hasStatus(HttpStatus.BAD_REQUEST);
+		then(allowanceService).should(never()).getMonthly(any(), any(), any());
+	}
+
+	@Test
+	void getMonthlyWithUnknownTypeReturnsBadRequest() {
+		given(allowanceService.getMonthly(2L, YearMonth.of(2026, 10), "all"))
+				.willThrow(new BusinessException(ErrorCode.INVALID_INPUT));
+
+		MvcTestResult result = mvc.get().uri("/api/allowance-requests?month=2026-10&type=all")
+				.header("Authorization", kid())
+				.exchange();
+
+		assertThat(result).hasStatus(HttpStatus.BAD_REQUEST);
+		assertThat(result).bodyJson().extractingPath("$.error.code").isEqualTo("INVALID_INPUT");
+	}
+
+	@Test
+	void getMonthlyWithoutAccessTokenReturnsUnauthorized() {
+		assertThat(mvc.get().uri("/api/allowance-requests?month=2026-10&type=sent").exchange())
+				.hasStatus(HttpStatus.UNAUTHORIZED);
 	}
 
 	private MvcTestResult changeStatus(String body, String authorization) {
