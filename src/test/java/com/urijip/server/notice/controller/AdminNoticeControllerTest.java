@@ -7,6 +7,8 @@ import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.BDDMockito.then;
 import static org.mockito.Mockito.never;
 
+import java.time.OffsetDateTime;
+
 import com.urijip.server.global.config.SecurityConfig;
 import com.urijip.server.global.exception.BusinessException;
 import com.urijip.server.global.exception.ErrorCode;
@@ -32,7 +34,7 @@ import org.springframework.test.web.servlet.assertj.MvcTestResult;
 class AdminNoticeControllerTest {
 
 	private static final AdminNoticeResponse NOTICE = new AdminNoticeResponse(3L, "서버 점검 안내", "내일 새벽 2시에 점검합니다.",
-			false, new AdminNoticeResponse.CreatedBy(100L, "관리자"));
+			false, new AdminNoticeResponse.CreatedBy(100L, "관리자"), OffsetDateTime.parse("2026-11-08T10:00:00+09:00"));
 
 	@Autowired
 	private MockMvcTester mvc;
@@ -58,6 +60,7 @@ class AdminNoticeControllerTest {
 		assertThat(result).bodyJson().extractingPath("$.data.content").isEqualTo("내일 새벽 2시에 점검합니다.");
 		assertThat(result).bodyJson().extractingPath("$.data.isPushed").isEqualTo(false);
 		assertThat(result).bodyJson().extractingPath("$.data.createdBy.name").isEqualTo("관리자");
+		assertThat(result).bodyJson().extractingPath("$.data.createdAt").isEqualTo("2026-11-08T10:00:00+09:00");
 	}
 
 	@ParameterizedTest
@@ -110,7 +113,8 @@ class AdminNoticeControllerTest {
 	@Test
 	void updateReturnsUpdatedNotice() {
 		given(adminNoticeService.update(3L, new AdminNoticeUpdateRequest(null, "새벽 3시로 바뀌었습니다.")))
-				.willReturn(new AdminNoticeResponse(3L, "서버 점검 안내", "새벽 3시로 바뀌었습니다.", false, NOTICE.createdBy()));
+				.willReturn(new AdminNoticeResponse(3L, "서버 점검 안내", "새벽 3시로 바뀌었습니다.", false, NOTICE.createdBy(),
+						NOTICE.createdAt()));
 
 		MvcTestResult result = update("{\"content\": \"새벽 3시로 바뀌었습니다.\"}", admin());
 

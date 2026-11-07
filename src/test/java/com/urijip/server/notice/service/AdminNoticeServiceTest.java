@@ -57,6 +57,7 @@ class AdminNoticeServiceTest {
 		assertThat(response.content()).isEqualTo("내일 새벽 2시에 점검합니다.");
 		assertThat(response.isPushed()).isFalse();
 		assertThat(response.createdBy()).isEqualTo(new AdminNoticeResponse.CreatedBy(admin.getId(), "관리자"));
+		assertThat(response.createdAt().getOffset().getId()).isEqualTo("+09:00");
 		Notice saved = noticeRepository.findById(response.id()).orElseThrow();
 		assertThat(saved.getCreatedBy().getId()).isEqualTo(admin.getId());
 	}
