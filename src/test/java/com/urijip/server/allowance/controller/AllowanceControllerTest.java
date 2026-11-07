@@ -7,6 +7,7 @@ import static org.mockito.BDDMockito.then;
 import static org.mockito.Mockito.never;
 
 import com.urijip.server.allowance.dto.request.AllowanceCreateRequest;
+import com.urijip.server.allowance.dto.request.AllowanceStatusRequest;
 import java.time.OffsetDateTime;
 
 import com.urijip.server.allowance.dto.response.AllowanceCreateResponse;
@@ -167,6 +168,72 @@ class AllowanceControllerTest {
 
 		assertThat(result).hasStatus(HttpStatus.NOT_FOUND);
 		assertThat(result).bodyJson().extractingPath("$.error.code").isEqualTo("ALLOWANCE_NOT_FOUND");
+	}
+
+	@Test
+	void changeStatusReturnsCompletedRequest() {
+		given(allowanceService.changeStatus(45L, 1L, new AllowanceStatusRequest(AllowanceStatus.SENT)))
+				.willReturn(new AllowanceResponse(45L, 3L, new AllowanceResponse.Person(2L, "김첫째"),
+						new AllowanceResponse.Person(1L, "김엄마"), 30000, null, AllowanceStatus.SENT,
+						OffsetDateTime.parse("2026-11-08T10:00:00+09:00"), OffsetDateTime.parse("2026-11-08T12:30:00+09:00")));
+
+		MvcTestResult result = changeStatus("{\"status\": \"SENT\"}", mom());
+
+		assertThat(result).hasStatusOk();
+		assertThat(result).bodyJson().extractingPath("$.data.status").isEqualTo("SENT");
+		assertThat(result).bodyJson().extractingPath("$.data.completedAt").isEqualTo("2026-11-08T12:30:00+09:00");
+	}
+
+	@ParameterizedTest
+	@ValueSource(strings = {"{}", "{\"status\": null}"})
+	void changeStatusWithInvalidBodyReturnsBadRequest(String body) {
+		MvcTestResult result = changeStatus(body, mom());
+
+		assertThat(result).hasStatus(HttpStatus.BAD_REQUEST);
+		assertThat(result).bodyJson().extractingPath("$.error.code").isEqualTo("INVALID_INPUT");
+		then(allowanceService).should(never()).changeStatus(any(), any(), any());
+	}
+
+	@Test
+	void changeStatusWithUnknownStatusReturnsBadRequest() {
+		MvcTestResult result = changeStatus("{\"status\": \"DONE\"}", mom());
+
+		assertThat(result).hasStatus(HttpStatus.BAD_REQUEST);
+		then(allowanceService).should(never()).changeStatus(any(), any(), any());
+	}
+
+	@Test
+	void changeStatusByRequesterReturnsForbidden() {
+		given(allowanceService.changeStatus(45L, 2L, new AllowanceStatusRequest(AllowanceStatus.SENT)))
+				.willThrow(new BusinessException(ErrorCode.NOT_ALLOWANCE_RECEIVER));
+
+		MvcTestResult result = changeStatus("{\"status\": \"SENT\"}", kid());
+
+		assertThat(result).hasStatus(HttpStatus.FORBIDDEN);
+		assertThat(result).bodyJson().extractingPath("$.error.code").isEqualTo("NOT_ALLOWANCE_RECEIVER");
+	}
+
+	@Test
+	void changeStatusTwiceReturnsConflict() {
+		given(allowanceService.changeStatus(45L, 1L, new AllowanceStatusRequest(AllowanceStatus.REJECTED)))
+				.willThrow(new BusinessException(ErrorCode.ALLOWANCE_ALREADY_HANDLED));
+
+		MvcTestResult result = changeStatus("{\"status\": \"REJECTED\"}", mom());
+
+		assertThat(result).hasStatus(HttpStatus.CONFLICT);
+		assertThat(result).bodyJson().extractingPath("$.error.code").isEqualTo("ALLOWANCE_ALREADY_HANDLED");
+	}
+
+	private MvcTestResult changeStatus(String body, String authorization) {
+		return mvc.patch().uri("/api/allowance-requests/45")
+				.header("Authorization", authorization)
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(body)
+				.exchange();
+	}
+
+	private String mom() {
+		return "Bearer " + jwtProvider.createAccessToken(1L, "USER");
 	}
 
 	private MvcTestResult create(String body) {
