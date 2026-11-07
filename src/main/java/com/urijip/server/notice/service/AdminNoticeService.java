@@ -32,6 +32,11 @@ public class AdminNoticeService {
 		return AdminNoticeResponse.from(notice);
 	}
 
+	@Transactional
+	public void delete(Long noticeId) {
+		noticeRepository.delete(getNotice(noticeId));
+	}
+
 	private Notice getNotice(Long noticeId) {
 		return noticeRepository.findById(noticeId)
 				.orElseThrow(() -> new BusinessException(ErrorCode.NOTICE_NOT_FOUND));

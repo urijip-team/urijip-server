@@ -88,4 +88,22 @@ class AdminNoticeServiceTest {
 						e -> assertThat(e.getErrorCode()).isEqualTo(ErrorCode.NOTICE_NOT_FOUND));
 	}
 
+	@Test
+	void deleteRemovesOnlyThatNotice() {
+		Notice notice = noticeRepository.save(new Notice(admin, "지울 공지", "내용"));
+		Notice other = noticeRepository.save(new Notice(admin, "남길 공지", "내용"));
+
+		adminNoticeService.delete(notice.getId());
+
+		assertThat(noticeRepository.findById(notice.getId())).isEmpty();
+		assertThat(noticeRepository.findById(other.getId())).isPresent();
+	}
+
+	@Test
+	void deleteUnknownNoticeFails() {
+		assertThatThrownBy(() -> adminNoticeService.delete(-1L))
+				.isInstanceOfSatisfying(BusinessException.class,
+						e -> assertThat(e.getErrorCode()).isEqualTo(ErrorCode.NOTICE_NOT_FOUND));
+	}
+
 }
