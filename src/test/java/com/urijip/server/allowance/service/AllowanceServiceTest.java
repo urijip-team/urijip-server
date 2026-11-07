@@ -6,6 +6,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import com.urijip.server.TestcontainersConfiguration;
 import com.urijip.server.allowance.dto.request.AllowanceCreateRequest;
 import com.urijip.server.allowance.dto.response.AllowanceCreateResponse;
+import com.urijip.server.allowance.dto.response.AllowanceDetailResponse;
+import com.urijip.server.allowance.dto.response.AllowanceResponse;
 import com.urijip.server.allowance.entity.AllowanceRequest;
 import com.urijip.server.allowance.entity.AllowanceStatus;
 import com.urijip.server.allowance.repository.AllowanceRequestRepository;
@@ -18,7 +20,10 @@ import com.urijip.server.family.dto.response.FamilyResponse;
 import com.urijip.server.family.service.FamilyService;
 import com.urijip.server.global.exception.BusinessException;
 import com.urijip.server.global.exception.ErrorCode;
+import com.urijip.server.member.dto.request.PaymentInfoRequest;
+import com.urijip.server.member.dto.response.PaymentInfoResponse;
 import com.urijip.server.member.entity.User;
+import com.urijip.server.member.service.PaymentInfoService;
 import com.urijip.server.member.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -43,6 +48,9 @@ class AllowanceServiceTest {
 
 	@Autowired
 	private ChatMessageRepository chatMessageRepository;
+
+	@Autowired
+	private PaymentInfoService paymentInfoService;
 
 	@Autowired
 	private UserRepository userRepository;
@@ -133,6 +141,54 @@ class AllowanceServiceTest {
 		assertThatThrownBy(() -> request(kid, kid, 5000, null))
 				.isInstanceOfSatisfying(BusinessException.class,
 						e -> assertThat(e.getErrorCode()).isEqualTo(ErrorCode.CANNOT_REQUEST_SELF));
+	}
+
+	@Test
+	void getDetailIncludesRequesterPaymentInfo() {
+		paymentInfoService.register(kid.getId(), new PaymentInfoRequest("국민은행", "12345678905678", "김첫째",
+				"https://toss.me/kid"));
+		Long requestId = request(kid, mom, 30000, "문제집 사야 해요").requestId();
+
+		AllowanceDetailResponse detail = allowanceService.getDetail(requestId, mom.getId());
+
+		assertThat(detail.id()).isEqualTo(requestId);
+		assertThat(detail.familyId()).isEqualTo(familyId);
+		assertThat(detail.requester()).isEqualTo(new AllowanceResponse.Person(kid.getId(), "김첫째"));
+		assertThat(detail.receiver()).isEqualTo(new AllowanceResponse.Person(mom.getId(), "김엄마"));
+		assertThat(detail.amount()).isEqualTo(30000);
+		assertThat(detail.reason()).isEqualTo("문제집 사야 해요");
+		assertThat(detail.status()).isEqualTo(AllowanceStatus.REQUESTED);
+		assertThat(detail.createdAt().getOffset().getId()).isEqualTo("+09:00");
+		assertThat(detail.completedAt()).isNull();
+		assertThat(detail.requesterPaymentInfo()).isEqualTo(new PaymentInfoResponse("국민은행", "****-5678", "김첫째",
+				"https://toss.me/kid"));
+	}
+
+	@Test
+	void requesterCanSeeDetailWithoutPaymentInfo() {
+		Long requestId = request(kid, mom, 30000, null).requestId();
+
+		AllowanceDetailResponse detail = allowanceService.getDetail(requestId, kid.getId());
+
+		assertThat(detail.requesterPaymentInfo()).isNull();
+	}
+
+	@Test
+	void otherFamilyMemberCannotSeeDetail() {
+		User dad = saveUser("dad@example.com", "김아빠");
+		familyService.join(dad.getId(), new FamilyJoinRequest(familyService.getMyFamily(mom.getId()).inviteCode()));
+		Long requestId = request(kid, mom, 30000, null).requestId();
+
+		assertThatThrownBy(() -> allowanceService.getDetail(requestId, dad.getId()))
+				.isInstanceOfSatisfying(BusinessException.class,
+						e -> assertThat(e.getErrorCode()).isEqualTo(ErrorCode.NOT_ALLOWANCE_PARTICIPANT));
+	}
+
+	@Test
+	void getUnknownDetailFails() {
+		assertThatThrownBy(() -> allowanceService.getDetail(-1L, mom.getId()))
+				.isInstanceOfSatisfying(BusinessException.class,
+						e -> assertThat(e.getErrorCode()).isEqualTo(ErrorCode.ALLOWANCE_NOT_FOUND));
 	}
 
 	private AllowanceCreateResponse request(User requester, User receiver, int amount, String reason) {
