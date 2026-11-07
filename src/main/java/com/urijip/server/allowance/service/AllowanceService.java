@@ -1,14 +1,18 @@
 package com.urijip.server.allowance.service;
 
+import java.time.LocalDateTime;
+import java.time.YearMonth;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.stream.Collectors;
 
 import com.urijip.server.allowance.dto.request.AllowanceCreateRequest;
+import com.urijip.server.allowance.dto.request.AllowanceHistoryType;
 import com.urijip.server.allowance.dto.request.AllowanceStatusRequest;
 import com.urijip.server.allowance.dto.response.AllowanceCreateResponse;
 import com.urijip.server.allowance.dto.response.AllowanceDetailResponse;
+import com.urijip.server.allowance.dto.response.AllowanceMonthlyResponse;
 import com.urijip.server.allowance.dto.response.AllowanceResponse;
 import com.urijip.server.allowance.entity.AllowanceRequest;
 import com.urijip.server.allowance.entity.AllowanceStatus;
@@ -80,6 +84,19 @@ public class AllowanceService {
 
 		allowance.complete(request.status());
 		return AllowanceResponse.from(allowance);
+	}
+
+	// 그 달(서울 시간)에 만든 요청 중 내가 보냈거나(sent) 받은(received) 것. 가족을 옮겨도 모두 보인다.
+	@Transactional(readOnly = true)
+	public AllowanceMonthlyResponse getMonthly(Long userId, YearMonth month, String type) {
+		AllowanceHistoryType historyType = AllowanceHistoryType.from(type);
+		LocalDateTime from = month.atDay(1).atStartOfDay();
+		LocalDateTime to = month.plusMonths(1).atDay(1).atStartOfDay();
+
+		List<AllowanceRequest> requests = historyType == AllowanceHistoryType.SENT
+				? allowanceRequestRepository.findSent(userId, from, to)
+				: allowanceRequestRepository.findReceived(userId, from, to);
+		return AllowanceMonthlyResponse.from(requests.stream().map(AllowanceResponse::from).toList());
 	}
 
 	private AllowanceRequest getAllowance(Long requestId) {

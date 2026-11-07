@@ -3,11 +3,14 @@ package com.urijip.server.allowance.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import java.time.YearMonth;
+
 import com.urijip.server.TestcontainersConfiguration;
 import com.urijip.server.allowance.dto.request.AllowanceCreateRequest;
 import com.urijip.server.allowance.dto.request.AllowanceStatusRequest;
 import com.urijip.server.allowance.dto.response.AllowanceCreateResponse;
 import com.urijip.server.allowance.dto.response.AllowanceDetailResponse;
+import com.urijip.server.allowance.dto.response.AllowanceMonthlyResponse;
 import com.urijip.server.allowance.dto.response.AllowanceResponse;
 import com.urijip.server.allowance.entity.AllowanceRequest;
 import com.urijip.server.allowance.entity.AllowanceStatus;
@@ -21,6 +24,7 @@ import com.urijip.server.family.dto.response.FamilyResponse;
 import com.urijip.server.family.service.FamilyService;
 import com.urijip.server.global.exception.BusinessException;
 import com.urijip.server.global.exception.ErrorCode;
+import com.urijip.server.global.time.SeoulTime;
 import com.urijip.server.member.dto.request.PaymentInfoRequest;
 import com.urijip.server.member.dto.response.PaymentInfoResponse;
 import com.urijip.server.member.entity.User;
@@ -249,6 +253,53 @@ class AllowanceServiceTest {
 				new AllowanceStatusRequest(AllowanceStatus.SENT)))
 				.isInstanceOfSatisfying(BusinessException.class,
 						e -> assertThat(e.getErrorCode()).isEqualTo(ErrorCode.ALLOWANCE_NOT_FOUND));
+	}
+
+	@Test
+	void getMonthlySentListsMyRequestsWithSentTotal() {
+		Long sent = request(kid, mom, 30000, null).requestId();
+		Long rejected = request(kid, mom, 50000, null).requestId();
+		Long waiting = request(kid, mom, 7000, null).requestId();
+		request(mom, kid, 1000, null);
+		allowanceService.changeStatus(sent, mom.getId(), new AllowanceStatusRequest(AllowanceStatus.SENT));
+		allowanceService.changeStatus(rejected, mom.getId(), new AllowanceStatusRequest(AllowanceStatus.REJECTED));
+
+		AllowanceMonthlyResponse monthly = allowanceService.getMonthly(kid.getId(), YearMonth.now(SeoulTime.ZONE),
+				"sent");
+
+		assertThat(monthly.requests()).extracting(AllowanceResponse::id).containsExactly(waiting, rejected, sent);
+		assertThat(monthly.totalAmount()).isEqualTo(30000);
+	}
+
+	@Test
+	void getMonthlyReceivedListsRequestsToMe() {
+		Long toMom = request(kid, mom, 30000, null).requestId();
+		request(mom, kid, 1000, null);
+
+		AllowanceMonthlyResponse monthly = allowanceService.getMonthly(mom.getId(), YearMonth.now(SeoulTime.ZONE),
+				"received");
+
+		assertThat(monthly.requests()).extracting(AllowanceResponse::id).containsExactly(toMom);
+		assertThat(monthly.requests().getFirst().requester()).isEqualTo(new AllowanceResponse.Person(kid.getId(), "김첫째"));
+		assertThat(monthly.totalAmount()).isZero();
+	}
+
+	@Test
+	void getMonthlyOfOtherMonthIsEmpty() {
+		request(kid, mom, 30000, null);
+
+		AllowanceMonthlyResponse monthly = allowanceService.getMonthly(kid.getId(),
+				YearMonth.now(SeoulTime.ZONE).minusMonths(1), "sent");
+
+		assertThat(monthly.requests()).isEmpty();
+		assertThat(monthly.totalAmount()).isZero();
+	}
+
+	@Test
+	void getMonthlyWithUnknownTypeFails() {
+		assertThatThrownBy(() -> allowanceService.getMonthly(kid.getId(), YearMonth.now(SeoulTime.ZONE), "all"))
+				.isInstanceOfSatisfying(BusinessException.class,
+						e -> assertThat(e.getErrorCode()).isEqualTo(ErrorCode.INVALID_INPUT));
 	}
 
 	private AllowanceCreateResponse request(User requester, User receiver, int amount, String reason) {
