@@ -33,6 +33,7 @@ public enum ErrorCode {
 	COMMENT_NOT_FOUND(HttpStatus.NOT_FOUND, "존재하지 않는 댓글입니다"),
 	REPORT_NOT_FOUND(HttpStatus.NOT_FOUND, "존재하지 않는 신고입니다"),
 	INQUIRY_NOT_FOUND(HttpStatus.NOT_FOUND, "존재하지 않는 문의입니다"),
+	NOTICE_NOT_FOUND(HttpStatus.NOT_FOUND, "존재하지 않는 공지입니다"),
 	SOS_NOT_FOUND(HttpStatus.NOT_FOUND, "존재하지 않는 SOS입니다"),
 	PAYMENT_INFO_NOT_FOUND(HttpStatus.NOT_FOUND, "등록된 송금 정보가 없습니다"),
 	EMAIL_DUPLICATED(HttpStatus.CONFLICT, "이미 가입된 이메일입니다"),

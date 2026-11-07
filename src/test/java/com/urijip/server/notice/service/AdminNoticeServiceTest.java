@@ -10,6 +10,7 @@ import com.urijip.server.member.entity.Role;
 import com.urijip.server.member.entity.User;
 import com.urijip.server.member.repository.UserRepository;
 import com.urijip.server.notice.dto.request.AdminNoticeCreateRequest;
+import com.urijip.server.notice.dto.request.AdminNoticeUpdateRequest;
 import com.urijip.server.notice.dto.response.AdminNoticeResponse;
 import com.urijip.server.notice.entity.Notice;
 import com.urijip.server.notice.repository.NoticeRepository;
@@ -66,6 +67,25 @@ class AdminNoticeServiceTest {
 				.isInstanceOfSatisfying(BusinessException.class,
 						e -> assertThat(e.getErrorCode()).isEqualTo(ErrorCode.USER_NOT_FOUND));
 		assertThat(noticeRepository.count()).isZero();
+	}
+
+	@Test
+	void updateChangesOnlySentFields() {
+		Notice notice = noticeRepository.save(new Notice(admin, "서버 점검 안내", "내일 새벽 2시에 점검합니다."));
+
+		AdminNoticeResponse response = adminNoticeService.update(notice.getId(),
+				new AdminNoticeUpdateRequest(null, "내일 새벽 3시로 바뀌었습니다."));
+
+		assertThat(response.title()).isEqualTo("서버 점검 안내");
+		assertThat(response.content()).isEqualTo("내일 새벽 3시로 바뀌었습니다.");
+		assertThat(notice.getContent()).isEqualTo("내일 새벽 3시로 바뀌었습니다.");
+	}
+
+	@Test
+	void updateUnknownNoticeFails() {
+		assertThatThrownBy(() -> adminNoticeService.update(-1L, new AdminNoticeUpdateRequest("제목", null)))
+				.isInstanceOfSatisfying(BusinessException.class,
+						e -> assertThat(e.getErrorCode()).isEqualTo(ErrorCode.NOTICE_NOT_FOUND));
 	}
 
 }
