@@ -16,7 +16,7 @@ public class NoticeService {
 
 	private final NoticeRepository noticeRepository;
 
-	// 공지에는 작성 시각이 없어 id가 큰 것(나중에 쓴 것)부터 보여 준다.
+	// 최신순이다. 작성 순서와 같은 id로 정렬한다.
 	@Transactional(readOnly = true)
 	public PageResponse<NoticeResponse> getNotices(NoticeSearchRequest request) {
 		PageRequest pageable = PageRequest.of(request.pageOrDefault(), request.sizeOrDefault(),

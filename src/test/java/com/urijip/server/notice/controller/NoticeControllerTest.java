@@ -3,6 +3,7 @@ package com.urijip.server.notice.controller;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.BDDMockito.given;
 
+import java.time.OffsetDateTime;
 import java.util.List;
 
 import com.urijip.server.global.config.SecurityConfig;
@@ -36,7 +37,8 @@ class NoticeControllerTest {
 	@Test
 	void getNoticesReturnsPage() {
 		given(noticeService.getNotices(new NoticeSearchRequest(1, 10)))
-				.willReturn(new PageResponse<>(List.of(new NoticeResponse(3L, "서버 점검 안내", "내일 새벽 2시에 점검합니다.")),
+				.willReturn(new PageResponse<>(List.of(new NoticeResponse(3L, "서버 점검 안내", "내일 새벽 2시에 점검합니다.",
+						OffsetDateTime.parse("2026-11-08T10:00:00+09:00"))),
 						1, 10, 11, 2));
 
 		MvcTestResult result = mvc.get().uri("/api/notices?page=1&size=10")
@@ -47,6 +49,8 @@ class NoticeControllerTest {
 		assertThat(result).bodyJson().extractingPath("$.data.content[0].id").isEqualTo(3);
 		assertThat(result).bodyJson().extractingPath("$.data.content[0].title").isEqualTo("서버 점검 안내");
 		assertThat(result).bodyJson().extractingPath("$.data.content[0].content").isEqualTo("내일 새벽 2시에 점검합니다.");
+		assertThat(result).bodyJson().extractingPath("$.data.content[0].createdAt")
+				.isEqualTo("2026-11-08T10:00:00+09:00");
 		assertThat(result).bodyJson().extractingPath("$.data.totalElements").isEqualTo(11);
 	}
 

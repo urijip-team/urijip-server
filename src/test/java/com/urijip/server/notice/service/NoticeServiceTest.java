@@ -1,6 +1,7 @@
 package com.urijip.server.notice.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.tuple;
 
 import com.urijip.server.TestcontainersConfiguration;
 import com.urijip.server.global.response.PageResponse;
@@ -54,6 +55,7 @@ class NoticeServiceTest {
 		PageResponse<NoticeResponse> response = noticeService.getNotices(new NoticeSearchRequest(null, null));
 
 		assertThat(response.content()).extracting(NoticeResponse::id).containsExactly(second.getId(), first.getId());
+		assertThat(response.content().getFirst().createdAt().getOffset().getId()).isEqualTo("+09:00");
 		assertThat(response.size()).isEqualTo(20);
 		assertThat(response.totalElements()).isEqualTo(2);
 	}
@@ -77,8 +79,8 @@ class NoticeServiceTest {
 		adminNoticeService.update(first.getId(), new AdminNoticeUpdateRequest("고친 첫 공지", null));
 
 		assertThat(noticeService.getNotices(new NoticeSearchRequest(null, null)).content())
-				.containsExactly(new NoticeResponse(second.getId(), "둘째 공지", "내용"),
-						new NoticeResponse(first.getId(), "고친 첫 공지", "내용"));
+				.extracting(NoticeResponse::id, NoticeResponse::title)
+				.containsExactly(tuple(second.getId(), "둘째 공지"), tuple(first.getId(), "고친 첫 공지"));
 	}
 
 	@Test
