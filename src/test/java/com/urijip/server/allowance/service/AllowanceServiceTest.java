@@ -29,6 +29,7 @@ import com.urijip.server.member.dto.request.PaymentInfoRequest;
 import com.urijip.server.member.dto.response.PaymentInfoResponse;
 import com.urijip.server.member.entity.User;
 import com.urijip.server.member.service.PaymentInfoService;
+import jakarta.persistence.EntityManager;
 import com.urijip.server.member.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -58,6 +59,9 @@ class AllowanceServiceTest {
 
 	@Autowired
 	private PaymentInfoService paymentInfoService;
+
+	@Autowired
+	private EntityManager entityManager;
 
 	@Autowired
 	private UserRepository userRepository;
@@ -300,6 +304,24 @@ class AllowanceServiceTest {
 		assertThatThrownBy(() -> allowanceService.getMonthly(kid.getId(), YearMonth.now(SeoulTime.ZONE), "all"))
 				.isInstanceOfSatisfying(BusinessException.class,
 						e -> assertThat(e.getErrorCode()).isEqualTo(ErrorCode.INVALID_INPUT));
+	}
+
+	@Test
+	void deletingFamilyDeletesItsRequests() {
+		User dad = saveUser("dad@example.com", "김아빠");
+		User son = saveUser("son@example.com", "박아들");
+		FamilyResponse other = familyService.create(dad.getId(), new FamilyCreateRequest("박씨네"));
+		familyService.join(son.getId(), new FamilyJoinRequest(other.inviteCode()));
+		allowanceService.create(son.getId(), new AllowanceCreateRequest(other.id(), dad.getId(), 1000, null));
+		Long remaining = request(kid, mom, 30000, null).requestId();
+		// 실제로는 저장과 가족 삭제가 다른 트랜잭션이다. 벌크 삭제는 영속성 컨텍스트를 거치지 않으므로 비워 둔다.
+		entityManager.flush();
+		entityManager.clear();
+
+		familyService.removeMember(other.id(), son.getId(), son.getId());
+		familyService.removeMember(other.id(), dad.getId(), dad.getId());
+
+		assertThat(allowanceRequestRepository.findAll()).extracting(AllowanceRequest::getId).containsExactly(remaining);
 	}
 
 	private AllowanceCreateResponse request(User requester, User receiver, int amount, String reason) {

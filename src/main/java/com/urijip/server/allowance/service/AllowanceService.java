@@ -19,12 +19,14 @@ import com.urijip.server.allowance.entity.AllowanceStatus;
 import com.urijip.server.allowance.repository.AllowanceRequestRepository;
 import com.urijip.server.chat.service.ChatService;
 import com.urijip.server.family.dto.response.FamilyMemberResponse;
+import com.urijip.server.family.service.FamilyDeletedEvent;
 import com.urijip.server.family.service.FamilyService;
 import com.urijip.server.global.exception.BusinessException;
 import com.urijip.server.global.exception.ErrorCode;
 import com.urijip.server.member.service.PaymentInfoService;
 import com.urijip.server.member.service.UserService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -97,6 +99,11 @@ public class AllowanceService {
 				? allowanceRequestRepository.findSent(userId, from, to)
 				: allowanceRequestRepository.findReceived(userId, from, to);
 		return AllowanceMonthlyResponse.from(requests.stream().map(AllowanceResponse::from).toList());
+	}
+
+	@EventListener
+	public void onFamilyDeleted(FamilyDeletedEvent event) {
+		allowanceRequestRepository.deleteByFamilyId(event.familyId());
 	}
 
 	private AllowanceRequest getAllowance(Long requestId) {
