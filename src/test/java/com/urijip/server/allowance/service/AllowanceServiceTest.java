@@ -9,8 +9,11 @@ import com.urijip.server.allowance.dto.response.AllowanceCreateResponse;
 import com.urijip.server.allowance.entity.AllowanceRequest;
 import com.urijip.server.allowance.entity.AllowanceStatus;
 import com.urijip.server.allowance.repository.AllowanceRequestRepository;
+import com.urijip.server.chat.entity.MessageType;
+import com.urijip.server.chat.repository.ChatMessageRepository;
 import com.urijip.server.family.dto.request.FamilyCreateRequest;
 import com.urijip.server.family.dto.request.FamilyJoinRequest;
+import com.urijip.server.family.dto.request.NicknameUpdateRequest;
 import com.urijip.server.family.dto.response.FamilyResponse;
 import com.urijip.server.family.service.FamilyService;
 import com.urijip.server.global.exception.BusinessException;
@@ -37,6 +40,9 @@ class AllowanceServiceTest {
 
 	@Autowired
 	private FamilyService familyService;
+
+	@Autowired
+	private ChatMessageRepository chatMessageRepository;
 
 	@Autowired
 	private UserRepository userRepository;
@@ -70,6 +76,34 @@ class AllowanceServiceTest {
 		assertThat(saved.getReceiver().getId()).isEqualTo(mom.getId());
 		assertThat(saved.getAmount()).isEqualTo(30000);
 		assertThat(saved.getReason()).isEqualTo("문제집 사야 해요");
+	}
+
+	@Test
+	void createPostsSystemMessageWithNickname() {
+		familyService.changeMyNickname(familyId, kid.getId(), new NicknameUpdateRequest("첫째"));
+
+		request(kid, mom, 30000, "문제집 사야 해요");
+
+		assertThat(chatMessageRepository.findAll()).singleElement().satisfies(message -> {
+			assertThat(message.getType()).isEqualTo(MessageType.SYSTEM);
+			assertThat(message.getFamily().getId()).isEqualTo(familyId);
+			assertThat(message.getContent()).isEqualTo("첫째님이 용돈 30,000원을 요청했어요.");
+		});
+	}
+
+	@Test
+	void createPostsSystemMessageWithNameWhenNoNickname() {
+		request(kid, mom, 1500000, null);
+
+		assertThat(chatMessageRepository.findAll()).singleElement()
+				.satisfies(message -> assertThat(message.getContent()).isEqualTo("김첫째님이 용돈 1,500,000원을 요청했어요."));
+	}
+
+	@Test
+	void failedCreatePostsNoMessage() {
+		assertThatThrownBy(() -> request(kid, kid, 5000, null)).isInstanceOf(BusinessException.class);
+
+		assertThat(chatMessageRepository.count()).isZero();
 	}
 
 	@Test
