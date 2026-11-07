@@ -21,4 +21,14 @@ public interface AllowanceRequestRepository extends JpaRepository<AllowanceReque
 	List<AllowanceRequest> findSent(@Param("userId") Long userId, @Param("from") LocalDateTime from,
 			@Param("to") LocalDateTime to);
 
+	// 내가 받은 요청 중 [from, to)에 만든 것. 최신순이다.
+	@EntityGraph(attributePaths = {"family", "requester", "receiver"})
+	@Query("""
+			select a from AllowanceRequest a
+			where a.receiver.id = :userId and a.createdAt >= :from and a.createdAt < :to
+			order by a.id desc
+			""")
+	List<AllowanceRequest> findReceived(@Param("userId") Long userId, @Param("from") LocalDateTime from,
+			@Param("to") LocalDateTime to);
+
 }

@@ -91,6 +91,20 @@ class AllowanceRequestRepositoryTest {
 				.extracting(AllowanceRequest::getId).containsExactly(late.getId(), early.getId());
 	}
 
+	@Test
+	void findReceivedReturnsOnlyRequestsToMeInRangeNewestFirst() {
+		User dad = saveUser("dad@example.com", "김아빠");
+		AllowanceRequest fromKid = saveAt(kid, mom, LocalDateTime.of(2026, 10, 3, 9, 0));
+		AllowanceRequest fromDad = saveAt(dad, mom, LocalDateTime.of(2026, 10, 20, 9, 0));
+		saveAt(kid, dad, LocalDateTime.of(2026, 10, 10, 9, 0));
+		saveAt(kid, mom, LocalDateTime.of(2026, 11, 1, 0, 0));
+		entityManager.clear();
+
+		assertThat(allowanceRequestRepository.findReceived(mom.getId(), LocalDateTime.of(2026, 10, 1, 0, 0),
+				LocalDateTime.of(2026, 11, 1, 0, 0)))
+				.extracting(AllowanceRequest::getId).containsExactly(fromDad.getId(), fromKid.getId());
+	}
+
 	// created_at은 감사 기능이 넣고 updatable = false라서 SQL로 바꾼다. 읽기 전에 영속성 컨텍스트를 비운다.
 	private AllowanceRequest saveAt(User requester, User receiver, LocalDateTime createdAt) {
 		AllowanceRequest request = allowanceRequestRepository.saveAndFlush(
