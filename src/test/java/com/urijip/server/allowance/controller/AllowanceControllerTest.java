@@ -7,13 +7,18 @@ import static org.mockito.BDDMockito.then;
 import static org.mockito.Mockito.never;
 
 import com.urijip.server.allowance.dto.request.AllowanceCreateRequest;
+import java.time.OffsetDateTime;
+
 import com.urijip.server.allowance.dto.response.AllowanceCreateResponse;
+import com.urijip.server.allowance.dto.response.AllowanceDetailResponse;
+import com.urijip.server.allowance.dto.response.AllowanceResponse;
 import com.urijip.server.allowance.entity.AllowanceStatus;
 import com.urijip.server.allowance.service.AllowanceService;
 import com.urijip.server.global.config.SecurityConfig;
 import com.urijip.server.global.exception.BusinessException;
 import com.urijip.server.global.exception.ErrorCode;
 import com.urijip.server.global.security.JwtProvider;
+import com.urijip.server.member.dto.response.PaymentInfoResponse;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
@@ -118,6 +123,50 @@ class AllowanceControllerTest {
 				.exchange();
 
 		assertThat(result).hasStatus(HttpStatus.UNAUTHORIZED);
+	}
+
+	@Test
+	void getDetailReturnsRequestWithPaymentInfo() {
+		given(allowanceService.getDetail(45L, 2L)).willReturn(new AllowanceDetailResponse(45L, 3L,
+				new AllowanceResponse.Person(2L, "김첫째"), new AllowanceResponse.Person(1L, "김엄마"), 30000, "문제집 사야 해요",
+				AllowanceStatus.REQUESTED, OffsetDateTime.parse("2026-11-08T10:00:00+09:00"), null,
+				new PaymentInfoResponse("국민은행", "****-5678", "김첫째", "https://toss.me/kid")));
+
+		MvcTestResult result = mvc.get().uri("/api/allowance-requests/45").header("Authorization", kid()).exchange();
+
+		assertThat(result).hasStatusOk();
+		assertThat(result).bodyJson().extractingPath("$.data.id").isEqualTo(45);
+		assertThat(result).bodyJson().extractingPath("$.data.familyId").isEqualTo(3);
+		assertThat(result).bodyJson().extractingPath("$.data.requester.name").isEqualTo("김첫째");
+		assertThat(result).bodyJson().extractingPath("$.data.receiver.id").isEqualTo(1);
+		assertThat(result).bodyJson().extractingPath("$.data.amount").isEqualTo(30000);
+		assertThat(result).bodyJson().extractingPath("$.data.status").isEqualTo("REQUESTED");
+		assertThat(result).bodyJson().extractingPath("$.data.createdAt").isEqualTo("2026-11-08T10:00:00+09:00");
+		assertThat(result).bodyJson().extractingPath("$.data.completedAt").isNull();
+		assertThat(result).bodyJson().extractingPath("$.data.requesterPaymentInfo.maskedAccount").isEqualTo("****-5678");
+		assertThat(result).bodyJson().extractingPath("$.data.requesterPaymentInfo.transferLink")
+				.isEqualTo("https://toss.me/kid");
+	}
+
+	@Test
+	void getDetailByOtherMemberReturnsForbidden() {
+		given(allowanceService.getDetail(45L, 2L))
+				.willThrow(new BusinessException(ErrorCode.NOT_ALLOWANCE_PARTICIPANT));
+
+		MvcTestResult result = mvc.get().uri("/api/allowance-requests/45").header("Authorization", kid()).exchange();
+
+		assertThat(result).hasStatus(HttpStatus.FORBIDDEN);
+		assertThat(result).bodyJson().extractingPath("$.error.code").isEqualTo("NOT_ALLOWANCE_PARTICIPANT");
+	}
+
+	@Test
+	void getUnknownDetailReturnsNotFound() {
+		given(allowanceService.getDetail(45L, 2L)).willThrow(new BusinessException(ErrorCode.ALLOWANCE_NOT_FOUND));
+
+		MvcTestResult result = mvc.get().uri("/api/allowance-requests/45").header("Authorization", kid()).exchange();
+
+		assertThat(result).hasStatus(HttpStatus.NOT_FOUND);
+		assertThat(result).bodyJson().extractingPath("$.error.code").isEqualTo("ALLOWANCE_NOT_FOUND");
 	}
 
 	private MvcTestResult create(String body) {
