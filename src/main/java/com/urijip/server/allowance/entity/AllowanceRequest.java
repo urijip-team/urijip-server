@@ -4,6 +4,7 @@ import java.time.LocalDateTime;
 
 import com.urijip.server.family.entity.Family;
 import com.urijip.server.global.entity.BaseTimeEntity;
+import com.urijip.server.global.time.SeoulTime;
 import com.urijip.server.member.entity.User;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -66,6 +67,27 @@ public class AllowanceRequest extends BaseTimeEntity {
 		this.amount = amount;
 		this.reason = reason;
 		this.status = AllowanceStatus.REQUESTED;
+	}
+
+	public boolean isHandled() {
+		return status != AllowanceStatus.REQUESTED;
+	}
+
+	public boolean isParticipant(Long userId) {
+		return requester.getId().equals(userId) || receiver.getId().equals(userId);
+	}
+
+	public boolean isReceiver(Long userId) {
+		return receiver.getId().equals(userId);
+	}
+
+	// SENT나 REJECTED로 바꾸고 처리 시각을 남긴다. 처리 가능 여부는 서비스가 먼저 검사한다.
+	public void complete(AllowanceStatus result) {
+		if (result == AllowanceStatus.REQUESTED) {
+			throw new IllegalArgumentException("처리 결과는 SENT나 REJECTED여야 합니다");
+		}
+		this.status = result;
+		this.completedAt = LocalDateTime.now(SeoulTime.ZONE);
 	}
 
 }
