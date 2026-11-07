@@ -3,6 +3,7 @@ package com.urijip.server.notice.controller;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.BDDMockito.then;
 import static org.mockito.Mockito.never;
 
@@ -152,6 +153,33 @@ class AdminNoticeControllerTest {
 
 		assertThat(result).hasStatus(HttpStatus.FORBIDDEN);
 		then(adminNoticeService).should(never()).update(any(), any());
+	}
+
+	@Test
+	void deleteReturnsOk() {
+		MvcTestResult result = mvc.delete().uri("/admin/notices/3").header("Authorization", admin()).exchange();
+
+		assertThat(result).hasStatusOk();
+		assertThat(result).bodyJson().extractingPath("$.success").isEqualTo(true);
+		then(adminNoticeService).should().delete(3L);
+	}
+
+	@Test
+	void deleteUnknownNoticeReturnsNotFound() {
+		willThrow(new BusinessException(ErrorCode.NOTICE_NOT_FOUND)).given(adminNoticeService).delete(3L);
+
+		MvcTestResult result = mvc.delete().uri("/admin/notices/3").header("Authorization", admin()).exchange();
+
+		assertThat(result).hasStatus(HttpStatus.NOT_FOUND);
+		assertThat(result).bodyJson().extractingPath("$.error.code").isEqualTo("NOTICE_NOT_FOUND");
+	}
+
+	@Test
+	void deleteByUserIsForbidden() {
+		MvcTestResult result = mvc.delete().uri("/admin/notices/3").header("Authorization", user()).exchange();
+
+		assertThat(result).hasStatus(HttpStatus.FORBIDDEN);
+		then(adminNoticeService).should(never()).delete(any());
 	}
 
 	private MvcTestResult update(String body, String authorization) {
