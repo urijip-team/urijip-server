@@ -173,6 +173,19 @@ class PaymentInfoServiceTest {
 				.isEqualTo(ErrorCode.PAYMENT_INFO_NOT_FOUND);
 	}
 
+	@Test
+	void findPaymentInfoReturnsMaskedInfoWithoutFamilyCheck() {
+		paymentInfoService.register(mom.getId(), MOM_ACCOUNT);
+
+		assertThat(paymentInfoService.findPaymentInfo(mom.getId())).contains(new PaymentInfoResponse("국민은행",
+				"****-5678", "김엄마", "https://toss.me/example"));
+	}
+
+	@Test
+	void findPaymentInfoIsEmptyWhenNotRegistered() {
+		assertThat(paymentInfoService.findPaymentInfo(dad.getId())).isEmpty();
+	}
+
 	private FamilyResponse joinSameFamily() {
 		FamilyResponse family = familyService.create(mom.getId(), new FamilyCreateRequest("김씨네"));
 		familyService.join(dad.getId(), new FamilyJoinRequest(family.inviteCode()));
