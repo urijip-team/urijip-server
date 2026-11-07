@@ -1,5 +1,6 @@
 package com.urijip.server.notice.entity;
 
+import com.urijip.server.global.entity.BaseTimeEntity;
 import com.urijip.server.member.entity.User;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -14,12 +15,12 @@ import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
-// ERD에 created_at이 없어 BaseTimeEntity를 상속하지 않는다. 푸시 발송(FCM)은 아직 없어 isPushed는 늘 false다.
+// ERD에는 created_at이 없지만 앱 목록에 날짜를 보여 주려고 넣었다. 푸시 발송(FCM)은 아직 없어 isPushed는 늘 false다.
 @Entity
 @Table(name = "notices")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-public class Notice {
+public class Notice extends BaseTimeEntity {
 
 	public static final int MAX_TITLE_LENGTH = 100;
 

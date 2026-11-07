@@ -43,6 +43,7 @@ class NoticeRepositoryTest {
 		assertThat(found.getContent()).isEqualTo("내일 새벽 2시에 점검합니다.");
 		assertThat(found.isPushed()).isFalse();
 		assertThat(found.getCreatedBy().getId()).isEqualTo(admin.getId());
+		assertThat(found.getCreatedAt()).isNotNull();
 	}
 
 }
