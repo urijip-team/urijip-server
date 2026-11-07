@@ -48,4 +48,14 @@ public class Notice {
 		this.content = content;
 	}
 
+	// null인 값은 바꾸지 않는다.
+	public void update(String title, String content) {
+		if (title != null) {
+			this.title = title;
+		}
+		if (content != null) {
+			this.content = content;
+		}
+	}
+
 }
