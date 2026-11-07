@@ -6,6 +6,7 @@ import java.util.List;
 import com.urijip.server.allowance.entity.AllowanceRequest;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -30,5 +31,9 @@ public interface AllowanceRequestRepository extends JpaRepository<AllowanceReque
 			""")
 	List<AllowanceRequest> findReceived(@Param("userId") Long userId, @Param("from") LocalDateTime from,
 			@Param("to") LocalDateTime to);
+
+	@Modifying
+	@Query("delete from AllowanceRequest a where a.family.id = :familyId")
+	int deleteByFamilyId(@Param("familyId") Long familyId);
 
 }

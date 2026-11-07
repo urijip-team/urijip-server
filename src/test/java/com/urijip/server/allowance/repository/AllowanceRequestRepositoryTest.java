@@ -105,6 +105,19 @@ class AllowanceRequestRepositoryTest {
 				.extracting(AllowanceRequest::getId).containsExactly(fromDad.getId(), fromKid.getId());
 	}
 
+	@Test
+	void deleteByFamilyIdLeavesOtherFamilies() {
+		Family parks = familyRepository.saveAndFlush(Family.builder().name("박씨네").inviteCode("B7Q4M1").owner(mom).build());
+		allowanceRequestRepository.saveAndFlush(new AllowanceRequest(kims, kid, mom, 1000, null));
+		allowanceRequestRepository.saveAndFlush(new AllowanceRequest(kims, kid, mom, 2000, null));
+		AllowanceRequest other = allowanceRequestRepository.saveAndFlush(new AllowanceRequest(parks, kid, mom, 3000, null));
+
+		assertThat(allowanceRequestRepository.deleteByFamilyId(kims.getId())).isEqualTo(2);
+
+		assertThat(allowanceRequestRepository.findAll()).extracting(AllowanceRequest::getId)
+				.containsExactly(other.getId());
+	}
+
 	// created_at은 감사 기능이 넣고 updatable = false라서 SQL로 바꾼다. 읽기 전에 영속성 컨텍스트를 비운다.
 	private AllowanceRequest saveAt(User requester, User receiver, LocalDateTime createdAt) {
 		AllowanceRequest request = allowanceRequestRepository.saveAndFlush(
