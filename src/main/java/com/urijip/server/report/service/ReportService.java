@@ -50,4 +50,9 @@ public class ReportService {
 		}
 	}
 
+	@Transactional(readOnly = true)
+	public long countPending() {
+		return reportRepository.countByStatus(ReportStatus.PENDING);
+	}
+
 }
