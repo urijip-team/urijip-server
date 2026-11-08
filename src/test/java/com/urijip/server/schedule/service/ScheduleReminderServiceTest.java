@@ -87,6 +87,22 @@ class ScheduleReminderServiceTest {
 	}
 
 	@Test
+	void remindTomorrowPushesSchedulesOfNextDay() {
+		Long scheduleId = create("병원", DAY.atTime(9, 30), false, List.of(kid.getId()));
+		create("오늘 일정", DAY.minusDays(1).atTime(9, 30), false, List.of(kid.getId()));
+
+		scheduleReminderService.remindTomorrow(DAY.minusDays(1));
+
+		assertThat(events.stream(PushRequestedEvent.class)).singleElement().satisfies(event -> {
+			assertThat(event.userIds()).isEqualTo(Set.of(kid.getId()));
+			assertThat(event.message().title()).isEqualTo("내일 일정");
+			assertThat(event.message().body()).isEqualTo("병원 (오전 9:30)");
+			assertThat(event.message().data()).isEqualTo(Map.of("scheduleId", scheduleId.toString(),
+					"date", "2030-05-05"));
+		});
+	}
+
+	@Test
 	void scheduleWithoutParticipantsGoesToWholeFamily() {
 		create("가족 외식", DAY.atTime(18, 30), false, List.of());
 

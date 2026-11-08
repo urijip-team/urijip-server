@@ -37,6 +37,12 @@ public class ScheduleReminderService {
 		remind(today, "오늘 일정");
 	}
 
+	// 전날 저녁 알림. today 다음 날에 시작하는 일정.
+	@Transactional(readOnly = true)
+	public void remindTomorrow(LocalDate today) {
+		remind(today.plusDays(1), "내일 일정");
+	}
+
 	private void remind(LocalDate date, String title) {
 		List<Schedule> schedules = scheduleRepository.findStartingBetween(date.atStartOfDay(),
 				date.plusDays(1).atStartOfDay());
