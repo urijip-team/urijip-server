@@ -88,6 +88,22 @@ class PhotoRepositoryTest {
 				.containsExactlyInAnyOrder(a.getId(), b.getId());
 	}
 
+	@Test
+	void findIdsByUploaderIdReturnsOnlyPhotosOfThatUploader() {
+		User dad = userRepository.saveAndFlush(User.builder()
+				.email("dad@example.com")
+				.password("encoded-password")
+				.name("김아빠")
+				.build());
+		Album summer = album(kims, "여름");
+		Photo a = photoRepository.saveAndFlush(photo(summer, "a"));
+		Photo b = photoRepository.saveAndFlush(photo(album(parks, "다른 가족"), "b"));
+		photoRepository.saveAndFlush(Photo.builder().album(summer).uploader(dad).imageKey("c.jpg")
+				.thumbnailKey("c_thumb.jpg").build());
+
+		assertThat(photoRepository.findIdsByUploaderId(mom.getId())).containsExactlyInAnyOrder(a.getId(), b.getId());
+	}
+
 	private Album album(Family family, String title) {
 		return albumRepository.saveAndFlush(Album.builder().family(family).title(title).createdBy(mom).build());
 	}
