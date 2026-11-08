@@ -78,6 +78,14 @@ URL, 요청·응답 필드, 테이블·컬럼 이름은 API 명세서와 ERD를 
 - 운영은 `S3_BUCKET`(필수), `AWS_REGION`(기본 `ap-northeast-2`)을 주고, 자격 증명은 AWS 기본 방식(IAM 역할이나 `AWS_ACCESS_KEY_ID` 환경변수)을 쓴다.
 - DB 행을 지울 때 S3 파일은 트랜잭션이 커밋된 뒤에 지운다. 예: `PhotoFilesDeletedEvent`.
 
+## 푸시 알림 (FCM)
+
+- 푸시는 `NotificationService.send(회원 id들, PushMessage)`로 요청한다. `PushDispatcher`가 트랜잭션이 커밋된 뒤 다른 스레드(`@Async`)에서 그 회원들의 기기 토큰으로 보내고, 롤백되면 보내지 않는다.
+- `PushMessage`의 `type`(`global/push/PushType`)은 API 명세서의 푸시 알림 표의 `data.type`이다. 앱이 화면을 고르는 데 필요한 값(예: `requestId`)은 `data`에 문자열로 넣는다.
+- FCM이 다시 쓸 수 없다고 알려 준 토큰(`UNREGISTERED` 등)은 발송 뒤 지운다.
+- Firebase 서비스 계정 키 파일 경로를 `push.fcm.credentials-path`(운영은 `FIREBASE_CREDENTIALS_PATH`)로 주면 FCM으로 보낸다. 비어 있으면 `LoggingPushSender`가 로그만 남긴다(로컬, 테스트). 경로를 줬는데 파일을 못 읽으면 서버가 뜨지 않는다.
+- 테스트에서 발송을 확인하려면 `PushSender`를 `@MockitoBean`으로 바꾸고, 비동기라 `timeout()`으로 검증한다. 예: `PushDispatcherTest`.
+
 ## 시간
 
 - 서버 기본 시간대는 `Asia/Seoul`이다. `UrijipServerApplication.main`에서 고정한다. 테스트는 `main`을 거치지 않으므로 `build.gradle`의 `test` 태스크에서 `user.timezone`으로 같은 시간대를 준다(CI는 UTC).
