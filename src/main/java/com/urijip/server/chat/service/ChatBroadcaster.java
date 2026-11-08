@@ -5,7 +5,7 @@ import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.event.TransactionalEventListener;
 
-// 저장이 커밋된 뒤에 가족에게 보낸다. 롤백된 메시지가 채팅방에 나타나지 않게 하기 위해서다.
+// 저장이 커밋된 뒤에 가족에게 보낸다. 새 메시지는 /chat, 읽음은 /read로 보낸다. 롤백된 메시지가 채팅방에 나타나지 않게 하기 위해서다.
 @Component
 @RequiredArgsConstructor
 public class ChatBroadcaster {
@@ -15,6 +15,11 @@ public class ChatBroadcaster {
 	@TransactionalEventListener
 	public void onMessageSent(ChatMessageSentEvent event) {
 		messagingTemplate.convertAndSend("/sub/family/" + event.familyId() + "/chat", event.message());
+	}
+
+	@TransactionalEventListener
+	public void onRead(ChatReadEvent event) {
+		messagingTemplate.convertAndSend("/sub/family/" + event.familyId() + "/read", event.message());
 	}
 
 }
