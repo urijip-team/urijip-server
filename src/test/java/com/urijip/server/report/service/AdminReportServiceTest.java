@@ -2,8 +2,13 @@ package com.urijip.server.report.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.tuple;
 
 import com.urijip.server.TestcontainersConfiguration;
+import com.urijip.server.adminlog.entity.AdminAction;
+import com.urijip.server.adminlog.entity.AdminLog;
+import com.urijip.server.adminlog.entity.AdminLogTargetType;
+import com.urijip.server.adminlog.repository.AdminLogRepository;
 import com.urijip.server.family.dto.request.FamilyCreateRequest;
 import com.urijip.server.family.dto.response.FamilyResponse;
 import com.urijip.server.family.service.FamilyService;
@@ -59,6 +64,9 @@ class AdminReportServiceTest {
 	private PhotoRepository photoRepository;
 
 	private User admin;
+
+	@Autowired
+	private AdminLogRepository adminLogRepository;
 
 	private User mom;
 
@@ -154,6 +162,42 @@ class AdminReportServiceTest {
 		assertThat(report.getStatus()).isEqualTo(ReportStatus.REJECTED);
 		assertThat(report.getHandledBy().getId()).isEqualTo(admin.getId());
 		assertThat(troll.getStatus()).isEqualTo(UserStatus.ACTIVE);
+	}
+
+	@Test
+	void handleRecordsAdminLogWithAction() {
+		Report report = reportRepository.save(new Report(mom, ReportTargetType.PHOTO, photo.getId(), "부적절"));
+
+		adminReportService.handle(report.getId(), admin.getId(), new AdminReportHandleRequest(ReportAction.DELETE_PHOTO));
+
+		assertThat(adminLogRepository.findAll()).singleElement().satisfies(log -> {
+			assertThat(log.getAdmin().getId()).isEqualTo(admin.getId());
+			assertThat(log.getAction()).isEqualTo(AdminAction.HANDLE_REPORT);
+			assertThat(log.getTargetType()).isEqualTo(AdminLogTargetType.REPORT);
+			assertThat(log.getTargetId()).isEqualTo(report.getId());
+			assertThat(log.getDetail()).isEqualTo("DELETE_PHOTO");
+		});
+	}
+
+	@Test
+	void suspendUserRecordsReportAndUserStatusLogs() {
+		Report report = reportRepository.save(new Report(mom, ReportTargetType.USER, troll.getId(), "욕설"));
+
+		adminReportService.handle(report.getId(), admin.getId(), new AdminReportHandleRequest(ReportAction.SUSPEND_USER));
+
+		assertThat(adminLogRepository.findAll())
+				.extracting(AdminLog::getAction, AdminLog::getTargetId, AdminLog::getDetail)
+				.containsExactly(tuple(AdminAction.CHANGE_USER_STATUS, troll.getId(), "ACTIVE -> SUSPENDED"),
+						tuple(AdminAction.HANDLE_REPORT, report.getId(), "SUSPEND_USER"));
+	}
+
+	@Test
+	void failedHandleRecordsNothing() {
+		Report report = reportRepository.save(new Report(mom, ReportTargetType.USER, troll.getId(), "욕설"));
+
+		assertError(() -> adminReportService.handle(report.getId(), admin.getId(),
+				new AdminReportHandleRequest(ReportAction.DELETE_PHOTO)), ErrorCode.REPORT_ACTION_NOT_ALLOWED);
+		assertThat(adminLogRepository.count()).isZero();
 	}
 
 	@Test
