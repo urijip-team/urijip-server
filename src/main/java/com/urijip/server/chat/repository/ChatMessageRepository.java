@@ -19,6 +19,8 @@ public interface ChatMessageRepository extends JpaRepository<ChatMessage, Long> 
 	@EntityGraph(attributePaths = "sender")
 	List<ChatMessage> findByFamilyIdAndIdLessThanOrderByIdDesc(Long familyId, Long cursor, Limit limit);
 
+	boolean existsByIdAndFamilyId(Long id, Long familyId);
+
 	// 메시지가 많을 수 있어 하나씩 읽지 않고 쿼리 한 번으로 지운다. 영속성 컨텍스트를 거치지 않으므로
 	// 같은 트랜잭션에서 읽어 둔 메시지 엔티티는 그대로 남는다.
 	@Modifying
