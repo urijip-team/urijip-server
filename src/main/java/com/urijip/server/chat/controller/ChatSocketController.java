@@ -2,6 +2,7 @@ package com.urijip.server.chat.controller;
 
 import java.security.Principal;
 
+import com.urijip.server.chat.dto.request.ChatReadRequest;
 import com.urijip.server.chat.dto.request.ChatSendRequest;
 import com.urijip.server.chat.service.ChatService;
 import jakarta.validation.Valid;
@@ -20,6 +21,11 @@ public class ChatSocketController {
 	@MessageMapping("/chat")
 	public void send(Principal principal, @Valid @Payload ChatSendRequest request) {
 		chatService.send(Long.valueOf(principal.getName()), request);
+	}
+
+	@MessageMapping("/chat/read")
+	public void markRead(Principal principal, @Valid @Payload ChatReadRequest request) {
+		chatService.markRead(Long.valueOf(principal.getName()), request);
 	}
 
 }

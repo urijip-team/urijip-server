@@ -13,8 +13,10 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 import com.urijip.server.TestcontainersConfiguration;
+import com.urijip.server.chat.dto.request.ChatSendRequest;
 import com.urijip.server.chat.entity.ChatMessage;
 import com.urijip.server.chat.repository.ChatMessageRepository;
+import com.urijip.server.chat.service.ChatService;
 import com.urijip.server.family.dto.request.FamilyCreateRequest;
 import com.urijip.server.family.dto.request.FamilyJoinRequest;
 import com.urijip.server.family.dto.response.FamilyResponse;
@@ -59,6 +61,9 @@ class ChatSocketControllerTest {
 
 	@Autowired
 	private ChatMessageRepository chatMessageRepository;
+
+	@Autowired
+	private ChatService chatService;
 
 	@Autowired
 	private UserRepository userRepository;
@@ -124,6 +129,26 @@ class ChatSocketControllerTest {
 		ChatMessage saved = chatMessageRepository.findById(((Number) message.get("messageId")).longValue())
 				.orElseThrow();
 		assertThat(saved.getContent()).isEqualTo("저녁 먹었어?");
+	}
+
+	@Test
+	void readProgressIsDeliveredToFamily() throws Exception {
+		Long messageId = chatService.send(dad.getId(), new ChatSendRequest(familyId, "저녁 먹었어?")).messageId();
+		StompSession dadSession = connect(token(dad), new LinkedBlockingQueue<>());
+		MessageCollector dadReads = new MessageCollector();
+		MessageCollector dadChats = new MessageCollector();
+		dadSession.subscribe("/sub/family/" + familyId + "/read", dadReads);
+		dadSession.subscribe("/sub/family/" + familyId + "/chat", dadChats);
+		// 같은 세션의 구독은 차례로 등록되므로, 채팅이 오면 읽음 구독도 등록된 것이다.
+		dadChats.awaitWhileRepeating(() -> dadSession.send("/pub/chat", Map.of("familyId", familyId, "content", "핑")));
+		StompSession momSession = connect(token(mom), new LinkedBlockingQueue<>());
+
+		momSession.send("/pub/chat/read", Map.of("familyId", familyId, "messageId", messageId));
+
+		Map<String, Object> read = dadReads.await();
+		assertThat(read).containsEntry("userId", mom.getId().intValue())
+				.containsEntry("previousLastReadMessageId", null)
+				.containsEntry("lastReadMessageId", messageId.intValue());
 	}
 
 	@Test
@@ -234,6 +259,14 @@ class ChatSocketControllerTest {
 		@SuppressWarnings("unchecked")
 		public void handleFrame(StompHeaders headers, Object payload) {
 			messages.add((Map<String, Object>) payload);
+		}
+
+		Map<String, Object> await() throws InterruptedException {
+			Map<String, Object> message = messages.poll(TIMEOUT_SECONDS, TimeUnit.SECONDS);
+			if (message == null) {
+				throw new AssertionError("no message received");
+			}
+			return message;
 		}
 
 		// 구독이 서버에 등록되기 전에 보낸 메시지는 사라지므로, 받을 때까지 같은 동작을 되풀이한다.
