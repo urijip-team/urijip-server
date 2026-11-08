@@ -14,6 +14,8 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
 import org.springframework.context.annotation.Import;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 
 @DataJpaTest
 @Import({TestcontainersConfiguration.class, JpaAuditingConfig.class})
@@ -60,6 +62,48 @@ class AdminLogRepositoryTest {
 				AdminLogTargetType.INQUIRY, 3L, null));
 
 		assertThat(adminLogRepository.findById(saved.getId()).orElseThrow().getDetail()).isNull();
+	}
+
+	@Test
+	void searchReturnsAllAdminsNewestFirst() {
+		User other = saveUser("other@example.com", "다른 관리자");
+		AdminLog first = save(admin);
+		AdminLog second = save(other);
+		AdminLog third = save(admin);
+
+		Page<AdminLog> found = adminLogRepository.search(null, PageRequest.of(0, 10));
+
+		assertThat(found.getContent()).extracting(AdminLog::getId)
+				.containsExactly(third.getId(), second.getId(), first.getId());
+		assertThat(found.getTotalElements()).isEqualTo(3);
+	}
+
+	@Test
+	void searchFiltersByAdmin() {
+		User other = saveUser("other@example.com", "다른 관리자");
+		AdminLog mine = save(admin);
+		save(other);
+
+		Page<AdminLog> found = adminLogRepository.search(admin.getId(), PageRequest.of(0, 10));
+
+		assertThat(found.getContent()).extracting(AdminLog::getId).containsExactly(mine.getId());
+		assertThat(found.getTotalElements()).isEqualTo(1);
+	}
+
+	@Test
+	void searchAppliesPaging() {
+		save(admin);
+		AdminLog newest = save(admin);
+
+		Page<AdminLog> found = adminLogRepository.search(null, PageRequest.of(0, 1));
+
+		assertThat(found.getContent()).extracting(AdminLog::getId).containsExactly(newest.getId());
+		assertThat(found.getTotalPages()).isEqualTo(2);
+	}
+
+	private AdminLog save(User by) {
+		return adminLogRepository.saveAndFlush(new AdminLog(by, AdminAction.CHANGE_USER_STATUS, AdminLogTargetType.USER,
+				1L, null));
 	}
 
 	private User saveUser(String email, String name) {
