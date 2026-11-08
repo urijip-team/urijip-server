@@ -74,7 +74,7 @@ class AdminNoticeServiceTest {
 	void updateChangesOnlySentFields() {
 		Notice notice = noticeRepository.save(new Notice(admin, "서버 점검 안내", "내일 새벽 2시에 점검합니다."));
 
-		AdminNoticeResponse response = adminNoticeService.update(notice.getId(),
+		AdminNoticeResponse response = adminNoticeService.update(notice.getId(), admin.getId(),
 				new AdminNoticeUpdateRequest(null, "내일 새벽 3시로 바뀌었습니다."));
 
 		assertThat(response.title()).isEqualTo("서버 점검 안내");
@@ -84,7 +84,7 @@ class AdminNoticeServiceTest {
 
 	@Test
 	void updateUnknownNoticeFails() {
-		assertThatThrownBy(() -> adminNoticeService.update(-1L, new AdminNoticeUpdateRequest("제목", null)))
+		assertThatThrownBy(() -> adminNoticeService.update(-1L, admin.getId(), new AdminNoticeUpdateRequest("제목", null)))
 				.isInstanceOfSatisfying(BusinessException.class,
 						e -> assertThat(e.getErrorCode()).isEqualTo(ErrorCode.NOTICE_NOT_FOUND));
 	}
@@ -94,7 +94,7 @@ class AdminNoticeServiceTest {
 		Notice notice = noticeRepository.save(new Notice(admin, "지울 공지", "내용"));
 		Notice other = noticeRepository.save(new Notice(admin, "남길 공지", "내용"));
 
-		adminNoticeService.delete(notice.getId());
+		adminNoticeService.delete(notice.getId(), admin.getId());
 
 		assertThat(noticeRepository.findById(notice.getId())).isEmpty();
 		assertThat(noticeRepository.findById(other.getId())).isPresent();
@@ -102,7 +102,7 @@ class AdminNoticeServiceTest {
 
 	@Test
 	void deleteUnknownNoticeFails() {
-		assertThatThrownBy(() -> adminNoticeService.delete(-1L))
+		assertThatThrownBy(() -> adminNoticeService.delete(-1L, admin.getId()))
 				.isInstanceOfSatisfying(BusinessException.class,
 						e -> assertThat(e.getErrorCode()).isEqualTo(ErrorCode.NOTICE_NOT_FOUND));
 	}

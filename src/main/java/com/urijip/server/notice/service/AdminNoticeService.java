@@ -26,14 +26,14 @@ public class AdminNoticeService {
 	}
 
 	@Transactional
-	public AdminNoticeResponse update(Long noticeId, AdminNoticeUpdateRequest request) {
+	public AdminNoticeResponse update(Long noticeId, Long adminId, AdminNoticeUpdateRequest request) {
 		Notice notice = getNotice(noticeId);
 		notice.update(request.title(), request.content());
 		return AdminNoticeResponse.from(notice);
 	}
 
 	@Transactional
-	public void delete(Long noticeId) {
+	public void delete(Long noticeId, Long adminId) {
 		noticeRepository.delete(getNotice(noticeId));
 	}
 

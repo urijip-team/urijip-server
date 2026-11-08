@@ -76,7 +76,7 @@ class NoticeServiceTest {
 		Notice first = noticeRepository.save(new Notice(admin, "첫 공지", "내용"));
 		Notice second = noticeRepository.save(new Notice(admin, "둘째 공지", "내용"));
 
-		adminNoticeService.update(first.getId(), new AdminNoticeUpdateRequest("고친 첫 공지", null));
+		adminNoticeService.update(first.getId(), admin.getId(), new AdminNoticeUpdateRequest("고친 첫 공지", null));
 
 		assertThat(noticeService.getNotices(new NoticeSearchRequest(null, null)).content())
 				.extracting(NoticeResponse::id, NoticeResponse::title)
@@ -88,7 +88,7 @@ class NoticeServiceTest {
 		Notice kept = noticeRepository.save(new Notice(admin, "남길 공지", "내용"));
 		Notice deleted = noticeRepository.save(new Notice(admin, "지울 공지", "내용"));
 
-		adminNoticeService.delete(deleted.getId());
+		adminNoticeService.delete(deleted.getId(), admin.getId());
 
 		assertThat(noticeService.getNotices(new NoticeSearchRequest(null, null)).content())
 				.extracting(NoticeResponse::id).containsExactly(kept.getId());
