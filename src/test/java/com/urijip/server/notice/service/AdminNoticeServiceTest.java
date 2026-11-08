@@ -51,7 +51,7 @@ class AdminNoticeServiceTest {
 	@Test
 	void createSavesNoticeWithAuthor() {
 		AdminNoticeResponse response = adminNoticeService.create(admin.getId(),
-				new AdminNoticeCreateRequest("서버 점검 안내", "내일 새벽 2시에 점검합니다."));
+				new AdminNoticeCreateRequest("서버 점검 안내", "내일 새벽 2시에 점검합니다.", false));
 
 		assertThat(response.title()).isEqualTo("서버 점검 안내");
 		assertThat(response.content()).isEqualTo("내일 새벽 2시에 점검합니다.");
@@ -64,7 +64,7 @@ class AdminNoticeServiceTest {
 
 	@Test
 	void createByUnknownAdminFails() {
-		assertThatThrownBy(() -> adminNoticeService.create(-1L, new AdminNoticeCreateRequest("제목", "내용")))
+		assertThatThrownBy(() -> adminNoticeService.create(-1L, new AdminNoticeCreateRequest("제목", "내용", null)))
 				.isInstanceOfSatisfying(BusinessException.class,
 						e -> assertThat(e.getErrorCode()).isEqualTo(ErrorCode.USER_NOT_FOUND));
 		assertThat(noticeRepository.count()).isZero();
