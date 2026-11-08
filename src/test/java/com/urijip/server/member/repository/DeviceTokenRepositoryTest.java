@@ -6,6 +6,7 @@ import static org.assertj.core.api.Assertions.within;
 
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
+import java.util.List;
 
 import com.urijip.server.TestcontainersConfiguration;
 import com.urijip.server.global.config.JpaAuditingConfig;
@@ -129,6 +130,19 @@ class DeviceTokenRepositoryTest {
 
 		assertThat(deleted).isZero();
 		assertThat(deviceTokenRepository.count()).isEqualTo(1);
+	}
+
+	@Test
+	void findFcmTokensByUserIdsReturnsTokensOfThoseUsers() {
+		User dad = saveUser("dad@example.com", "김아빠");
+		User kid = saveUser("kid@example.com", "김첫째");
+		deviceTokenRepository.save(new DeviceToken(mom, "mom-phone", Platform.ANDROID));
+		deviceTokenRepository.save(new DeviceToken(mom, "mom-tablet", Platform.IOS));
+		deviceTokenRepository.save(new DeviceToken(dad, "dad-phone", Platform.IOS));
+		deviceTokenRepository.saveAndFlush(new DeviceToken(kid, "kid-phone", Platform.ANDROID));
+
+		assertThat(deviceTokenRepository.findFcmTokensByUserIds(List.of(mom.getId(), dad.getId())))
+				.containsExactlyInAnyOrder("mom-phone", "mom-tablet", "dad-phone");
 	}
 
 	private User saveUser(String email, String name) {
