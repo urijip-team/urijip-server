@@ -37,4 +37,12 @@ public class DeviceTokenService {
 		return deviceTokenRepository.findFcmTokensByUserIds(userIds);
 	}
 
+	// FCM이 다시 쓸 수 없다고 알려 준 토큰을 지운다. 누구의 토큰인지는 따지지 않는다.
+	@Transactional
+	public void deleteTokens(Collection<String> fcmTokens) {
+		if (!fcmTokens.isEmpty()) {
+			deviceTokenRepository.deleteByFcmTokens(fcmTokens);
+		}
+	}
+
 }

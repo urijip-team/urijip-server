@@ -124,6 +124,25 @@ class DeviceTokenServiceTest {
 		assertThat(deviceTokenService.getTokens(List.of())).isEmpty();
 	}
 
+	@Test
+	void deleteTokensRemovesOnlyGivenTokens() {
+		deviceTokenService.register(mom.getId(), new DeviceTokenRequest("gone", Platform.ANDROID));
+		deviceTokenService.register(mom.getId(), new DeviceTokenRequest("alive", Platform.IOS));
+
+		deviceTokenService.deleteTokens(List.of("gone"));
+
+		assertThat(deviceTokenService.getTokens(List.of(mom.getId()))).containsExactly("alive");
+	}
+
+	@Test
+	void deleteNoTokensDoesNothing() {
+		deviceTokenService.register(mom.getId(), new DeviceTokenRequest("alive", Platform.IOS));
+
+		deviceTokenService.deleteTokens(List.of());
+
+		assertThat(deviceTokenRepository.count()).isEqualTo(1);
+	}
+
 	private User saveUser(String email, String name) {
 		return userRepository.saveAndFlush(User.builder()
 				.email(email)
