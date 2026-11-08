@@ -3,9 +3,13 @@ package com.urijip.server.notification.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import java.util.List;
+import java.util.Set;
+
 import com.urijip.server.TestcontainersConfiguration;
 import com.urijip.server.global.exception.BusinessException;
 import com.urijip.server.global.exception.ErrorCode;
+import com.urijip.server.global.push.PushType;
 import com.urijip.server.member.entity.User;
 import com.urijip.server.member.repository.UserRepository;
 import com.urijip.server.notification.dto.request.NotificationSettingUpdateRequest;
@@ -14,6 +18,8 @@ import com.urijip.server.notification.entity.NotificationSetting;
 import com.urijip.server.notification.repository.NotificationSettingRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
@@ -83,6 +89,41 @@ class NotificationSettingServiceTest {
 				new NotificationSettingUpdateRequest(false, null, null, null)))
 				.isInstanceOfSatisfying(BusinessException.class,
 						e -> assertThat(e.getErrorCode()).isEqualTo(ErrorCode.USER_NOT_FOUND));
+	}
+
+	@Test
+	void filterReceiversDropsUsersWhoTurnedTypeOff() {
+		saveSetting(mom, false, true, true, true);
+
+		assertThat(notificationSettingService.filterReceivers(List.of(mom.getId(), dad.getId()), PushType.CHAT))
+				.isEqualTo(Set.of(dad.getId()));
+		assertThat(notificationSettingService.filterReceivers(List.of(mom.getId(), dad.getId()), PushType.SCHEDULE))
+				.isEqualTo(Set.of(mom.getId(), dad.getId()));
+	}
+
+	@Test
+	void filterReceiversChecksEachTypeAgainstItsSetting() {
+		saveSetting(mom, true, false, false, false);
+		List<Long> receivers = List.of(mom.getId());
+
+		assertThat(notificationSettingService.filterReceivers(receivers, PushType.CHAT)).containsExactly(mom.getId());
+		assertThat(notificationSettingService.filterReceivers(receivers, PushType.SCHEDULE)).isEmpty();
+		assertThat(notificationSettingService.filterReceivers(receivers, PushType.ALLOWANCE)).isEmpty();
+		assertThat(notificationSettingService.filterReceivers(receivers, PushType.NOTICE)).isEmpty();
+	}
+
+	@ParameterizedTest
+	@EnumSource(value = PushType.class, names = {"SOS", "INQUIRY"})
+	void filterReceiversKeepsEveryoneForTypesThatCannotBeTurnedOff(PushType type) {
+		saveSetting(mom, false, false, false, false);
+
+		assertThat(notificationSettingService.filterReceivers(List.of(mom.getId()), type))
+				.containsExactly(mom.getId());
+	}
+
+	@Test
+	void filterNoReceiversIsEmpty() {
+		assertThat(notificationSettingService.filterReceivers(List.of(), PushType.CHAT)).isEmpty();
 	}
 
 	private void saveSetting(User user, boolean chat, boolean schedule, boolean allowance, boolean notice) {
