@@ -43,7 +43,11 @@ public class AdminNoticeService {
 
 	@Transactional
 	public void delete(Long noticeId, Long adminId) {
-		noticeRepository.delete(getNotice(noticeId));
+		Notice notice = getNotice(noticeId);
+		noticeRepository.delete(notice);
+		// 공지가 지워져도 기록에서 무엇을 지웠는지 알 수 있게 제목을 남긴다.
+		adminLogService.record(adminId, AdminAction.DELETE_NOTICE, AdminLogTargetType.NOTICE, noticeId,
+				notice.getTitle());
 	}
 
 	private Notice getNotice(Long noticeId) {

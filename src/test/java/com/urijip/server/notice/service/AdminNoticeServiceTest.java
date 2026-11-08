@@ -129,10 +129,22 @@ class AdminNoticeServiceTest {
 	}
 
 	@Test
+	void deleteRecordsAdminLogWithTitle() {
+		Notice notice = noticeRepository.save(new Notice(admin, "지울 공지", "내용"));
+
+		adminNoticeService.delete(notice.getId(), admin.getId());
+
+		assertThat(adminLogRepository.findAll())
+				.extracting(AdminLog::getAction, AdminLog::getTargetId, AdminLog::getDetail)
+				.containsExactly(tuple(AdminAction.DELETE_NOTICE, notice.getId(), "지울 공지"));
+	}
+
+	@Test
 	void deleteUnknownNoticeFails() {
 		assertThatThrownBy(() -> adminNoticeService.delete(-1L, admin.getId()))
 				.isInstanceOfSatisfying(BusinessException.class,
 						e -> assertThat(e.getErrorCode()).isEqualTo(ErrorCode.NOTICE_NOT_FOUND));
+		assertThat(adminLogRepository.count()).isZero();
 	}
 
 }
