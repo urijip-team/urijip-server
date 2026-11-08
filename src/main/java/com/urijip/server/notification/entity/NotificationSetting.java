@@ -44,4 +44,20 @@ public class NotificationSetting {
 		this.user = user;
 	}
 
+	// null인 값은 바꾸지 않는다.
+	public void update(Boolean chat, Boolean schedule, Boolean allowance, Boolean notice) {
+		if (chat != null) {
+			this.chat = chat;
+		}
+		if (schedule != null) {
+			this.schedule = schedule;
+		}
+		if (allowance != null) {
+			this.allowance = allowance;
+		}
+		if (notice != null) {
+			this.notice = notice;
+		}
+	}
+
 }
