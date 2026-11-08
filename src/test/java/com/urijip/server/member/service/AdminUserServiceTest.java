@@ -23,6 +23,10 @@ import com.urijip.server.member.entity.Role;
 import com.urijip.server.member.entity.User;
 import com.urijip.server.member.entity.UserStatus;
 import com.urijip.server.member.repository.UserRepository;
+import com.urijip.server.report.dto.response.ReportHistoryResponse;
+import com.urijip.server.report.entity.Report;
+import com.urijip.server.report.entity.ReportTargetType;
+import com.urijip.server.report.repository.ReportRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -35,6 +39,9 @@ import org.springframework.transaction.annotation.Transactional;
 @Import(TestcontainersConfiguration.class)
 @Transactional
 class AdminUserServiceTest {
+
+	@Autowired
+	private ReportRepository reportRepository;
 
 	@Autowired
 	private AdminUserService adminUserService;
@@ -122,6 +129,17 @@ class AdminUserServiceTest {
 		assertThat(response.status()).isEqualTo(UserStatus.ACTIVE);
 		assertThat(response.createdAt()).isNotNull();
 		assertThat(response.family()).isEqualTo(new AdminUserDetailResponse.Family(family.id(), "김씨네"));
+	}
+
+	@Test
+	void getUserIncludesReportsAgainstUser() {
+		Report report = reportRepository.save(new Report(dad, ReportTargetType.USER, mom.getId(), "욕설"));
+
+		AdminUserDetailResponse response = adminUserService.getUser(mom.getId());
+
+		assertThat(response.reportCount()).isEqualTo(1);
+		assertThat(response.reports()).extracting(ReportHistoryResponse.Item::id).containsExactly(report.getId());
+		assertThat(adminUserService.getUser(dad.getId()).reportCount()).isZero();
 	}
 
 	@Test
