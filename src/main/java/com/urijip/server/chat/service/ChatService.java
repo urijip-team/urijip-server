@@ -2,6 +2,7 @@ package com.urijip.server.chat.service;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import com.urijip.server.chat.dto.request.ChatMessagePageRequest;
@@ -12,9 +13,13 @@ import com.urijip.server.chat.repository.ChatMessageRepository;
 import com.urijip.server.family.dto.response.FamilyMemberResponse;
 import com.urijip.server.family.service.FamilyDeletedEvent;
 import com.urijip.server.family.service.FamilyService;
+import com.urijip.server.global.push.PushMessage;
+import com.urijip.server.global.push.PushType;
 import com.urijip.server.global.response.CursorResponse;
 import com.urijip.server.member.entity.User;
 import com.urijip.server.member.service.UserService;
+import com.urijip.server.notification.service.NotificationService;
+import com.urijip.server.notification.service.PresenceService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.event.EventListener;
@@ -29,9 +34,12 @@ public class ChatService {
 	private final ChatMessageRepository chatMessageRepository;
 	private final FamilyService familyService;
 	private final UserService userService;
+	private final NotificationService notificationService;
+	private final PresenceService presenceService;
 	private final ApplicationEventPublisher eventPublisher;
 
-	// STOMP /pub/chat. 본문의 가족에 속하지 않으면 FAMILY_NOT_MEMBER. 저장한 뒤 가족에게 실시간으로 보낸다.
+	// STOMP /pub/chat. 본문의 가족에 속하지 않으면 FAMILY_NOT_MEMBER. 저장한 뒤 가족에게 실시간으로 보내고,
+	// 앱이 꺼져 있는(WebSocket에 연결되지 않은) 가족에게는 푸시한다.
 	@Transactional
 	public ChatMessageResponse send(Long userId, ChatSendRequest request) {
 		Map<Long, String> names = displayNames(request.familyId(), userId);
@@ -42,6 +50,7 @@ public class ChatService {
 
 		ChatMessageResponse response = toResponse(message, names);
 		eventPublisher.publishEvent(new ChatMessageSentEvent(request.familyId(), response));
+		pushToOffline(response, request.familyId(), userId, names);
 		return response;
 	}
 
@@ -77,6 +86,15 @@ public class ChatService {
 	@EventListener
 	public void onFamilyDeleted(FamilyDeletedEvent event) {
 		chatMessageRepository.deleteByFamilyId(event.familyId());
+	}
+
+	private void pushToOffline(ChatMessageResponse message, Long familyId, Long senderId, Map<Long, String> names) {
+		Set<Long> others = names.keySet().stream()
+				.filter(memberId -> !memberId.equals(senderId))
+				.collect(Collectors.toSet());
+		notificationService.send(presenceService.filterOffline(others), new PushMessage(PushType.CHAT,
+				message.senderName(), message.content(),
+				Map.of("familyId", familyId.toString(), "messageId", message.messageId().toString())));
 	}
 
 	// 보낸 사람 이름은 가족 안 호칭을 먼저 쓴다. 메시지를 보낸 뒤 가족을 나간 회원은 회원 이름을 쓴다.
