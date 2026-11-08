@@ -1,22 +1,28 @@
 package com.urijip.server.report.service;
 
+import java.util.List;
+
 import com.urijip.server.global.exception.BusinessException;
 import com.urijip.server.global.exception.ErrorCode;
 import com.urijip.server.member.entity.User;
 import com.urijip.server.member.service.UserService;
 import com.urijip.server.photo.service.PhotoService;
 import com.urijip.server.report.dto.request.ReportCreateRequest;
+import com.urijip.server.report.dto.response.ReportHistoryResponse;
 import com.urijip.server.report.dto.response.ReportResponse;
 import com.urijip.server.report.entity.Report;
 import com.urijip.server.report.entity.ReportStatus;
 import com.urijip.server.report.repository.ReportRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Limit;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
 public class ReportService {
+
+	private static final int RECENT_HISTORY_SIZE = 10;
 
 	private final ReportRepository reportRepository;
 	private final UserService userService;
@@ -48,6 +54,19 @@ public class ReportService {
 			}
 			case PHOTO -> photoService.getAccessiblePhoto(request.targetId(), reporterId);
 		}
+	}
+
+	// 관리자 회원 상세에 보여 줄 신고 이력. 회원 자신과 그 회원이 올린 사진(지우지 않은 것)에 대한 신고다.
+	@Transactional(readOnly = true)
+	public ReportHistoryResponse getHistoryAgainst(Long userId) {
+		List<Long> photoIds = photoService.getPhotoIdsUploadedBy(userId);
+		return ReportHistoryResponse.of(reportRepository.countAgainstUser(userId, photoIds),
+				reportRepository.findAgainstUser(userId, photoIds, Limit.of(RECENT_HISTORY_SIZE)));
+	}
+
+	@Transactional(readOnly = true)
+	public long countPending() {
+		return reportRepository.countByStatus(ReportStatus.PENDING);
 	}
 
 }

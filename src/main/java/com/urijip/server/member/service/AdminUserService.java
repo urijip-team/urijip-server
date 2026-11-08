@@ -15,6 +15,7 @@ import com.urijip.server.member.entity.Role;
 import com.urijip.server.member.entity.User;
 import com.urijip.server.member.entity.UserStatus;
 import com.urijip.server.member.repository.UserRepository;
+import com.urijip.server.report.service.ReportService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
@@ -29,6 +30,7 @@ public class AdminUserService {
 	private final UserRepository userRepository;
 	private final FamilyService familyService;
 	private final AdminLogService adminLogService;
+	private final ReportService reportService;
 
 	@Transactional(readOnly = true)
 	public PageResponse<AdminUserResponse> search(AdminUserSearchRequest request) {
@@ -41,8 +43,7 @@ public class AdminUserService {
 
 	@Transactional(readOnly = true)
 	public AdminUserDetailResponse getUser(Long userId) {
-		User user = getManagedUser(userId);
-		return AdminUserDetailResponse.of(user, familyService.findFamilyOf(userId).orElse(null));
+		return toDetail(getManagedUser(userId));
 	}
 
 	@Transactional
@@ -60,7 +61,12 @@ public class AdminUserService {
 		adminLogService.record(adminId, AdminAction.CHANGE_USER_STATUS, AdminLogTargetType.USER, userId,
 				before + " -> " + request.status());
 
-		return AdminUserDetailResponse.of(user, familyService.findFamilyOf(userId).orElse(null));
+		return toDetail(user);
+	}
+
+	private AdminUserDetailResponse toDetail(User user) {
+		return AdminUserDetailResponse.of(user, familyService.findFamilyOf(user.getId()).orElse(null),
+				reportService.getHistoryAgainst(user.getId()));
 	}
 
 	private User getManagedUser(Long userId) {

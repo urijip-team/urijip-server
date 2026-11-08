@@ -4,6 +4,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.stream.IntStream;
 
 import com.urijip.server.TestcontainersConfiguration;
@@ -20,12 +22,14 @@ import com.urijip.server.family.dto.response.FamilyResponse;
 import com.urijip.server.family.service.FamilyService;
 import com.urijip.server.global.exception.BusinessException;
 import com.urijip.server.global.exception.ErrorCode;
+import com.urijip.server.global.push.PushType;
 import com.urijip.server.global.response.CursorResponse;
 import com.urijip.server.member.entity.User;
 import com.urijip.server.member.repository.UserRepository;
+import com.urijip.server.notification.service.PushRequestedEvent;
+import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import jakarta.persistence.EntityManager;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
@@ -87,6 +91,30 @@ class ChatServiceTest {
 				ChatMessageResponse::senderName, ChatMessageResponse::content)
 				.containsExactly(MessageType.TEXT, kid.getId(), "김첫째", "저녁 먹었어?");
 		assertThat(response.createdAt().getOffset().getId()).isEqualTo("+09:00");
+	}
+
+	// 테스트에는 WebSocket 연결이 없어 모든 가족이 앱이 꺼진 것으로 보인다.
+	@Test
+	void sendPushesToOfflineFamilyExceptSender() {
+		familyService.changeMyNickname(familyId, kid.getId(), new NicknameUpdateRequest("첫째"));
+
+		ChatMessageResponse response = chatService.send(kid.getId(), new ChatSendRequest(familyId, "저녁 먹었어?"));
+
+		assertThat(events.stream(PushRequestedEvent.class)).singleElement().satisfies(event -> {
+			assertThat(event.userIds()).isEqualTo(Set.of(mom.getId()));
+			assertThat(event.message().type()).isEqualTo(PushType.CHAT);
+			assertThat(event.message().title()).isEqualTo("첫째");
+			assertThat(event.message().body()).isEqualTo("저녁 먹었어?");
+			assertThat(event.message().data()).isEqualTo(Map.of("familyId", familyId.toString(),
+					"messageId", response.messageId().toString()));
+		});
+	}
+
+	@Test
+	void systemMessagePushesNothing() {
+		chatService.sendSystemMessage(familyId, "김첫째님이 SOS를 보냈습니다.");
+
+		assertThat(events.stream(PushRequestedEvent.class)).isEmpty();
 	}
 
 	@Test

@@ -3,6 +3,8 @@ package com.urijip.server.report.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import java.util.List;
+
 import com.urijip.server.TestcontainersConfiguration;
 import com.urijip.server.family.dto.request.FamilyCreateRequest;
 import com.urijip.server.family.dto.response.FamilyResponse;
@@ -16,6 +18,7 @@ import com.urijip.server.photo.entity.Photo;
 import com.urijip.server.photo.repository.AlbumRepository;
 import com.urijip.server.photo.repository.PhotoRepository;
 import com.urijip.server.report.dto.request.ReportCreateRequest;
+import com.urijip.server.report.dto.response.ReportHistoryResponse;
 import com.urijip.server.report.dto.response.ReportResponse;
 import com.urijip.server.report.entity.Report;
 import com.urijip.server.report.entity.ReportStatus;
@@ -152,6 +155,54 @@ class ReportServiceTest {
 				.isInstanceOf(BusinessException.class)
 				.extracting("errorCode")
 				.isEqualTo(errorCode);
+	}
+
+	@Test
+	void getHistoryAgainstIncludesReportsOnUserAndTheirPhotos() {
+		Report onUser = reportRepository.save(new Report(stranger, ReportTargetType.USER, mom.getId(), "욕설"));
+		Report onPhoto = reportRepository.save(new Report(stranger, ReportTargetType.PHOTO, photo.getId(), "부적절한 사진"));
+		reportRepository.save(new Report(mom, ReportTargetType.USER, stranger.getId(), "다른 회원"));
+
+		ReportHistoryResponse history = reportService.getHistoryAgainst(mom.getId());
+
+		assertThat(history.count()).isEqualTo(2);
+		assertThat(history.reports()).extracting(ReportHistoryResponse.Item::id)
+				.containsExactly(onPhoto.getId(), onUser.getId());
+		assertThat(history.reports().getFirst()).satisfies(item -> {
+			assertThat(item.targetType()).isEqualTo(ReportTargetType.PHOTO);
+			assertThat(item.targetId()).isEqualTo(photo.getId());
+			assertThat(item.reason()).isEqualTo("부적절한 사진");
+			assertThat(item.status()).isEqualTo(ReportStatus.PENDING);
+			assertThat(item.createdAt().getOffset().getId()).isEqualTo("+09:00");
+		});
+	}
+
+	@Test
+	void getHistoryAgainstShowsRecentTenButCountsAll() {
+		for (int i = 0; i < 12; i++) {
+			reportRepository.save(new Report(stranger, ReportTargetType.USER, mom.getId(), "욕설 " + i));
+		}
+
+		ReportHistoryResponse history = reportService.getHistoryAgainst(mom.getId());
+
+		assertThat(history.count()).isEqualTo(12);
+		assertThat(history.reports()).hasSize(10).first()
+				.satisfies(item -> assertThat(item.reason()).isEqualTo("욕설 11"));
+	}
+
+	@Test
+	void getHistoryAgainstUserWithoutReportsIsEmpty() {
+		assertThat(reportService.getHistoryAgainst(stranger.getId())).isEqualTo(new ReportHistoryResponse(0, List.of()));
+	}
+
+	@Test
+	void countPendingSkipsHandledReports() {
+		long before = reportService.countPending();
+		reportRepository.save(new Report(mom, ReportTargetType.USER, stranger.getId(), "욕설"));
+		Report handled = reportRepository.save(new Report(mom, ReportTargetType.USER, stranger.getId(), "도배"));
+		handled.handle(mom, ReportStatus.REJECTED);
+
+		assertThat(reportService.countPending()).isEqualTo(before + 1);
 	}
 
 	private User saveUser(String email, String name) {

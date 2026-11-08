@@ -12,6 +12,8 @@ public interface InquiryRepository extends JpaRepository<Inquiry, Long> {
 
 	Page<Inquiry> findByUserId(Long userId, Pageable pageable);
 
+	long countByAnsweredAtIsNull();
+
 	// answered가 null이면 모두 돌려준다. 미답변을 먼저 보여 주고, 그 안에서는 최신순이다.
 	@EntityGraph(attributePaths = {"user", "answeredBy"})
 	@Query("""

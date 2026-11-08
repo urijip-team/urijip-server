@@ -4,8 +4,14 @@ import com.urijip.server.notice.entity.Notice;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
-// 명세서의 push 필드는 푸시 발송(FCM)이 생길 때 받는다. 지금 보내면 무시된다.
+// push가 true면 활동 중인 모든 회원에게 푸시한다. 빠지면 보내지 않는다.
 public record AdminNoticeCreateRequest(
 		@NotBlank @Size(max = Notice.MAX_TITLE_LENGTH) String title,
-		@NotBlank @Size(max = Notice.MAX_CONTENT_LENGTH) String content) {
+		@NotBlank @Size(max = Notice.MAX_CONTENT_LENGTH) String content,
+		Boolean push) {
+
+	public boolean pushRequested() {
+		return Boolean.TRUE.equals(push);
+	}
+
 }

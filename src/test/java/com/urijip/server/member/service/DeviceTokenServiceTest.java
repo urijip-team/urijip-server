@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 import com.urijip.server.TestcontainersConfiguration;
 import com.urijip.server.global.exception.BusinessException;
@@ -12,6 +13,7 @@ import com.urijip.server.member.dto.request.DeviceTokenRequest;
 import com.urijip.server.member.entity.DeviceToken;
 import com.urijip.server.member.entity.Platform;
 import com.urijip.server.member.entity.User;
+import com.urijip.server.member.entity.UserStatus;
 import com.urijip.server.member.repository.DeviceTokenRepository;
 import com.urijip.server.member.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -105,6 +107,60 @@ class DeviceTokenServiceTest {
 				.extracting("errorCode")
 				.isEqualTo(ErrorCode.USER_NOT_FOUND);
 		assertThat(deviceTokenRepository.count()).isZero();
+	}
+
+	@Test
+	void getTokensReturnsTokensOfAllGivenUsers() {
+		User dad = saveUser("dad@example.com", "김아빠");
+		deviceTokenService.register(mom.getId(), new DeviceTokenRequest("mom-phone", Platform.ANDROID));
+		deviceTokenService.register(dad.getId(), new DeviceTokenRequest("dad-phone", Platform.IOS));
+
+		assertThat(deviceTokenService.getTokens(List.of(mom.getId(), dad.getId())))
+				.containsExactlyInAnyOrder("mom-phone", "dad-phone");
+		assertThat(deviceTokenService.getTokens(List.of(dad.getId()))).containsExactly("dad-phone");
+	}
+
+	@Test
+	void getTokensOfNoUsersIsEmpty() {
+		assertThat(deviceTokenService.getTokens(List.of())).isEmpty();
+	}
+
+	@Test
+	void getActiveUserTokensSkipsSuspendedUsers() {
+		User dad = saveUser("dad@example.com", "김아빠");
+		deviceTokenService.register(mom.getId(), new DeviceTokenRequest("mom-phone", Platform.ANDROID));
+		deviceTokenService.register(dad.getId(), new DeviceTokenRequest("dad-phone", Platform.IOS));
+		dad.changeStatus(UserStatus.SUSPENDED);
+
+		assertThat(deviceTokenService.getActiveUserTokens(List.of())).containsExactly("mom-phone");
+	}
+
+	@Test
+	void getActiveUserTokensSkipsExcludedUsers() {
+		User dad = saveUser("dad@example.com", "김아빠");
+		deviceTokenService.register(mom.getId(), new DeviceTokenRequest("mom-phone", Platform.ANDROID));
+		deviceTokenService.register(dad.getId(), new DeviceTokenRequest("dad-phone", Platform.IOS));
+
+		assertThat(deviceTokenService.getActiveUserTokens(List.of(mom.getId()))).containsExactly("dad-phone");
+	}
+
+	@Test
+	void deleteTokensRemovesOnlyGivenTokens() {
+		deviceTokenService.register(mom.getId(), new DeviceTokenRequest("gone", Platform.ANDROID));
+		deviceTokenService.register(mom.getId(), new DeviceTokenRequest("alive", Platform.IOS));
+
+		deviceTokenService.deleteTokens(List.of("gone"));
+
+		assertThat(deviceTokenService.getTokens(List.of(mom.getId()))).containsExactly("alive");
+	}
+
+	@Test
+	void deleteNoTokensDoesNothing() {
+		deviceTokenService.register(mom.getId(), new DeviceTokenRequest("alive", Platform.IOS));
+
+		deviceTokenService.deleteTokens(List.of());
+
+		assertThat(deviceTokenRepository.count()).isEqualTo(1);
 	}
 
 	private User saveUser(String email, String name) {

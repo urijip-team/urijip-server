@@ -15,7 +15,7 @@ import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
-// ERD에는 created_at이 없지만 앱 목록에 날짜를 보여 주려고 넣었다. 푸시 발송(FCM)은 아직 없어 isPushed는 늘 false다.
+// ERD에는 created_at이 없지만 앱 목록에 날짜를 보여 주려고 넣었다. isPushed는 작성할 때 전체 푸시를 보냈는지다.
 @Entity
 @Table(name = "notices")
 @Getter
@@ -47,6 +47,10 @@ public class Notice extends BaseTimeEntity {
 		this.createdBy = createdBy;
 		this.title = title;
 		this.content = content;
+	}
+
+	public void markPushed() {
+		this.pushed = true;
 	}
 
 	// null인 값은 바꾸지 않는다.

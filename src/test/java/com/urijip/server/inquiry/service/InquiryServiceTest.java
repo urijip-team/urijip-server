@@ -89,6 +89,16 @@ class InquiryServiceTest {
 		assertThat(response.totalPages()).isEqualTo(2);
 	}
 
+	@Test
+	void countUnansweredSkipsAnsweredInquiries() {
+		long before = inquiryService.countUnanswered();
+		inquiryRepository.save(new Inquiry(mom, "미답변", "내용"));
+		Inquiry answered = inquiryRepository.save(new Inquiry(mom, "답변 완료", "내용"));
+		answered.answer(mom, "답변");
+
+		assertThat(inquiryService.countUnanswered()).isEqualTo(before + 1);
+	}
+
 	private User saveUser(String email, String name) {
 		return userRepository.save(User.builder()
 				.email(email)

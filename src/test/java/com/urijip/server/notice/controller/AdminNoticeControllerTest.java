@@ -47,7 +47,7 @@ class AdminNoticeControllerTest {
 
 	@Test
 	void createReturnsCreated() {
-		given(adminNoticeService.create(100L, new AdminNoticeCreateRequest("서버 점검 안내", "내일 새벽 2시에 점검합니다.")))
+		given(adminNoticeService.create(100L, new AdminNoticeCreateRequest("서버 점검 안내", "내일 새벽 2시에 점검합니다.", true)))
 				.willReturn(NOTICE);
 
 		MvcTestResult result = create("""
@@ -61,6 +61,18 @@ class AdminNoticeControllerTest {
 		assertThat(result).bodyJson().extractingPath("$.data.isPushed").isEqualTo(false);
 		assertThat(result).bodyJson().extractingPath("$.data.createdBy.name").isEqualTo("관리자");
 		assertThat(result).bodyJson().extractingPath("$.data.createdAt").isEqualTo("2026-11-08T10:00:00+09:00");
+	}
+
+	@Test
+	void createWithoutPushPassesNull() {
+		given(adminNoticeService.create(100L, new AdminNoticeCreateRequest("제목", "내용", null))).willReturn(NOTICE);
+
+		MvcTestResult result = create("""
+				{"title": "제목", "content": "내용"}
+				""", admin());
+
+		assertThat(result).hasStatus(HttpStatus.CREATED);
+		then(adminNoticeService).should().create(100L, new AdminNoticeCreateRequest("제목", "내용", null));
 	}
 
 	@ParameterizedTest

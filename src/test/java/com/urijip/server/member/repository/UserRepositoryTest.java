@@ -2,6 +2,10 @@ package com.urijip.server.member.repository;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.tuple;
+
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 import com.urijip.server.TestcontainersConfiguration;
 import com.urijip.server.global.config.JpaAuditingConfig;
@@ -16,6 +20,7 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.util.ReflectionTestUtils;
 
 @DataJpaTest
@@ -24,6 +29,9 @@ class UserRepositoryTest {
 
 	@Autowired
 	private UserRepository userRepository;
+
+	@Autowired
+	private JdbcTemplate jdbcTemplate;
 
 	@Test
 	void savedUserGetsDefaultsAndCreatedAt() {
@@ -137,6 +145,43 @@ class UserRepositoryTest {
 	private Page<User> search(UserStatus status, String keyword) {
 		return userRepository.search(Role.USER, status, keyword, PageRequest.of(0, 20, Sort.by(Sort.Direction.DESC,
 				"id")));
+	}
+
+	@Test
+	void countByRoleAndStatusNotSkipsAdminsAndWithdrawn() {
+		userRepository.save(user("mom@example.com"));
+		User suspended = userRepository.save(user("dad@example.com"));
+		suspended.changeStatus(UserStatus.SUSPENDED);
+		User withdrawn = userRepository.save(user("gone@example.com"));
+		withdrawn.withdraw();
+		User admin = userRepository.save(user("admin@example.com"));
+		ReflectionTestUtils.setField(admin, "role", Role.ADMIN);
+		userRepository.flush();
+
+		assertThat(userRepository.countByRoleAndStatusNot(Role.USER, UserStatus.WITHDRAWN)).isEqualTo(2);
+	}
+
+	@Test
+	void countSignupsByDayGroupsUsersInRange() {
+		signupAt("a@example.com", LocalDateTime.of(2026, 11, 1, 0, 0));
+		signupAt("b@example.com", LocalDateTime.of(2026, 11, 1, 23, 59, 59));
+		signupAt("c@example.com", LocalDateTime.of(2026, 11, 3, 12, 0));
+		signupAt("before@example.com", LocalDateTime.of(2026, 10, 31, 23, 59, 59));
+		signupAt("after@example.com", LocalDateTime.of(2026, 11, 4, 0, 0));
+		User admin = signupAt("admin@example.com", LocalDateTime.of(2026, 11, 2, 9, 0));
+		jdbcTemplate.update("update users set role = 'ADMIN' where id = ?", admin.getId());
+
+		assertThat(userRepository.countSignupsByDay(Role.USER, LocalDateTime.of(2026, 11, 1, 0, 0),
+				LocalDateTime.of(2026, 11, 4, 0, 0)))
+				.extracting(DailySignupCount::getDay, DailySignupCount::getCount)
+				.containsExactly(tuple(LocalDate.of(2026, 11, 1), 2L), tuple(LocalDate.of(2026, 11, 3), 1L));
+	}
+
+	// created_at은 updatable = false라서 SQL로 바꾼다.
+	private User signupAt(String email, LocalDateTime createdAt) {
+		User user = userRepository.saveAndFlush(user(email));
+		jdbcTemplate.update("update users set created_at = ? where id = ?", createdAt, user.getId());
+		return user;
 	}
 
 	private static User user(String email, String name) {

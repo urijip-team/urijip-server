@@ -29,6 +29,7 @@ dependencies {
 	implementation platform('software.amazon.awssdk:bom:2.39.6')
 	implementation 'software.amazon.awssdk:s3'
 	implementation 'net.coobird:thumbnailator:0.4.21'
+	implementation 'com.google.firebase:firebase-admin:9.11.0'
 	compileOnly 'org.projectlombok:lombok'
 	developmentOnly 'org.springframework.boot:spring-boot-devtools'
 	developmentOnly 'org.springframework.boot:spring-boot-docker-compose'

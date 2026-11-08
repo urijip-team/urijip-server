@@ -23,8 +23,11 @@ import com.urijip.server.family.service.FamilyDeletedEvent;
 import com.urijip.server.family.service.FamilyService;
 import com.urijip.server.global.exception.BusinessException;
 import com.urijip.server.global.exception.ErrorCode;
+import com.urijip.server.global.push.PushMessage;
+import com.urijip.server.global.push.PushType;
 import com.urijip.server.member.service.PaymentInfoService;
 import com.urijip.server.member.service.UserService;
+import com.urijip.server.notification.service.NotificationService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Service;
@@ -39,6 +42,7 @@ public class AllowanceService {
 	private final UserService userService;
 	private final ChatService chatService;
 	private final PaymentInfoService paymentInfoService;
+	private final NotificationService notificationService;
 
 	// 요청자와 받는 사람 모두 그 가족의 멤버여야 한다. 가족 채팅에 시스템 메시지를 남긴다.
 	@Transactional
@@ -53,8 +57,9 @@ public class AllowanceService {
 				familyService.getFamily(request.familyId()), userService.getUser(userId),
 				userService.getUser(request.receiverId()), request.amount(), blankToNull(request.reason())));
 		// 천 단위 쉼표가 JVM 로캘에 따라 바뀌지 않게 로캘을 고정한다.
-		chatService.sendSystemMessage(request.familyId(), String.format(Locale.ROOT, "%s님이 용돈 %,d원을 요청했어요.",
-				names.get(userId), request.amount()));
+		String message = String.format(Locale.ROOT, "%s님이 용돈 %,d원을 요청했어요.", names.get(userId), request.amount());
+		chatService.sendSystemMessage(request.familyId(), message);
+		push(request.receiverId(), "용돈 요청", message, allowance);
 		return AllowanceCreateResponse.from(allowance);
 	}
 
@@ -70,7 +75,7 @@ public class AllowanceService {
 				paymentInfoService.findPaymentInfo(allowance.getRequester().getId()).orElse(null));
 	}
 
-	// 받는 사람만 한 번 처리할 수 있다.
+	// 받는 사람만 한 번 처리할 수 있다. 처리 결과를 요청자에게 푸시한다.
 	@Transactional
 	public AllowanceResponse changeStatus(Long requestId, Long userId, AllowanceStatusRequest request) {
 		if (request.status() == AllowanceStatus.REQUESTED) {
@@ -85,6 +90,7 @@ public class AllowanceService {
 		}
 
 		allowance.complete(request.status());
+		pushResult(allowance);
 		return AllowanceResponse.from(allowance);
 	}
 
@@ -104,6 +110,23 @@ public class AllowanceService {
 	@EventListener
 	public void onFamilyDeleted(FamilyDeletedEvent event) {
 		allowanceRequestRepository.deleteByFamilyId(event.familyId());
+	}
+
+	// 처리할 때는 가족을 나갔을 수도 있어 호칭 대신 이름을 쓴다.
+	private void pushResult(AllowanceRequest allowance) {
+		String receiverName = allowance.getReceiver().getName();
+		Long requesterId = allowance.getRequester().getId();
+		if (allowance.getStatus() == AllowanceStatus.SENT) {
+			push(requesterId, "용돈 도착", String.format(Locale.ROOT,
+					"%s님이 용돈 %,d원을 보냈어요.", receiverName, allowance.getAmount()), allowance);
+		} else {
+			push(requesterId, "용돈 요청 거절", receiverName + "님이 용돈 요청을 거절했어요.", allowance);
+		}
+	}
+
+	private void push(Long receiverId, String title, String body, AllowanceRequest allowance) {
+		notificationService.send(List.of(receiverId), new PushMessage(PushType.ALLOWANCE, title, body,
+				Map.of("requestId", allowance.getId().toString())));
 	}
 
 	private AllowanceRequest getAllowance(Long requestId) {
