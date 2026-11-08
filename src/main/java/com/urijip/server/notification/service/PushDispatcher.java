@@ -41,7 +41,7 @@ public class PushDispatcher {
 	@TransactionalEventListener(fallbackExecution = true)
 	public void onBroadcastRequested(BroadcastPushRequestedEvent event) {
 		try {
-			dispatch(deviceTokenService.getActiveUserTokens(), event.message());
+			dispatch(deviceTokenService.getActiveUserTokens(List.of()), event.message());
 		} catch (RuntimeException e) {
 			log.error("Broadcast push dispatch failed: type={}", event.message().type(), e);
 		}

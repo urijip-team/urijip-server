@@ -26,6 +26,14 @@ public interface DeviceTokenRepository extends JpaRepository<DeviceToken, Long> 
 	@Query("select t.fcmToken from DeviceToken t where t.user.role = :role and t.user.status = :status")
 	List<String> findFcmTokensByUserRoleAndStatus(@Param("role") Role role, @Param("status") UserStatus status);
 
+	// excludedUserIds는 비어 있으면 안 된다. 빈 목록이면 위 쿼리를 쓴다.
+	@Query("""
+			select t.fcmToken from DeviceToken t
+			where t.user.role = :role and t.user.status = :status and t.user.id not in :excludedUserIds
+			""")
+	List<String> findFcmTokensByUserRoleAndStatusExcluding(@Param("role") Role role,
+			@Param("status") UserStatus status, @Param("excludedUserIds") Collection<Long> excludedUserIds);
+
 	@Modifying
 	@Query("delete from DeviceToken t where t.fcmToken in :fcmTokens")
 	int deleteByFcmTokens(@Param("fcmTokens") Collection<String> fcmTokens);
