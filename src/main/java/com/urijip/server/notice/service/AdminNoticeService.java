@@ -36,6 +36,8 @@ public class AdminNoticeService {
 	public AdminNoticeResponse update(Long noticeId, Long adminId, AdminNoticeUpdateRequest request) {
 		Notice notice = getNotice(noticeId);
 		notice.update(request.title(), request.content());
+		adminLogService.record(adminId, AdminAction.UPDATE_NOTICE, AdminLogTargetType.NOTICE, noticeId,
+				notice.getTitle());
 		return AdminNoticeResponse.from(notice);
 	}
 

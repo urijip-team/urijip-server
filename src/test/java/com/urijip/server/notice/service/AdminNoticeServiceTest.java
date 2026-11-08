@@ -100,6 +100,17 @@ class AdminNoticeServiceTest {
 	}
 
 	@Test
+	void updateRecordsAdminLogWithNewTitle() {
+		Notice notice = noticeRepository.save(new Notice(admin, "서버 점검 안내", "내용"));
+
+		adminNoticeService.update(notice.getId(), admin.getId(), new AdminNoticeUpdateRequest("점검 시간 변경", null));
+
+		assertThat(adminLogRepository.findAll())
+				.extracting(AdminLog::getAction, AdminLog::getTargetId, AdminLog::getDetail)
+				.containsExactly(tuple(AdminAction.UPDATE_NOTICE, notice.getId(), "점검 시간 변경"));
+	}
+
+	@Test
 	void updateUnknownNoticeFails() {
 		assertThatThrownBy(() -> adminNoticeService.update(-1L, admin.getId(), new AdminNoticeUpdateRequest("제목", null)))
 				.isInstanceOfSatisfying(BusinessException.class,
