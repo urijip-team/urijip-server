@@ -11,6 +11,7 @@ import com.urijip.server.chat.dto.response.ChatMessageResponse;
 import com.urijip.server.chat.entity.ChatMessage;
 import com.urijip.server.chat.repository.ChatMessageRepository;
 import com.urijip.server.family.dto.response.FamilyMemberResponse;
+import com.urijip.server.family.dto.response.MemberReadState;
 import com.urijip.server.family.service.FamilyDeletedEvent;
 import com.urijip.server.family.service.FamilyService;
 import com.urijip.server.global.push.PushMessage;
@@ -48,7 +49,7 @@ public class ChatService {
 		ChatMessage message = chatMessageRepository.save(
 				ChatMessage.text(familyService.getFamily(request.familyId()), sender, request.content()));
 
-		ChatMessageResponse response = toResponse(message, names);
+		ChatMessageResponse response = toResponse(message, names, familyService.getReadStates(request.familyId()));
 		eventPublisher.publishEvent(new ChatMessageSentEvent(request.familyId(), response));
 		pushToOffline(response, request.familyId(), userId, names);
 		return response;
@@ -59,7 +60,10 @@ public class ChatService {
 	public void sendSystemMessage(Long familyId, String content) {
 		ChatMessage message = chatMessageRepository.save(
 				ChatMessage.system(familyService.getFamily(familyId), content));
-		eventPublisher.publishEvent(new ChatMessageSentEvent(familyId, ChatMessageResponse.of(message, null)));
+		int unreadCount = UnreadCounter.count(familyService.getReadStates(familyId), message.getId(), null,
+				message.getCreatedAt());
+		eventPublisher.publishEvent(new ChatMessageSentEvent(familyId, ChatMessageResponse.of(message, null,
+				unreadCount)));
 	}
 
 	// 최신순. size개보다 하나 더 읽어 다음 페이지가 있는지 판단한다.
@@ -67,6 +71,7 @@ public class ChatService {
 	public CursorResponse<ChatMessageResponse> getMessages(Long familyId, Long userId,
 			ChatMessagePageRequest request) {
 		Map<Long, String> names = displayNames(familyId, userId);
+		List<MemberReadState> readStates = familyService.getReadStates(familyId);
 		int size = request.sizeOrDefault();
 		Limit limit = Limit.of(size + 1);
 
@@ -77,7 +82,7 @@ public class ChatService {
 		boolean hasNext = messages.size() > size;
 		List<ChatMessageResponse> content = messages.stream()
 				.limit(size)
-				.map(message -> toResponse(message, names))
+				.map(message -> toResponse(message, names, readStates))
 				.toList();
 		Long nextCursor = hasNext ? content.getLast().messageId() : null;
 		return new CursorResponse<>(content, nextCursor, hasNext);
@@ -104,10 +109,13 @@ public class ChatService {
 						member -> member.nickname() == null ? member.name() : member.nickname()));
 	}
 
-	private ChatMessageResponse toResponse(ChatMessage message, Map<Long, String> names) {
+	private ChatMessageResponse toResponse(ChatMessage message, Map<Long, String> names,
+			List<MemberReadState> readStates) {
 		User sender = message.getSender();
-		String senderName = sender == null ? null : names.getOrDefault(sender.getId(), sender.getName());
-		return ChatMessageResponse.of(message, senderName);
+		Long senderId = sender == null ? null : sender.getId();
+		String senderName = sender == null ? null : names.getOrDefault(senderId, sender.getName());
+		return ChatMessageResponse.of(message, senderName,
+				UnreadCounter.count(readStates, message.getId(), senderId, message.getCreatedAt()));
 	}
 
 }

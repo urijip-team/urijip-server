@@ -2,6 +2,7 @@ package com.urijip.server.chat.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.tuple;
 
 import java.util.List;
 import java.util.Map;
@@ -91,6 +92,34 @@ class ChatServiceTest {
 				ChatMessageResponse::senderName, ChatMessageResponse::content)
 				.containsExactly(MessageType.TEXT, kid.getId(), "김첫째", "저녁 먹었어?");
 		assertThat(response.createdAt().getOffset().getId()).isEqualTo("+09:00");
+	}
+
+	@Test
+	void sendCountsFamilyExceptSenderAsUnread() {
+		ChatMessageResponse response = chatService.send(kid.getId(), new ChatSendRequest(familyId, "저녁 먹었어?"));
+
+		assertThat(response.unreadCount()).isEqualTo(1);
+	}
+
+	@Test
+	void getMessagesShowsUnreadCountPerMessage() {
+		ChatMessageResponse first = chatService.send(kid.getId(), new ChatSendRequest(familyId, "첫째"));
+		ChatMessageResponse second = chatService.send(kid.getId(), new ChatSendRequest(familyId, "둘째"));
+		familyService.markRead(familyId, mom.getId(), first.messageId());
+
+		List<ChatMessageResponse> messages = chatService.getMessages(familyId, mom.getId(),
+				new ChatMessagePageRequest(null, null)).content();
+
+		assertThat(messages).extracting(ChatMessageResponse::messageId, ChatMessageResponse::unreadCount)
+				.containsExactly(tuple(second.messageId(), 1), tuple(first.messageId(), 0));
+	}
+
+	@Test
+	void systemMessageCountsWholeFamilyAsUnread() {
+		chatService.sendSystemMessage(familyId, "김첫째님이 SOS를 보냈습니다.");
+
+		assertThat(events.stream(ChatMessageSentEvent.class)).singleElement()
+				.satisfies(event -> assertThat(event.message().unreadCount()).isEqualTo(2));
 	}
 
 	// 테스트에는 WebSocket 연결이 없어 모든 가족이 앱이 꺼진 것으로 보인다.

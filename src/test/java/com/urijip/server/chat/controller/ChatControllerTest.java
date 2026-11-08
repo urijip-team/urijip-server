@@ -30,7 +30,7 @@ import org.springframework.test.web.servlet.assertj.MvcTestResult;
 class ChatControllerTest {
 
 	private static final ChatMessageResponse MESSAGE = new ChatMessageResponse(1024L, MessageType.TEXT, 2L, "첫째",
-			"저녁 먹었어?", OffsetDateTime.parse("2026-10-02T18:30:00+09:00"));
+			"저녁 먹었어?", OffsetDateTime.parse("2026-10-02T18:30:00+09:00"), 1);
 
 	@Autowired
 	private MockMvcTester mvc;
@@ -57,6 +57,7 @@ class ChatControllerTest {
 		assertThat(result).bodyJson().extractingPath("$.data.content[0].content").isEqualTo("저녁 먹었어?");
 		assertThat(result).bodyJson().extractingPath("$.data.content[0].createdAt")
 				.isEqualTo("2026-10-02T18:30:00+09:00");
+		assertThat(result).bodyJson().extractingPath("$.data.content[0].unreadCount").isEqualTo(1);
 		assertThat(result).bodyJson().extractingPath("$.data.nextCursor").isEqualTo(1024);
 		assertThat(result).bodyJson().extractingPath("$.data.hasNext").isEqualTo(true);
 	}
