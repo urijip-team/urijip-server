@@ -1,5 +1,8 @@
 package com.urijip.server.member.service;
 
+import com.urijip.server.adminlog.entity.AdminAction;
+import com.urijip.server.adminlog.entity.AdminLogTargetType;
+import com.urijip.server.adminlog.service.AdminLogService;
 import com.urijip.server.family.service.FamilyService;
 import com.urijip.server.global.exception.BusinessException;
 import com.urijip.server.global.exception.ErrorCode;
@@ -25,6 +28,7 @@ public class AdminUserService {
 
 	private final UserRepository userRepository;
 	private final FamilyService familyService;
+	private final AdminLogService adminLogService;
 
 	@Transactional(readOnly = true)
 	public PageResponse<AdminUserResponse> search(AdminUserSearchRequest request) {
@@ -51,7 +55,10 @@ public class AdminUserService {
 			throw new BusinessException(ErrorCode.USER_WITHDRAWN);
 		}
 
+		UserStatus before = user.getStatus();
 		user.changeStatus(request.status());
+		adminLogService.record(adminId, AdminAction.CHANGE_USER_STATUS, AdminLogTargetType.USER, userId,
+				before + " -> " + request.status());
 
 		return AdminUserDetailResponse.of(user, familyService.findFamilyOf(userId).orElse(null));
 	}
