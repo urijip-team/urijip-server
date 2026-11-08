@@ -1,10 +1,14 @@
 package com.urijip.server.notification.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.urijip.server.TestcontainersConfiguration;
+import com.urijip.server.global.exception.BusinessException;
+import com.urijip.server.global.exception.ErrorCode;
 import com.urijip.server.member.entity.User;
 import com.urijip.server.member.repository.UserRepository;
+import com.urijip.server.notification.dto.request.NotificationSettingUpdateRequest;
 import com.urijip.server.notification.dto.response.NotificationSettingResponse;
 import com.urijip.server.notification.entity.NotificationSetting;
 import com.urijip.server.notification.repository.NotificationSettingRepository;
@@ -50,6 +54,35 @@ class NotificationSettingServiceTest {
 
 		assertThat(notificationSettingService.getSettings(mom.getId()))
 				.isEqualTo(new NotificationSettingResponse(false, true, false, true));
+	}
+
+	@Test
+	void firstUpdateCreatesSettingWithOnlySentValuesOff() {
+		NotificationSettingResponse response = notificationSettingService.update(mom.getId(),
+				new NotificationSettingUpdateRequest(false, null, null, null));
+
+		assertThat(response).isEqualTo(new NotificationSettingResponse(false, true, true, true));
+		assertThat(notificationSettingRepository.findById(mom.getId())).isPresent();
+		assertThat(notificationSettingRepository.findById(dad.getId())).isEmpty();
+	}
+
+	@Test
+	void updateKeepsValuesThatWereNotSent() {
+		saveSetting(mom, false, true, false, true);
+
+		NotificationSettingResponse response = notificationSettingService.update(mom.getId(),
+				new NotificationSettingUpdateRequest(null, false, true, null));
+
+		assertThat(response).isEqualTo(new NotificationSettingResponse(false, false, true, true));
+		assertThat(notificationSettingService.getSettings(mom.getId())).isEqualTo(response);
+	}
+
+	@Test
+	void updateOfUnknownUserFails() {
+		assertThatThrownBy(() -> notificationSettingService.update(-1L,
+				new NotificationSettingUpdateRequest(false, null, null, null)))
+				.isInstanceOfSatisfying(BusinessException.class,
+						e -> assertThat(e.getErrorCode()).isEqualTo(ErrorCode.USER_NOT_FOUND));
 	}
 
 	private void saveSetting(User user, boolean chat, boolean schedule, boolean allowance, boolean notice) {
