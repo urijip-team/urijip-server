@@ -2,6 +2,8 @@ package com.urijip.server.report.repository;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.util.List;
+
 import com.urijip.server.TestcontainersConfiguration;
 import com.urijip.server.global.config.JpaAuditingConfig;
 import com.urijip.server.member.entity.User;
@@ -12,6 +14,7 @@ import com.urijip.server.report.entity.ReportTargetType;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Limit;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.data.domain.Page;
@@ -38,6 +41,30 @@ class ReportRepositoryTest {
 				.password("encoded-password")
 				.name("김엄마")
 				.build());
+	}
+
+	@Test
+	void findAgainstUserReturnsReportsOnUserAndTheirPhotosNewestFirst() {
+		Report onUser = reportRepository.save(new Report(mom, ReportTargetType.USER, 7L, "욕설"));
+		Report onPhoto = reportRepository.save(new Report(mom, ReportTargetType.PHOTO, 42L, "부적절한 사진"));
+		reportRepository.save(new Report(mom, ReportTargetType.PHOTO, 7L, "다른 사람 사진"));
+		reportRepository.saveAndFlush(new Report(mom, ReportTargetType.USER, 8L, "다른 회원"));
+
+		assertThat(reportRepository.findAgainstUser(7L, List.of(42L, 43L), Limit.of(10)))
+				.extracting(Report::getId).containsExactly(onPhoto.getId(), onUser.getId());
+		assertThat(reportRepository.findAgainstUser(7L, List.of(42L, 43L), Limit.of(1)))
+				.extracting(Report::getId).containsExactly(onPhoto.getId());
+		assertThat(reportRepository.countAgainstUser(7L, List.of(42L, 43L))).isEqualTo(2);
+	}
+
+	@Test
+	void findAgainstUserWorksWithoutPhotos() {
+		Report onUser = reportRepository.save(new Report(mom, ReportTargetType.USER, 7L, "욕설"));
+		reportRepository.saveAndFlush(new Report(mom, ReportTargetType.PHOTO, 42L, "부적절한 사진"));
+
+		assertThat(reportRepository.findAgainstUser(7L, List.of(), Limit.of(10)))
+				.extracting(Report::getId).containsExactly(onUser.getId());
+		assertThat(reportRepository.countAgainstUser(7L, List.of())).isEqualTo(1);
 	}
 
 	@Test

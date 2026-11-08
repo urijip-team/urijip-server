@@ -22,6 +22,9 @@ import com.urijip.server.member.dto.response.AdminUserDetailResponse;
 import com.urijip.server.member.dto.response.AdminUserResponse;
 import com.urijip.server.member.entity.UserStatus;
 import com.urijip.server.member.service.AdminUserService;
+import com.urijip.server.report.dto.response.ReportHistoryResponse;
+import com.urijip.server.report.entity.ReportStatus;
+import com.urijip.server.report.entity.ReportTargetType;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
@@ -42,7 +45,9 @@ class AdminUserControllerTest {
 			ZoneOffset.ofHours(9));
 	private static final AdminUserDetailResponse DETAIL = new AdminUserDetailResponse(1L, "mom@example.com", "김엄마",
 			null, LocalDate.of(1980, 5, 5), "오늘도 화이팅", UserStatus.SUSPENDED, CREATED_AT,
-			new AdminUserDetailResponse.Family(3L, "김씨네"));
+			new AdminUserDetailResponse.Family(3L, "김씨네"), 1,
+			List.of(new ReportHistoryResponse.Item(9L, ReportTargetType.PHOTO, 42L, "부적절한 사진", ReportStatus.PENDING,
+					CREATED_AT)));
 
 	@Autowired
 	private MockMvcTester mvc;
@@ -122,6 +127,14 @@ class AdminUserControllerTest {
 		assertThat(result).bodyJson().extractingPath("$.data.status").isEqualTo("SUSPENDED");
 		assertThat(result).bodyJson().extractingPath("$.data.family.id").isEqualTo(3);
 		assertThat(result).bodyJson().extractingPath("$.data.family.name").isEqualTo("김씨네");
+		assertThat(result).bodyJson().extractingPath("$.data.reportCount").isEqualTo(1);
+		assertThat(result).bodyJson().extractingPath("$.data.reports[0].id").isEqualTo(9);
+		assertThat(result).bodyJson().extractingPath("$.data.reports[0].targetType").isEqualTo("PHOTO");
+		assertThat(result).bodyJson().extractingPath("$.data.reports[0].targetId").isEqualTo(42);
+		assertThat(result).bodyJson().extractingPath("$.data.reports[0].reason").isEqualTo("부적절한 사진");
+		assertThat(result).bodyJson().extractingPath("$.data.reports[0].status").isEqualTo("PENDING");
+		assertThat(result).bodyJson().extractingPath("$.data.reports[0].createdAt")
+				.isEqualTo("2026-10-02T14:00:00+09:00");
 		assertThat(result).bodyJson().doesNotHavePath("$.data.password");
 	}
 

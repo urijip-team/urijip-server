@@ -36,4 +36,7 @@ public interface PhotoRepository extends JpaRepository<Photo, Long> {
 
 	List<Photo> findByAlbumFamilyId(Long familyId);
 
+	@Query("select p.id from Photo p where p.uploader.id = :uploaderId")
+	List<Long> findIdsByUploaderId(@Param("uploaderId") Long uploaderId);
+
 }
