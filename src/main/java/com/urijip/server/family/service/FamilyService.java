@@ -12,6 +12,7 @@ import com.urijip.server.family.dto.request.FamilyOwnerTransferRequest;
 import com.urijip.server.family.dto.request.NicknameUpdateRequest;
 import com.urijip.server.family.dto.response.FamilyMemberResponse;
 import com.urijip.server.family.dto.response.FamilyResponse;
+import com.urijip.server.family.dto.response.MemberReadState;
 import com.urijip.server.family.entity.Family;
 import com.urijip.server.family.entity.FamilyMember;
 import com.urijip.server.family.entity.FamilyRole;
@@ -145,6 +146,14 @@ public class FamilyService implements FamilyMembershipChecker {
 
 		return familyMemberRepository.findByFamilyIdOrderByJoinedAtAscIdAsc(familyId).stream()
 				.map(FamilyMemberResponse::from)
+				.toList();
+	}
+
+	// 멤버인지 검사하지 않는다. 채팅 서비스가 이미 검사한 뒤 부른다.
+	@Transactional(readOnly = true)
+	public List<MemberReadState> getReadStates(Long familyId) {
+		return familyMemberRepository.findByFamilyIdOrderByJoinedAtAscIdAsc(familyId).stream()
+				.map(MemberReadState::from)
 				.toList();
 	}
 
