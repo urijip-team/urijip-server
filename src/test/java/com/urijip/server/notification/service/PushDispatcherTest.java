@@ -24,6 +24,8 @@ import com.urijip.server.member.entity.UserStatus;
 import com.urijip.server.member.repository.DeviceTokenRepository;
 import com.urijip.server.member.repository.UserRepository;
 import com.urijip.server.member.service.DeviceTokenService;
+import com.urijip.server.notification.dto.request.NotificationSettingUpdateRequest;
+import com.urijip.server.notification.repository.NotificationSettingRepository;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -58,6 +60,12 @@ class PushDispatcherTest {
 	@Autowired
 	private TransactionTemplate transactionTemplate;
 
+	@Autowired
+	private NotificationSettingService notificationSettingService;
+
+	@Autowired
+	private NotificationSettingRepository notificationSettingRepository;
+
 	private User mom;
 
 	private User dad;
@@ -76,6 +84,7 @@ class PushDispatcherTest {
 			deviceTokenRepository.deleteByUserId(mom.getId());
 			deviceTokenRepository.deleteByUserId(dad.getId());
 		});
+		notificationSettingRepository.deleteAllById(List.of(mom.getId(), dad.getId()));
 		userRepository.deleteAll(List.of(mom, dad));
 	}
 
@@ -97,6 +106,26 @@ class PushDispatcherTest {
 		then(pushSender).should(timeout(3000)).send(
 				argThat(tokens -> Set.copyOf(tokens).equals(Set.of("mom-phone", "dad-phone"))),
 				eq(MESSAGE));
+	}
+
+	@Test
+	void skipsReceiversWhoTurnedTypeOff() {
+		given(pushSender.send(any(), any())).willReturn(Set.of());
+		notificationSettingService.update(mom.getId(), new NotificationSettingUpdateRequest(false, null, null, null));
+		PushMessage chat = PushMessage.of(PushType.CHAT, "우리집", "김아빠: 저녁 먹자");
+
+		notificationService.send(List.of(mom.getId(), dad.getId()), chat);
+
+		then(pushSender).should(timeout(3000)).send(List.of("dad-phone"), chat);
+	}
+
+	@Test
+	void sendsNothingWhenAllReceiversTurnedTypeOff() {
+		notificationSettingService.update(mom.getId(), new NotificationSettingUpdateRequest(false, null, null, null));
+
+		notificationService.send(List.of(mom.getId()), PushMessage.of(PushType.CHAT, "우리집", "김아빠: 저녁 먹자"));
+
+		then(pushSender).should(after(500).never()).send(any(), any());
 	}
 
 	@Test
