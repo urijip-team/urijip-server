@@ -113,6 +113,16 @@ class PhotoServiceTest {
 	}
 
 	@Test
+	void getPhotoIdsUploadedByReturnsOnlyThatUploadersPhotos() {
+		List<PhotoResponse> dads = photoService.upload(album.id(), dad.getId(),
+				List.of(TestImages.jpeg(10, 10), TestImages.jpeg(20, 20)));
+		photoService.upload(album.id(), mom.getId(), List.of(TestImages.jpeg(30, 30)));
+
+		assertThat(photoService.getPhotoIdsUploadedBy(dad.getId()))
+				.containsExactlyInAnyOrderElementsOf(dads.stream().map(PhotoResponse::id).toList());
+	}
+
+	@Test
 	void firstUploadedPhotoBecomesCover() {
 		List<PhotoResponse> first = photoService.upload(album.id(), mom.getId(),
 				List.of(TestImages.jpeg(10, 10), TestImages.jpeg(20, 20)));

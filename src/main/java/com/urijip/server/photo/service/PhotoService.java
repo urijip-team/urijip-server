@@ -104,6 +104,12 @@ public class PhotoService {
 		return photoRepository.findByIdIn(photoIds).stream().map(this::toResponse).toList();
 	}
 
+	// 관리자가 회원의 신고 이력을 볼 때 쓴다. 지운 사진은 없다.
+	@Transactional(readOnly = true)
+	public List<Long> getPhotoIdsUploadedBy(Long userId) {
+		return photoRepository.findIdsByUploaderId(userId);
+	}
+
 	// 사진이 없으면 404, 요청자가 사진이 있는 가족의 멤버가 아니면 403.
 	@Transactional(readOnly = true)
 	public Photo getAccessiblePhoto(Long photoId, Long userId) {
