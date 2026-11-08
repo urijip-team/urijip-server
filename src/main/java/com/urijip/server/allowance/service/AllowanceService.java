@@ -23,8 +23,11 @@ import com.urijip.server.family.service.FamilyDeletedEvent;
 import com.urijip.server.family.service.FamilyService;
 import com.urijip.server.global.exception.BusinessException;
 import com.urijip.server.global.exception.ErrorCode;
+import com.urijip.server.global.push.PushMessage;
+import com.urijip.server.global.push.PushType;
 import com.urijip.server.member.service.PaymentInfoService;
 import com.urijip.server.member.service.UserService;
+import com.urijip.server.notification.service.NotificationService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Service;
@@ -39,6 +42,7 @@ public class AllowanceService {
 	private final UserService userService;
 	private final ChatService chatService;
 	private final PaymentInfoService paymentInfoService;
+	private final NotificationService notificationService;
 
 	// 요청자와 받는 사람 모두 그 가족의 멤버여야 한다. 가족 채팅에 시스템 메시지를 남긴다.
 	@Transactional
@@ -53,8 +57,9 @@ public class AllowanceService {
 				familyService.getFamily(request.familyId()), userService.getUser(userId),
 				userService.getUser(request.receiverId()), request.amount(), blankToNull(request.reason())));
 		// 천 단위 쉼표가 JVM 로캘에 따라 바뀌지 않게 로캘을 고정한다.
-		chatService.sendSystemMessage(request.familyId(), String.format(Locale.ROOT, "%s님이 용돈 %,d원을 요청했어요.",
-				names.get(userId), request.amount()));
+		String message = String.format(Locale.ROOT, "%s님이 용돈 %,d원을 요청했어요.", names.get(userId), request.amount());
+		chatService.sendSystemMessage(request.familyId(), message);
+		push(request.receiverId(), "용돈 요청", message, allowance);
 		return AllowanceCreateResponse.from(allowance);
 	}
 
@@ -104,6 +109,11 @@ public class AllowanceService {
 	@EventListener
 	public void onFamilyDeleted(FamilyDeletedEvent event) {
 		allowanceRequestRepository.deleteByFamilyId(event.familyId());
+	}
+
+	private void push(Long receiverId, String title, String body, AllowanceRequest allowance) {
+		notificationService.send(List.of(receiverId), new PushMessage(PushType.ALLOWANCE, title, body,
+				Map.of("requestId", allowance.getId().toString())));
 	}
 
 	private AllowanceRequest getAllowance(Long requestId) {

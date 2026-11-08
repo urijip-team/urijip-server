@@ -4,6 +4,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.time.YearMonth;
+import java.util.Map;
+import java.util.Set;
 
 import com.urijip.server.TestcontainersConfiguration;
 import com.urijip.server.allowance.dto.request.AllowanceCreateRequest;
@@ -24,11 +26,13 @@ import com.urijip.server.family.dto.response.FamilyResponse;
 import com.urijip.server.family.service.FamilyService;
 import com.urijip.server.global.exception.BusinessException;
 import com.urijip.server.global.exception.ErrorCode;
+import com.urijip.server.global.push.PushType;
 import com.urijip.server.global.time.SeoulTime;
 import com.urijip.server.member.dto.request.PaymentInfoRequest;
 import com.urijip.server.member.dto.response.PaymentInfoResponse;
 import com.urijip.server.member.entity.User;
 import com.urijip.server.member.service.PaymentInfoService;
+import com.urijip.server.notification.service.PushRequestedEvent;
 import jakarta.persistence.EntityManager;
 import com.urijip.server.member.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -38,12 +42,18 @@ import org.junit.jupiter.params.provider.EnumSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
+import org.springframework.test.context.event.ApplicationEvents;
+import org.springframework.test.context.event.RecordApplicationEvents;
 import org.springframework.transaction.annotation.Transactional;
 
 @SpringBootTest
 @Import(TestcontainersConfiguration.class)
 @Transactional
+@RecordApplicationEvents
 class AllowanceServiceTest {
+
+	@Autowired
+	private ApplicationEvents events;
 
 	@Autowired
 	private AllowanceService allowanceService;
@@ -116,6 +126,28 @@ class AllowanceServiceTest {
 
 		assertThat(chatMessageRepository.findAll()).singleElement()
 				.satisfies(message -> assertThat(message.getContent()).isEqualTo("김첫째님이 용돈 1,500,000원을 요청했어요."));
+	}
+
+	@Test
+	void createPushesToReceiver() {
+		familyService.changeMyNickname(familyId, kid.getId(), new NicknameUpdateRequest("첫째"));
+
+		AllowanceCreateResponse response = request(kid, mom, 30000, null);
+
+		assertThat(events.stream(PushRequestedEvent.class)).singleElement().satisfies(event -> {
+			assertThat(event.userIds()).isEqualTo(Set.of(mom.getId()));
+			assertThat(event.message().type()).isEqualTo(PushType.ALLOWANCE);
+			assertThat(event.message().title()).isEqualTo("용돈 요청");
+			assertThat(event.message().body()).isEqualTo("첫째님이 용돈 30,000원을 요청했어요.");
+			assertThat(event.message().data()).isEqualTo(Map.of("requestId", response.requestId().toString()));
+		});
+	}
+
+	@Test
+	void failedCreatePushesNothing() {
+		assertThatThrownBy(() -> request(kid, stranger, 5000, null)).isInstanceOf(BusinessException.class);
+
+		assertThat(events.stream(PushRequestedEvent.class)).isEmpty();
 	}
 
 	@Test
