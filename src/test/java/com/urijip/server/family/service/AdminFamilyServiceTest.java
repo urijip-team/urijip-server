@@ -9,6 +9,9 @@ import java.time.ZoneOffset;
 import java.time.temporal.ChronoUnit;
 
 import com.urijip.server.TestcontainersConfiguration;
+import com.urijip.server.adminlog.entity.AdminAction;
+import com.urijip.server.adminlog.entity.AdminLogTargetType;
+import com.urijip.server.adminlog.repository.AdminLogRepository;
 import com.urijip.server.family.dto.request.AdminFamilyListRequest;
 import com.urijip.server.family.dto.request.AdminFamilyStatusRequest;
 import com.urijip.server.family.dto.request.FamilyCreateRequest;
@@ -20,6 +23,7 @@ import com.urijip.server.family.repository.FamilyRepository;
 import com.urijip.server.global.exception.BusinessException;
 import com.urijip.server.global.exception.ErrorCode;
 import com.urijip.server.global.response.PageResponse;
+import com.urijip.server.member.entity.Role;
 import com.urijip.server.member.entity.User;
 import com.urijip.server.member.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -27,14 +31,13 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
+import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.transaction.annotation.Transactional;
 
 @SpringBootTest
 @Import(TestcontainersConfiguration.class)
 @Transactional
 class AdminFamilyServiceTest {
-
-	private static final Long ADMIN_ID = 100L;
 
 	@Autowired
 	private AdminFamilyService adminFamilyService;
@@ -50,6 +53,11 @@ class AdminFamilyServiceTest {
 
 	private User mom;
 
+	private User admin;
+
+	@Autowired
+	private AdminLogRepository adminLogRepository;
+
 	private FamilyResponse kims;
 
 	private FamilyResponse parks;
@@ -62,6 +70,8 @@ class AdminFamilyServiceTest {
 		kims = familyService.create(mom.getId(), new FamilyCreateRequest("김씨네"));
 		familyService.join(dad.getId(), new FamilyJoinRequest(kims.inviteCode()));
 		parks = familyService.create(son.getId(), new FamilyCreateRequest("박씨네"));
+		admin = saveUser("admin@example.com", "관리자");
+		ReflectionTestUtils.setField(admin, "role", Role.ADMIN);
 	}
 
 	@Test
@@ -104,22 +114,35 @@ class AdminFamilyServiceTest {
 
 	@Test
 	void changeStatusSuspendsAndReactivates() {
-		AdminFamilyResponse suspended = adminFamilyService.changeStatus(kims.id(), ADMIN_ID,
+		AdminFamilyResponse suspended = adminFamilyService.changeStatus(kims.id(), admin.getId(),
 				new AdminFamilyStatusRequest(FamilyStatus.SUSPENDED));
 		assertThat(suspended.status()).isEqualTo(FamilyStatus.SUSPENDED);
 		assertThat(suspended.memberCount()).isEqualTo(2);
 		assertThat(familyRepository.findById(kims.id()).orElseThrow().getStatus())
 				.isEqualTo(FamilyStatus.SUSPENDED);
 
-		AdminFamilyResponse active = adminFamilyService.changeStatus(kims.id(), ADMIN_ID,
+		AdminFamilyResponse active = adminFamilyService.changeStatus(kims.id(), admin.getId(),
 				new AdminFamilyStatusRequest(FamilyStatus.ACTIVE));
 		assertThat(active.status()).isEqualTo(FamilyStatus.ACTIVE);
 	}
 
 	@Test
+	void changeStatusRecordsAdminLog() {
+		adminFamilyService.changeStatus(kims.id(), admin.getId(), new AdminFamilyStatusRequest(FamilyStatus.SUSPENDED));
+
+		assertThat(adminLogRepository.findAll()).singleElement().satisfies(log -> {
+			assertThat(log.getAdmin().getId()).isEqualTo(admin.getId());
+			assertThat(log.getAction()).isEqualTo(AdminAction.CHANGE_FAMILY_STATUS);
+			assertThat(log.getTargetType()).isEqualTo(AdminLogTargetType.FAMILY);
+			assertThat(log.getTargetId()).isEqualTo(kims.id());
+			assertThat(log.getDetail()).isEqualTo("ACTIVE -> SUSPENDED");
+		});
+	}
+
+	@Test
 	void suspendedFamilyCannotBeJoined() {
 		User daughter = saveUser("daughter@example.com", "김딸");
-		adminFamilyService.changeStatus(kims.id(), ADMIN_ID, new AdminFamilyStatusRequest(FamilyStatus.SUSPENDED));
+		adminFamilyService.changeStatus(kims.id(), admin.getId(), new AdminFamilyStatusRequest(FamilyStatus.SUSPENDED));
 
 		assertThatThrownBy(() -> familyService.join(daughter.getId(), new FamilyJoinRequest(kims.inviteCode())))
 				.isInstanceOf(BusinessException.class)
@@ -129,7 +152,7 @@ class AdminFamilyServiceTest {
 
 	@Test
 	void changeStatusOfUnknownFamilyThrowsNotFound() {
-		assertThatThrownBy(() -> adminFamilyService.changeStatus(999_999L, ADMIN_ID,
+		assertThatThrownBy(() -> adminFamilyService.changeStatus(999_999L, admin.getId(),
 				new AdminFamilyStatusRequest(FamilyStatus.SUSPENDED)))
 				.isInstanceOf(BusinessException.class)
 				.extracting("errorCode")
