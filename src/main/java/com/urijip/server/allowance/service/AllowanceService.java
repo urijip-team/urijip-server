@@ -75,7 +75,7 @@ public class AllowanceService {
 				paymentInfoService.findPaymentInfo(allowance.getRequester().getId()).orElse(null));
 	}
 
-	// 받는 사람만 한 번 처리할 수 있다.
+	// 받는 사람만 한 번 처리할 수 있다. 처리 결과를 요청자에게 푸시한다.
 	@Transactional
 	public AllowanceResponse changeStatus(Long requestId, Long userId, AllowanceStatusRequest request) {
 		if (request.status() == AllowanceStatus.REQUESTED) {
@@ -90,6 +90,7 @@ public class AllowanceService {
 		}
 
 		allowance.complete(request.status());
+		pushResult(allowance);
 		return AllowanceResponse.from(allowance);
 	}
 
@@ -109,6 +110,15 @@ public class AllowanceService {
 	@EventListener
 	public void onFamilyDeleted(FamilyDeletedEvent event) {
 		allowanceRequestRepository.deleteByFamilyId(event.familyId());
+	}
+
+	// 처리할 때는 가족을 나갔을 수도 있어 호칭 대신 이름을 쓴다.
+	private void pushResult(AllowanceRequest allowance) {
+		String receiverName = allowance.getReceiver().getName();
+		if (allowance.getStatus() == AllowanceStatus.SENT) {
+			push(allowance.getRequester().getId(), "용돈 도착", String.format(Locale.ROOT,
+					"%s님이 용돈 %,d원을 보냈어요.", receiverName, allowance.getAmount()), allowance);
+		}
 	}
 
 	private void push(Long receiverId, String title, String body, AllowanceRequest allowance) {

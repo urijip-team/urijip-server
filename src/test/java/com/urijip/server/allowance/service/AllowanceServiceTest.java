@@ -250,6 +250,31 @@ class AllowanceServiceTest {
 	}
 
 	@Test
+	void sendingPushesToRequester() {
+		Long requestId = request(kid, mom, 30000, null).requestId();
+
+		allowanceService.changeStatus(requestId, mom.getId(), new AllowanceStatusRequest(AllowanceStatus.SENT));
+
+		assertThat(events.stream(PushRequestedEvent.class)).last().satisfies(event -> {
+			assertThat(event.userIds()).isEqualTo(Set.of(kid.getId()));
+			assertThat(event.message().type()).isEqualTo(PushType.ALLOWANCE);
+			assertThat(event.message().title()).isEqualTo("용돈 도착");
+			assertThat(event.message().body()).isEqualTo("김엄마님이 용돈 30,000원을 보냈어요.");
+			assertThat(event.message().data()).isEqualTo(Map.of("requestId", requestId.toString()));
+		});
+	}
+
+	@Test
+	void failedStatusChangePushesNothing() {
+		Long requestId = request(kid, mom, 30000, null).requestId();
+
+		assertThatThrownBy(() -> allowanceService.changeStatus(requestId, kid.getId(),
+				new AllowanceStatusRequest(AllowanceStatus.SENT))).isInstanceOf(BusinessException.class);
+
+		assertThat(events.stream(PushRequestedEvent.class)).hasSize(1);
+	}
+
+	@Test
 	void requesterCannotCompleteRequest() {
 		Long requestId = request(kid, mom, 30000, null).requestId();
 
