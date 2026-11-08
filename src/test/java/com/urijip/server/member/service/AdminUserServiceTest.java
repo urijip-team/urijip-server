@@ -36,6 +36,8 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 class AdminUserServiceTest {
 
+	private static final Long ADMIN_ID = 100L;
+
 	@Autowired
 	private AdminUserService adminUserService;
 
@@ -73,7 +75,7 @@ class AdminUserServiceTest {
 
 	@Test
 	void searchByKeywordAndStatus() {
-		adminUserService.changeStatus(dad.getId(), new AdminUserStatusRequest(UserStatus.SUSPENDED));
+		adminUserService.changeStatus(dad.getId(), ADMIN_ID, new AdminUserStatusRequest(UserStatus.SUSPENDED));
 
 		assertThat(search("아빠", null, 0, 20).content()).extracting(AdminUserResponse::id)
 				.containsExactly(dad.getId());
@@ -145,19 +147,19 @@ class AdminUserServiceTest {
 
 	@Test
 	void changeStatusSuspendsAndReactivates() {
-		AdminUserDetailResponse suspended = adminUserService.changeStatus(mom.getId(),
+		AdminUserDetailResponse suspended = adminUserService.changeStatus(mom.getId(), ADMIN_ID,
 				new AdminUserStatusRequest(UserStatus.SUSPENDED));
 		assertThat(suspended.status()).isEqualTo(UserStatus.SUSPENDED);
 		assertThat(userRepository.findById(mom.getId()).orElseThrow().getStatus()).isEqualTo(UserStatus.SUSPENDED);
 
-		AdminUserDetailResponse active = adminUserService.changeStatus(mom.getId(),
+		AdminUserDetailResponse active = adminUserService.changeStatus(mom.getId(), ADMIN_ID,
 				new AdminUserStatusRequest(UserStatus.ACTIVE));
 		assertThat(active.status()).isEqualTo(UserStatus.ACTIVE);
 	}
 
 	@Test
 	void changeStatusRejectsWithdrawnAsTargetStatus() {
-		assertThatThrownBy(() -> adminUserService.changeStatus(mom.getId(),
+		assertThatThrownBy(() -> adminUserService.changeStatus(mom.getId(), ADMIN_ID,
 				new AdminUserStatusRequest(UserStatus.WITHDRAWN)))
 				.isInstanceOf(BusinessException.class)
 				.extracting("errorCode")
@@ -169,7 +171,7 @@ class AdminUserServiceTest {
 		mom.withdraw();
 		userRepository.flush();
 
-		assertThatThrownBy(() -> adminUserService.changeStatus(mom.getId(),
+		assertThatThrownBy(() -> adminUserService.changeStatus(mom.getId(), ADMIN_ID,
 				new AdminUserStatusRequest(UserStatus.ACTIVE)))
 				.isInstanceOf(BusinessException.class)
 				.extracting("errorCode")
@@ -180,7 +182,7 @@ class AdminUserServiceTest {
 	void changeStatusRejectsAdmin() {
 		makeAdmin(dad);
 
-		assertThatThrownBy(() -> adminUserService.changeStatus(dad.getId(),
+		assertThatThrownBy(() -> adminUserService.changeStatus(dad.getId(), ADMIN_ID,
 				new AdminUserStatusRequest(UserStatus.SUSPENDED)))
 				.isInstanceOf(BusinessException.class)
 				.extracting("errorCode")

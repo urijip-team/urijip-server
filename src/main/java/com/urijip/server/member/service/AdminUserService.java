@@ -42,7 +42,7 @@ public class AdminUserService {
 	}
 
 	@Transactional
-	public AdminUserDetailResponse changeStatus(Long userId, AdminUserStatusRequest request) {
+	public AdminUserDetailResponse changeStatus(Long userId, Long adminId, AdminUserStatusRequest request) {
 		if (request.status() == UserStatus.WITHDRAWN) {
 			throw new BusinessException(ErrorCode.INVALID_INPUT);
 		}

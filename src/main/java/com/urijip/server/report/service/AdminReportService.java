@@ -80,7 +80,8 @@ public class AdminReportService {
 				if (report.getTargetType() != ReportTargetType.USER) {
 					throw new BusinessException(ErrorCode.REPORT_ACTION_NOT_ALLOWED);
 				}
-				adminUserService.changeStatus(report.getTargetId(), new AdminUserStatusRequest(UserStatus.SUSPENDED));
+				adminUserService.changeStatus(report.getTargetId(), adminId,
+						new AdminUserStatusRequest(UserStatus.SUSPENDED));
 				completeAllForTarget(report, userService.getUser(adminId));
 			}
 			case REJECT -> report.handle(userService.getUser(adminId), ReportStatus.REJECTED);
