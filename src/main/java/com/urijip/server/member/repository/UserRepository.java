@@ -17,6 +17,8 @@ public interface UserRepository extends JpaRepository<User, Long> {
 
 	Optional<User> findByEmail(String email);
 
+	long countByRoleAndStatusNot(Role role, UserStatus status);
+
 	// keyword는 이메일이나 이름의 일부. LIKE 특수문자(%, _, !)는 호출하는 쪽에서 !로 이스케이프해 넘긴다.
 	@Query("""
 			select u from User u

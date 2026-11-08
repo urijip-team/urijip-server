@@ -139,6 +139,20 @@ class UserRepositoryTest {
 				"id")));
 	}
 
+	@Test
+	void countByRoleAndStatusNotSkipsAdminsAndWithdrawn() {
+		userRepository.save(user("mom@example.com"));
+		User suspended = userRepository.save(user("dad@example.com"));
+		suspended.changeStatus(UserStatus.SUSPENDED);
+		User withdrawn = userRepository.save(user("gone@example.com"));
+		withdrawn.withdraw();
+		User admin = userRepository.save(user("admin@example.com"));
+		ReflectionTestUtils.setField(admin, "role", Role.ADMIN);
+		userRepository.flush();
+
+		assertThat(userRepository.countByRoleAndStatusNot(Role.USER, UserStatus.WITHDRAWN)).isEqualTo(2);
+	}
+
 	private static User user(String email, String name) {
 		return User.builder()
 				.email(email)
