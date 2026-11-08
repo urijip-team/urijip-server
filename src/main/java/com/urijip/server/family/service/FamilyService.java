@@ -240,4 +240,10 @@ public class FamilyService implements FamilyMembershipChecker {
 		return code;
 	}
 
+	// 정지된 가족도 센다.
+	@Transactional(readOnly = true)
+	public long countFamilies() {
+		return familyRepository.count();
+	}
+
 }

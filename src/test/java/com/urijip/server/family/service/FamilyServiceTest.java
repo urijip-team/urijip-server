@@ -921,6 +921,15 @@ class FamilyServiceTest {
 				.isEqualTo(ErrorCode.FAMILY_NOT_FOUND);
 	}
 
+	@Test
+	void countFamiliesIncludesSuspended() {
+		long before = familyService.countFamilies();
+		FamilyResponse created = familyService.create(mom.getId(), new FamilyCreateRequest("우리집"));
+		familyRepository.findById(created.id()).orElseThrow().changeStatus(FamilyStatus.SUSPENDED);
+
+		assertThat(familyService.countFamilies()).isEqualTo(before + 1);
+	}
+
 	private User saveUser(String email, String name) {
 		return userRepository.saveAndFlush(User.builder()
 				.email(email)
