@@ -20,6 +20,7 @@ import com.urijip.server.global.push.PushType;
 import com.urijip.server.member.dto.request.DeviceTokenRequest;
 import com.urijip.server.member.entity.Platform;
 import com.urijip.server.member.entity.User;
+import com.urijip.server.member.entity.UserStatus;
 import com.urijip.server.member.repository.DeviceTokenRepository;
 import com.urijip.server.member.repository.UserRepository;
 import com.urijip.server.member.service.DeviceTokenService;
@@ -140,6 +141,36 @@ class PushDispatcherTest {
 
 		then(pushSender).should(timeout(3000)).send(any(), any());
 		assertThat(deviceTokenRepository.findByFcmToken("mom-phone")).isPresent();
+	}
+
+	@Test
+	void broadcastSendsToActiveUsersOnly() {
+		given(pushSender.send(any(), any())).willReturn(Set.of());
+		User suspended = saveUser("push-suspended@example.com");
+		deviceTokenService.register(suspended.getId(), new DeviceTokenRequest("suspended-phone", Platform.ANDROID));
+		suspended.changeStatus(UserStatus.SUSPENDED);
+		userRepository.save(suspended);
+		try {
+			transactionTemplate.executeWithoutResult(status -> notificationService.sendToAll(MESSAGE));
+
+			then(pushSender).should(timeout(3000)).send(
+					argThat(tokens -> tokens.containsAll(List.of("mom-phone", "dad-phone"))
+							&& !tokens.contains("suspended-phone")),
+					eq(MESSAGE));
+		} finally {
+			transactionTemplate.executeWithoutResult(status -> deviceTokenRepository.deleteByUserId(suspended.getId()));
+			userRepository.delete(suspended);
+		}
+	}
+
+	@Test
+	void broadcastSendsNothingWhenTransactionRollsBack() {
+		transactionTemplate.executeWithoutResult(status -> {
+			notificationService.sendToAll(MESSAGE);
+			status.setRollbackOnly();
+		});
+
+		then(pushSender).should(after(500).never()).send(any(), any());
 	}
 
 	// 토큰 삭제는 발송 다음에 같은 스레드에서 일어나므로 잠깐 기다린다.
