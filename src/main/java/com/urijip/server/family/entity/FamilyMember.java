@@ -49,6 +49,9 @@ public class FamilyMember {
 
 	private String nickname;
 
+	// 채팅에서 마지막으로 읽은 메시지 id. 아직 읽은 적 없으면 null.
+	private Long lastReadMessageId;
+
 	@CreatedDate
 	@Column(nullable = false, updatable = false)
 	private LocalDateTime joinedAt;
@@ -62,6 +65,15 @@ public class FamilyMember {
 
 	public void changeRole(FamilyRole role) {
 		this.role = role;
+	}
+
+	// 앞으로만 움직인다. 이미 더 뒤까지 읽었으면 바꾸지 않고 false.
+	public boolean markRead(Long messageId) {
+		if (lastReadMessageId != null && lastReadMessageId >= messageId) {
+			return false;
+		}
+		this.lastReadMessageId = messageId;
+		return true;
 	}
 
 	public void changeNickname(String nickname) {
