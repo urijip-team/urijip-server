@@ -5,6 +5,7 @@ import static org.mockito.BDDMockito.given;
 
 import com.urijip.server.global.config.SecurityConfig;
 import com.urijip.server.global.security.JwtProvider;
+import com.urijip.server.notification.dto.request.NotificationSettingUpdateRequest;
 import com.urijip.server.notification.dto.response.NotificationSettingResponse;
 import com.urijip.server.notification.service.NotificationSettingService;
 import org.junit.jupiter.api.Test;
@@ -12,6 +13,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.assertj.MockMvcTester;
 import org.springframework.test.web.servlet.assertj.MvcTestResult;
@@ -48,6 +50,35 @@ class NotificationSettingControllerTest {
 	@Test
 	void getWithoutTokenIsUnauthorized() {
 		assertThat(mvc.get().uri(URL).exchange()).hasStatus(HttpStatus.UNAUTHORIZED);
+	}
+
+	@Test
+	void patchChangesOnlySentFields() {
+		given(notificationSettingService.update(1L, new NotificationSettingUpdateRequest(false, null, null, null)))
+				.willReturn(new NotificationSettingResponse(false, true, true, true));
+
+		MvcTestResult result = mvc.patch().uri(URL).header("Authorization", bearer())
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("""
+						{"chat": false}
+						""")
+				.exchange();
+
+		assertThat(result).hasStatusOk();
+		assertThat(result).bodyJson().extractingPath("$.data.chat").isEqualTo(false);
+		assertThat(result).bodyJson().extractingPath("$.data.notice").isEqualTo(true);
+	}
+
+	@Test
+	void patchWithNonBooleanReturnsBadRequest() {
+		MvcTestResult result = mvc.patch().uri(URL).header("Authorization", bearer())
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("""
+						{"chat": "yes"}
+						""")
+				.exchange();
+
+		assertThat(result).hasStatus(HttpStatus.BAD_REQUEST);
 	}
 
 	private String bearer() {
