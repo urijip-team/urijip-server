@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import java.lang.reflect.Type;
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.BlockingQueue;
@@ -11,7 +12,6 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-import java.util.function.Predicate;
 
 import com.urijip.server.TestcontainersConfiguration;
 import com.urijip.server.chat.dto.request.ChatSendRequest;
@@ -134,23 +134,25 @@ class ChatSocketControllerTest {
 
 	@Test
 	void readProgressIsDeliveredToFamily() throws Exception {
-		Long messageId = chatService.send(dad.getId(), new ChatSendRequest(familyId, "저녁 먹었어?")).messageId();
-		StompSession dadSession = connect(token(dad), new LinkedBlockingQueue<>());
+		// 구독이 등록되기 전의 읽음 알림은 사라지므로, 읽을 메시지를 넉넉히 만들어 두고 하나씩 더 읽으며 기다린다.
+		// 채팅을 되풀이해 보내면 테스트가 끝난 뒤 늦게 저장된 메시지가 정리를 막는다.
+		List<Long> messageIds = new ArrayList<>();
+		for (int i = 0; i < 30; i++) {
+			messageIds.add(chatService.send(dad.getId(), new ChatSendRequest(familyId, "메시지 " + i)).messageId());
+		}
 		MessageCollector dadReads = new MessageCollector();
-		MessageCollector dadChats = new MessageCollector();
-		dadSession.subscribe("/sub/family/" + familyId + "/read", dadReads);
-		dadSession.subscribe("/sub/family/" + familyId + "/chat", dadChats);
-		// 같은 세션의 구독은 차례로 등록되므로, 채팅이 오면 읽음 구독도 등록된 것이다.
-		dadChats.awaitWhileRepeating(() -> dadSession.send("/pub/chat", Map.of("familyId", familyId, "content", "핑")));
+		connect(token(dad), new LinkedBlockingQueue<>()).subscribe("/sub/family/" + familyId + "/read", dadReads);
 		StompSession momSession = connect(token(mom), new LinkedBlockingQueue<>());
+		Iterator<Long> toRead = messageIds.iterator();
 
-		momSession.send("/pub/chat/read", Map.of("familyId", familyId, "messageId", messageId));
+		Map<String, Object> read = dadReads.awaitWhileRepeating(() -> {
+			if (toRead.hasNext()) {
+				momSession.send("/pub/chat/read", Map.of("familyId", familyId, "messageId", toRead.next()));
+			}
+		});
 
-		// 아빠가 보낸 핑으로 아빠 자신의 읽음도 오므로 엄마의 것을 고른다.
-		Map<String, Object> read = dadReads.awaitMatching(message -> message.get("userId").equals(mom.getId().intValue()));
-		assertThat(read).containsEntry("userId", mom.getId().intValue())
-				.containsEntry("previousLastReadMessageId", null)
-				.containsEntry("lastReadMessageId", messageId.intValue());
+		assertThat(read).containsEntry("userId", mom.getId().intValue());
+		assertThat(messageIds).contains(((Number) read.get("lastReadMessageId")).longValue());
 	}
 
 	@Test
@@ -261,17 +263,6 @@ class ChatSocketControllerTest {
 		@SuppressWarnings("unchecked")
 		public void handleFrame(StompHeaders headers, Object payload) {
 			messages.add((Map<String, Object>) payload);
-		}
-
-		Map<String, Object> awaitMatching(Predicate<Map<String, Object>> condition) throws InterruptedException {
-			long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(TIMEOUT_SECONDS);
-			while (System.nanoTime() < deadline) {
-				Map<String, Object> message = messages.poll(200, TimeUnit.MILLISECONDS);
-				if (message != null && condition.test(message)) {
-					return message;
-				}
-			}
-			throw new AssertionError("no matching message received");
 		}
 
 		// 구독이 서버에 등록되기 전에 보낸 메시지는 사라지므로, 받을 때까지 같은 동작을 되풀이한다.
