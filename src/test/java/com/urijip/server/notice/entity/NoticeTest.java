@@ -32,4 +32,14 @@ class NoticeTest {
 		assertThat(notice.getContent()).isEqualTo("새 내용");
 	}
 
+	@Test
+	void newNoticeIsNotPushedUntilMarked() {
+		Notice notice = new Notice(admin, "제목", "내용");
+		assertThat(notice.isPushed()).isFalse();
+
+		notice.markPushed();
+
+		assertThat(notice.isPushed()).isTrue();
+	}
+
 }

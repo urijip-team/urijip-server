@@ -4,10 +4,13 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.time.LocalDateTime;
+import java.util.Map;
+import java.util.Set;
 
 import com.urijip.server.TestcontainersConfiguration;
 import com.urijip.server.global.exception.BusinessException;
 import com.urijip.server.global.exception.ErrorCode;
+import com.urijip.server.global.push.PushType;
 import com.urijip.server.global.response.PageResponse;
 import com.urijip.server.inquiry.dto.request.AdminInquiryAnswerRequest;
 import com.urijip.server.inquiry.dto.request.AdminInquirySearchRequest;
@@ -20,18 +23,25 @@ import com.urijip.server.inquiry.repository.InquiryRepository;
 import com.urijip.server.member.entity.Role;
 import com.urijip.server.member.entity.User;
 import com.urijip.server.member.repository.UserRepository;
+import com.urijip.server.notification.service.PushRequestedEvent;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
+import org.springframework.test.context.event.ApplicationEvents;
+import org.springframework.test.context.event.RecordApplicationEvents;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.transaction.annotation.Transactional;
 
 @SpringBootTest
 @Import(TestcontainersConfiguration.class)
 @Transactional
+@RecordApplicationEvents
 class AdminInquiryServiceTest {
+
+	@Autowired
+	private ApplicationEvents events;
 
 	@Autowired
 	private AdminInquiryService adminInquiryService;
@@ -113,6 +123,21 @@ class AdminInquiryServiceTest {
 	}
 
 	@Test
+	void answerPushesToAuthor() {
+		Inquiry inquiry = inquiryRepository.save(new Inquiry(mom, "사진이 안 올라가요", "내용"));
+
+		adminInquiryService.answer(inquiry.getId(), admin.getId(), new AdminInquiryAnswerRequest("다시 시도해 주세요."));
+
+		assertThat(events.stream(PushRequestedEvent.class)).singleElement().satisfies(event -> {
+			assertThat(event.userIds()).isEqualTo(Set.of(mom.getId()));
+			assertThat(event.message().type()).isEqualTo(PushType.INQUIRY);
+			assertThat(event.message().title()).isEqualTo("문의 답변");
+			assertThat(event.message().body()).isEqualTo("'사진이 안 올라가요' 문의에 답변이 등록됐어요.");
+			assertThat(event.message().data()).isEqualTo(Map.of("inquiryId", inquiry.getId().toString()));
+		});
+	}
+
+	@Test
 	void answeredInquiryIsVisibleToAuthor() {
 		InquiryResponse created = inquiryService.create(mom.getId(), new InquiryCreateRequest("미답변", "내용"));
 
@@ -134,6 +159,7 @@ class AdminInquiryServiceTest {
 				.isInstanceOfSatisfying(BusinessException.class,
 						e -> assertThat(e.getErrorCode()).isEqualTo(ErrorCode.INQUIRY_ALREADY_ANSWERED));
 		assertThat(inquiry.getAnswer()).isEqualTo("첫 답변");
+		assertThat(events.stream(PushRequestedEvent.class)).hasSize(1);
 	}
 
 	@Test

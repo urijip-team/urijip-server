@@ -23,4 +23,9 @@ public class NotificationService {
 		eventPublisher.publishEvent(new PushRequestedEvent(receivers, message));
 	}
 
+	// 활동 중인 모든 회원에게 보낸다. 받을 회원 id를 모으지 않고 PushDispatcher가 토큰을 한 번에 찾는다.
+	public void sendToAll(PushMessage message) {
+		eventPublisher.publishEvent(new BroadcastPushRequestedEvent(message));
+	}
+
 }

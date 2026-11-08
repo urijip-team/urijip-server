@@ -40,4 +40,11 @@ class NotificationServiceTest {
 		verify(eventPublisher, never()).publishEvent(any(Object.class));
 	}
 
+	@Test
+	void sendToAllPublishesBroadcastEvent() {
+		notificationService.sendToAll(MESSAGE);
+
+		verify(eventPublisher).publishEvent(new BroadcastPushRequestedEvent(MESSAGE));
+	}
+
 }

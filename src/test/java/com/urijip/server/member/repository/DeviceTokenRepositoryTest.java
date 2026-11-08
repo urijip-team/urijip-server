@@ -12,13 +12,16 @@ import com.urijip.server.TestcontainersConfiguration;
 import com.urijip.server.global.config.JpaAuditingConfig;
 import com.urijip.server.member.entity.DeviceToken;
 import com.urijip.server.member.entity.Platform;
+import com.urijip.server.member.entity.Role;
 import com.urijip.server.member.entity.User;
+import com.urijip.server.member.entity.UserStatus;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.test.util.ReflectionTestUtils;
 
 @DataJpaTest
 @Import({TestcontainersConfiguration.class, JpaAuditingConfig.class})
@@ -143,6 +146,20 @@ class DeviceTokenRepositoryTest {
 
 		assertThat(deviceTokenRepository.findFcmTokensByUserIds(List.of(mom.getId(), dad.getId())))
 				.containsExactlyInAnyOrder("mom-phone", "mom-tablet", "dad-phone");
+	}
+
+	@Test
+	void findFcmTokensByUserRoleAndStatusReturnsOnlyMatchingUsers() {
+		User suspended = saveUser("suspended@example.com", "정지");
+		suspended.changeStatus(UserStatus.SUSPENDED);
+		User admin = saveUser("admin@example.com", "관리자");
+		ReflectionTestUtils.setField(admin, "role", Role.ADMIN);
+		deviceTokenRepository.save(new DeviceToken(mom, "mom-phone", Platform.ANDROID));
+		deviceTokenRepository.save(new DeviceToken(suspended, "suspended-phone", Platform.IOS));
+		deviceTokenRepository.saveAndFlush(new DeviceToken(admin, "admin-phone", Platform.IOS));
+
+		assertThat(deviceTokenRepository.findFcmTokensByUserRoleAndStatus(Role.USER, UserStatus.ACTIVE))
+				.containsExactly("mom-phone");
 	}
 
 	@Test

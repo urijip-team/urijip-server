@@ -13,6 +13,7 @@ import com.urijip.server.member.dto.request.DeviceTokenRequest;
 import com.urijip.server.member.entity.DeviceToken;
 import com.urijip.server.member.entity.Platform;
 import com.urijip.server.member.entity.User;
+import com.urijip.server.member.entity.UserStatus;
 import com.urijip.server.member.repository.DeviceTokenRepository;
 import com.urijip.server.member.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -122,6 +123,16 @@ class DeviceTokenServiceTest {
 	@Test
 	void getTokensOfNoUsersIsEmpty() {
 		assertThat(deviceTokenService.getTokens(List.of())).isEmpty();
+	}
+
+	@Test
+	void getActiveUserTokensSkipsSuspendedUsers() {
+		User dad = saveUser("dad@example.com", "김아빠");
+		deviceTokenService.register(mom.getId(), new DeviceTokenRequest("mom-phone", Platform.ANDROID));
+		deviceTokenService.register(dad.getId(), new DeviceTokenRequest("dad-phone", Platform.IOS));
+		dad.changeStatus(UserStatus.SUSPENDED);
+
+		assertThat(deviceTokenService.getActiveUserTokens()).containsExactly("mom-phone");
 	}
 
 	@Test
