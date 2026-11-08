@@ -119,6 +119,7 @@ URL, 요청·응답 필드, 테이블·컬럼 이름은 API 명세서와 ERD를 
 - 연결·구독이 거절되면 `StompErrorHandler`가 ERROR 프레임의 `message` 헤더에 에러 코드(`INVALID_TOKEN`, `FAMILY_NOT_MEMBER` 등)를 넣고 연결을 끊는다.
 - `@MessageMapping` 메서드는 `Principal`을 받아 `Long.valueOf(principal.getName())`로 회원 id를 얻는다. 처리 중 예외는 `StompExceptionHandler`가 로그만 남기고 메시지를 버린다.
 - 가족에게 보내는 메시지는 DB 트랜잭션이 커밋된 뒤에 보낸다. 예: `LocationChangedEvent` → `LocationBroadcaster`.
+- 채팅 읽음: 멤버마다 마지막으로 읽은 메시지 id(`family_members.last_read_message_id`)를 둔다. 앱이 `/pub/chat/read`로 보내거나 회원이 메시지를 보내면 앞으로만 움직이고, 움직이면 `/sub/family/{id}/read`로 `{userId, previousLastReadMessageId, lastReadMessageId}`를 보낸다. 메시지 응답의 `unreadCount`는 보낸 사람과 메시지 뒤에 들어온 멤버를 뺀, 아직 읽지 않은 멤버 수다(`UnreadCounter`).
 
 ## 테스트
 
