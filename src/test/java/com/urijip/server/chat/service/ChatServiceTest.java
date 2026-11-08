@@ -132,12 +132,26 @@ class ChatServiceTest {
 		chatService.markRead(mom.getId(), new ChatReadRequest(familyId, first.messageId()));
 		chatService.markRead(mom.getId(), new ChatReadRequest(familyId, second.messageId()));
 
-		assertThat(events.stream(ChatReadEvent.class)).extracting(ChatReadEvent::message).containsExactly(
+		assertThat(readEventsOf(mom)).containsExactly(
 				new ChatReadResponse(mom.getId(), null, first.messageId()),
 				new ChatReadResponse(mom.getId(), first.messageId(), second.messageId()));
 		assertThat(events.stream(ChatReadEvent.class)).allSatisfy(event -> assertThat(event.familyId()).isEqualTo(familyId));
 		assertThat(chatService.getMessages(familyId, kid.getId(), new ChatMessagePageRequest(null, null)).content())
 				.allSatisfy(message -> assertThat(message.unreadCount()).isZero());
+	}
+
+	@Test
+	void sendingMarksEarlierMessagesReadBySender() {
+		ChatMessageResponse fromMom = chatService.send(mom.getId(), new ChatSendRequest(familyId, "밥 먹자"));
+
+		ChatMessageResponse reply = chatService.send(kid.getId(), new ChatSendRequest(familyId, "네"));
+
+		assertThat(events.stream(ChatReadEvent.class)).extracting(ChatReadEvent::message).containsExactly(
+				new ChatReadResponse(mom.getId(), null, fromMom.messageId()),
+				new ChatReadResponse(kid.getId(), null, reply.messageId()));
+		assertThat(chatService.getMessages(familyId, mom.getId(), new ChatMessagePageRequest(null, null)).content())
+				.extracting(ChatMessageResponse::messageId, ChatMessageResponse::unreadCount)
+				.containsExactly(tuple(reply.messageId(), 1), tuple(fromMom.messageId(), 0));
 	}
 
 	@Test
@@ -148,7 +162,7 @@ class ChatServiceTest {
 
 		chatService.markRead(mom.getId(), new ChatReadRequest(familyId, first.messageId()));
 
-		assertThat(events.stream(ChatReadEvent.class)).hasSize(1);
+		assertThat(readEventsOf(mom)).hasSize(1);
 	}
 
 	@Test
@@ -345,6 +359,13 @@ class ChatServiceTest {
 	private List<Long> sendMany(int count) {
 		return IntStream.rangeClosed(1, count)
 				.mapToObj(i -> chatService.send(mom.getId(), new ChatSendRequest(familyId, "메시지 " + i)).messageId())
+				.toList();
+	}
+
+	private List<ChatReadResponse> readEventsOf(User user) {
+		return events.stream(ChatReadEvent.class)
+				.map(ChatReadEvent::message)
+				.filter(read -> read.userId().equals(user.getId()))
 				.toList();
 	}
 

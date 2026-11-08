@@ -11,6 +11,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.function.Predicate;
 
 import com.urijip.server.TestcontainersConfiguration;
 import com.urijip.server.chat.dto.request.ChatSendRequest;
@@ -145,7 +146,8 @@ class ChatSocketControllerTest {
 
 		momSession.send("/pub/chat/read", Map.of("familyId", familyId, "messageId", messageId));
 
-		Map<String, Object> read = dadReads.await();
+		// 아빠가 보낸 핑으로 아빠 자신의 읽음도 오므로 엄마의 것을 고른다.
+		Map<String, Object> read = dadReads.awaitMatching(message -> message.get("userId").equals(mom.getId().intValue()));
 		assertThat(read).containsEntry("userId", mom.getId().intValue())
 				.containsEntry("previousLastReadMessageId", null)
 				.containsEntry("lastReadMessageId", messageId.intValue());
@@ -261,12 +263,15 @@ class ChatSocketControllerTest {
 			messages.add((Map<String, Object>) payload);
 		}
 
-		Map<String, Object> await() throws InterruptedException {
-			Map<String, Object> message = messages.poll(TIMEOUT_SECONDS, TimeUnit.SECONDS);
-			if (message == null) {
-				throw new AssertionError("no message received");
+		Map<String, Object> awaitMatching(Predicate<Map<String, Object>> condition) throws InterruptedException {
+			long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(TIMEOUT_SECONDS);
+			while (System.nanoTime() < deadline) {
+				Map<String, Object> message = messages.poll(200, TimeUnit.MILLISECONDS);
+				if (message != null && condition.test(message)) {
+					return message;
+				}
 			}
-			return message;
+			throw new AssertionError("no matching message received");
 		}
 
 		// 구독이 서버에 등록되기 전에 보낸 메시지는 사라지므로, 받을 때까지 같은 동작을 되풀이한다.

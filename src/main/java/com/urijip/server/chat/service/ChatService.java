@@ -43,7 +43,7 @@ public class ChatService {
 	private final PresenceService presenceService;
 	private final ApplicationEventPublisher eventPublisher;
 
-	// STOMP /pub/chat. 본문의 가족에 속하지 않으면 FAMILY_NOT_MEMBER. 저장한 뒤 가족에게 실시간으로 보내고,
+	// STOMP /pub/chat. 본문의 가족에 속하지 않으면 FAMILY_NOT_MEMBER. 저장한 뒤 가족에게 실시간으로 보내고(보낸 사람은 읽음 처리),
 	// 앱이 꺼져 있는(WebSocket에 연결되지 않은) 가족에게는 푸시한다.
 	@Transactional
 	public ChatMessageResponse send(Long userId, ChatSendRequest request) {
@@ -55,6 +55,8 @@ public class ChatService {
 
 		ChatMessageResponse response = toResponse(message, names, familyService.getReadStates(request.familyId()));
 		eventPublisher.publishEvent(new ChatMessageSentEvent(request.familyId(), response));
+		// 보낸 사람은 그때까지의 메시지를 모두 본 것으로 한다.
+		publishReadProgress(request.familyId(), userId, message.getId());
 		pushToOffline(response, request.familyId(), userId, names);
 		return response;
 	}
@@ -78,8 +80,12 @@ public class ChatService {
 		if (!chatMessageRepository.existsByIdAndFamilyId(request.messageId(), request.familyId())) {
 			throw new BusinessException(ErrorCode.CHAT_MESSAGE_NOT_FOUND);
 		}
-		familyService.markRead(request.familyId(), userId, request.messageId())
-				.ifPresent(progress -> eventPublisher.publishEvent(new ChatReadEvent(request.familyId(),
+		publishReadProgress(request.familyId(), userId, request.messageId());
+	}
+
+	private void publishReadProgress(Long familyId, Long userId, Long messageId) {
+		familyService.markRead(familyId, userId, messageId)
+				.ifPresent(progress -> eventPublisher.publishEvent(new ChatReadEvent(familyId,
 						new ChatReadResponse(userId, progress.previousLastReadMessageId(),
 								progress.lastReadMessageId()))));
 	}
