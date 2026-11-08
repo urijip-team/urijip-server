@@ -6,6 +6,9 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import java.time.LocalDateTime;
 
 import com.urijip.server.TestcontainersConfiguration;
+import com.urijip.server.adminlog.entity.AdminAction;
+import com.urijip.server.adminlog.entity.AdminLogTargetType;
+import com.urijip.server.adminlog.repository.AdminLogRepository;
 import com.urijip.server.global.exception.BusinessException;
 import com.urijip.server.global.exception.ErrorCode;
 import com.urijip.server.global.response.PageResponse;
@@ -46,6 +49,9 @@ class AdminInquiryServiceTest {
 	private UserRepository userRepository;
 
 	private User admin;
+
+	@Autowired
+	private AdminLogRepository adminLogRepository;
 
 	private User mom;
 
@@ -125,6 +131,21 @@ class AdminInquiryServiceTest {
 	}
 
 	@Test
+	void answerRecordsAdminLogWithTitle() {
+		Inquiry inquiry = inquiryRepository.save(new Inquiry(mom, "로그인이 안 돼요", "내용"));
+
+		adminInquiryService.answer(inquiry.getId(), admin.getId(), new AdminInquiryAnswerRequest("다시 시도해 주세요."));
+
+		assertThat(adminLogRepository.findAll()).singleElement().satisfies(log -> {
+			assertThat(log.getAdmin().getId()).isEqualTo(admin.getId());
+			assertThat(log.getAction()).isEqualTo(AdminAction.ANSWER_INQUIRY);
+			assertThat(log.getTargetType()).isEqualTo(AdminLogTargetType.INQUIRY);
+			assertThat(log.getTargetId()).isEqualTo(inquiry.getId());
+			assertThat(log.getDetail()).isEqualTo("로그인이 안 돼요");
+		});
+	}
+
+	@Test
 	void answerTwiceFails() {
 		Inquiry inquiry = inquiryRepository.save(new Inquiry(mom, "미답변", "내용"));
 		adminInquiryService.answer(inquiry.getId(), admin.getId(), new AdminInquiryAnswerRequest("첫 답변"));
@@ -134,6 +155,7 @@ class AdminInquiryServiceTest {
 				.isInstanceOfSatisfying(BusinessException.class,
 						e -> assertThat(e.getErrorCode()).isEqualTo(ErrorCode.INQUIRY_ALREADY_ANSWERED));
 		assertThat(inquiry.getAnswer()).isEqualTo("첫 답변");
+		assertThat(adminLogRepository.count()).isEqualTo(1);
 	}
 
 	@Test
