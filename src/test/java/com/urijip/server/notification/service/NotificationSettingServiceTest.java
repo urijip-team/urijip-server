@@ -126,6 +126,14 @@ class NotificationSettingServiceTest {
 		assertThat(notificationSettingService.filterReceivers(List.of(), PushType.CHAT)).isEmpty();
 	}
 
+	@Test
+	void getNoticeOffUserIdsReturnsUsersWhoTurnedNoticeOff() {
+		saveSetting(mom, true, true, true, false);
+		saveSetting(dad, false, false, false, true);
+
+		assertThat(notificationSettingService.getNoticeOffUserIds()).containsExactly(mom.getId());
+	}
+
 	private void saveSetting(User user, boolean chat, boolean schedule, boolean allowance, boolean notice) {
 		NotificationSetting setting = new NotificationSetting(user);
 		setting.update(chat, schedule, allowance, notice);

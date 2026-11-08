@@ -1,6 +1,7 @@
 package com.urijip.server.notification.service;
 
 import java.util.Collection;
+import java.util.List;
 import java.util.Set;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
@@ -50,6 +51,12 @@ public class NotificationSettingService {
 				.map(NotificationSetting::getUserId)
 				.collect(Collectors.toSet());
 		return userIds.stream().filter(id -> !disabled.contains(id)).collect(Collectors.toSet());
+	}
+
+	// 공지 알림을 끈 회원. 공지 전체 푸시에서 뺀다.
+	@Transactional(readOnly = true)
+	public List<Long> getNoticeOffUserIds() {
+		return notificationSettingRepository.findUserIdsWithNoticeOff();
 	}
 
 	// 설정으로 끌 수 있는 종류면 켜져 있는지 보는 조건, 끌 수 없으면 null.

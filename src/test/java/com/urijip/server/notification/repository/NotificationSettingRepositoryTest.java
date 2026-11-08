@@ -28,7 +28,7 @@ class NotificationSettingRepositoryTest {
 
 	@Test
 	void savedSettingUsesUserIdAsKeyAndStartsAllOn() {
-		User mom = userRepository.save(User.builder().email("mom@example.com").password("pw").name("김엄마").build());
+		User mom = saveUser("mom@example.com");
 
 		notificationSettingRepository.saveAndFlush(new NotificationSetting(mom));
 		entityManager.clear();
@@ -38,6 +38,24 @@ class NotificationSettingRepositoryTest {
 		assertThat(saved.isSchedule()).isTrue();
 		assertThat(saved.isAllowance()).isTrue();
 		assertThat(saved.isNotice()).isTrue();
+	}
+
+	@Test
+	void findUserIdsWithNoticeOffReturnsOnlyThoseUsers() {
+		User mom = saveUser("mom@example.com");
+		User dad = saveUser("dad@example.com");
+		NotificationSetting off = new NotificationSetting(mom);
+		off.update(true, true, true, false);
+		notificationSettingRepository.save(off);
+		NotificationSetting chatOff = new NotificationSetting(dad);
+		chatOff.update(false, true, true, true);
+		notificationSettingRepository.saveAndFlush(chatOff);
+
+		assertThat(notificationSettingRepository.findUserIdsWithNoticeOff()).containsExactly(mom.getId());
+	}
+
+	private User saveUser(String email) {
+		return userRepository.save(User.builder().email(email).password("pw").name("회원").build());
 	}
 
 }
