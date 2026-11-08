@@ -20,6 +20,8 @@ public interface ReportRepository extends JpaRepository<Report, Long> {
 	List<Report> findByTargetTypeAndTargetIdAndStatus(ReportTargetType targetType, Long targetId,
 			ReportStatus status);
 
+	long countByStatus(ReportStatus status);
+
 	// status가 null이면 모든 상태를 돌려준다.
 	@EntityGraph(attributePaths = {"reporter", "handledBy"})
 	@Query("select r from Report r where (:status is null or r.status = :status)")

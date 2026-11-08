@@ -35,4 +35,9 @@ public class InquiryService {
 		return PageResponse.from(inquiryRepository.findByUserId(userId, pageable).map(InquiryResponse::from));
 	}
 
+	@Transactional(readOnly = true)
+	public long countUnanswered() {
+		return inquiryRepository.countByAnsweredAtIsNull();
+	}
+
 }

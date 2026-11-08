@@ -154,6 +154,16 @@ class ReportServiceTest {
 				.isEqualTo(errorCode);
 	}
 
+	@Test
+	void countPendingSkipsHandledReports() {
+		long before = reportService.countPending();
+		reportRepository.save(new Report(mom, ReportTargetType.USER, stranger.getId(), "욕설"));
+		Report handled = reportRepository.save(new Report(mom, ReportTargetType.USER, stranger.getId(), "도배"));
+		handled.handle(mom, ReportStatus.REJECTED);
+
+		assertThat(reportService.countPending()).isEqualTo(before + 1);
+	}
+
 	private User saveUser(String email, String name) {
 		return userRepository.save(User.builder()
 				.email(email)
