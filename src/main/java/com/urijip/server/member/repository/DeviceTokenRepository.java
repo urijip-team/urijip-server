@@ -6,6 +6,7 @@ import java.util.Optional;
 
 import com.urijip.server.member.entity.DeviceToken;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -19,5 +20,9 @@ public interface DeviceTokenRepository extends JpaRepository<DeviceToken, Long> 
 
 	@Query("select t.fcmToken from DeviceToken t where t.user.id in :userIds")
 	List<String> findFcmTokensByUserIds(@Param("userIds") Collection<Long> userIds);
+
+	@Modifying
+	@Query("delete from DeviceToken t where t.fcmToken in :fcmTokens")
+	int deleteByFcmTokens(@Param("fcmTokens") Collection<String> fcmTokens);
 
 }

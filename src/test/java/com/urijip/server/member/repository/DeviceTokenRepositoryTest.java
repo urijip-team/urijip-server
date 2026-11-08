@@ -145,6 +145,17 @@ class DeviceTokenRepositoryTest {
 				.containsExactlyInAnyOrder("mom-phone", "mom-tablet", "dad-phone");
 	}
 
+	@Test
+	void deleteByFcmTokensDeletesOnlyThoseTokens() {
+		deviceTokenRepository.save(new DeviceToken(mom, "gone-1", Platform.ANDROID));
+		deviceTokenRepository.save(new DeviceToken(mom, "gone-2", Platform.IOS));
+		deviceTokenRepository.saveAndFlush(new DeviceToken(mom, "alive", Platform.ANDROID));
+
+		assertThat(deviceTokenRepository.deleteByFcmTokens(List.of("gone-1", "gone-2", "unknown"))).isEqualTo(2);
+
+		assertThat(deviceTokenRepository.findAll()).extracting(DeviceToken::getFcmToken).containsExactly("alive");
+	}
+
 	private User saveUser(String email, String name) {
 		return userRepository.saveAndFlush(User.builder()
 				.email(email)
