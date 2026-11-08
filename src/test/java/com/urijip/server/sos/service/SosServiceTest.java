@@ -4,6 +4,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.math.BigDecimal;
+import java.util.Map;
+import java.util.Set;
 
 import com.urijip.server.TestcontainersConfiguration;
 import com.urijip.server.chat.entity.MessageType;
@@ -15,9 +17,11 @@ import com.urijip.server.family.dto.response.FamilyResponse;
 import com.urijip.server.family.service.FamilyService;
 import com.urijip.server.global.exception.BusinessException;
 import com.urijip.server.global.exception.ErrorCode;
+import com.urijip.server.global.push.PushType;
 import com.urijip.server.global.response.PageResponse;
 import com.urijip.server.member.entity.User;
 import com.urijip.server.member.repository.UserRepository;
+import com.urijip.server.notification.service.PushRequestedEvent;
 import com.urijip.server.sos.dto.request.SosSearchRequest;
 import com.urijip.server.sos.dto.request.SosSendRequest;
 import com.urijip.server.sos.dto.response.SosCreateResponse;
@@ -124,6 +128,26 @@ class SosServiceTest {
 	}
 
 	@Test
+	void sendPushesSosToFamilyExceptSender() {
+		SosCreateResponse response = send(kid);
+
+		assertThat(events.stream(PushRequestedEvent.class)).singleElement().satisfies(event -> {
+			assertThat(event.userIds()).isEqualTo(Set.of(mom.getId()));
+			assertThat(event.message().type()).isEqualTo(PushType.SOS);
+			assertThat(event.message().body()).isEqualTo("김첫째님이 SOS를 보냈습니다.");
+			assertThat(event.message().data()).isEqualTo(Map.of("sosId", response.sosId().toString(),
+					"familyId", familyId.toString()));
+		});
+	}
+
+	@Test
+	void sendByStrangerPushesNothing() {
+		assertThatThrownBy(() -> send(stranger)).isInstanceOf(BusinessException.class);
+
+		assertThat(events.stream(PushRequestedEvent.class)).isEmpty();
+	}
+
+	@Test
 	void sendPublishesEventWithDisplayName() {
 		SosCreateResponse response = send(kid);
 
@@ -181,6 +205,15 @@ class SosServiceTest {
 		SosResponse response = sosService.resolve(send(kid).sosId(), kid.getId());
 
 		assertThat(response.resolvedBy().userId()).isEqualTo(kid.getId());
+	}
+
+	@Test
+	void resolvePushesNothing() {
+		Long sosId = send(kid).sosId();
+
+		sosService.resolve(sosId, mom.getId());
+
+		assertThat(events.stream(PushRequestedEvent.class)).hasSize(1);
 	}
 
 	@Test

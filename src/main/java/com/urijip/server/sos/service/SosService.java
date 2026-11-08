@@ -3,6 +3,7 @@ package com.urijip.server.sos.service;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import com.urijip.server.chat.service.ChatService;
@@ -11,8 +12,11 @@ import com.urijip.server.family.service.FamilyDeletedEvent;
 import com.urijip.server.family.service.FamilyService;
 import com.urijip.server.global.exception.BusinessException;
 import com.urijip.server.global.exception.ErrorCode;
+import com.urijip.server.global.push.PushMessage;
+import com.urijip.server.global.push.PushType;
 import com.urijip.server.global.response.PageResponse;
 import com.urijip.server.member.service.UserService;
+import com.urijip.server.notification.service.NotificationService;
 import com.urijip.server.sos.dto.request.SosSearchRequest;
 import com.urijip.server.sos.dto.request.SosSendRequest;
 import com.urijip.server.sos.dto.response.SosCreateResponse;
@@ -36,6 +40,7 @@ public class SosService {
 	private final FamilyService familyService;
 	private final UserService userService;
 	private final ChatService chatService;
+	private final NotificationService notificationService;
 	private final ApplicationEventPublisher eventPublisher;
 
 	// 위치 공유를 꺼 둔 회원도 보낼 수 있다. 위치는 이 SOS 기록에만 남고 user_locations는 바꾸지 않는다.
@@ -46,6 +51,7 @@ public class SosService {
 				userService.getUser(userId), scale(request.latitude()), scale(request.longitude())));
 		publishChanged(alert, names);
 		chatService.sendSystemMessage(request.familyId(), names.get(userId) + "님이 SOS를 보냈습니다.");
+		pushSos(alert, userId, names);
 		return SosCreateResponse.from(alert);
 	}
 
@@ -86,6 +92,16 @@ public class SosService {
 
 	private void publishChanged(SosAlert alert, Map<Long, String> names) {
 		eventPublisher.publishEvent(new SosChangedEvent(alert.getFamily().getId(), SosResponse.of(alert, names)));
+	}
+
+	// 보낸 사람을 뺀 가족 멤버에게 보낸다.
+	private void pushSos(SosAlert alert, Long senderId, Map<Long, String> names) {
+		Set<Long> receivers = names.keySet().stream()
+				.filter(memberId -> !memberId.equals(senderId))
+				.collect(Collectors.toSet());
+		notificationService.send(receivers, new PushMessage(PushType.SOS, "SOS",
+				names.get(senderId) + "님이 SOS를 보냈습니다.",
+				Map.of("sosId", alert.getId().toString(), "familyId", alert.getFamily().getId().toString())));
 	}
 
 	private BigDecimal scale(BigDecimal value) {
