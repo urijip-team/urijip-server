@@ -21,6 +21,15 @@ public interface ScheduleRepository extends JpaRepository<Schedule, Long> {
 	List<Schedule> findOverlapping(@Param("familyId") Long familyId, @Param("from") LocalDateTime from,
 			@Param("to") LocalDateTime to);
 
+	// [from, to)에 시작하는 모든 가족의 일정. 일정 알림에 쓴다.
+	@EntityGraph(attributePaths = {"participantIds", "family"})
+	@Query("""
+			select s from Schedule s
+			where s.startAt >= :from and s.startAt < :to
+			order by s.startAt, s.id
+			""")
+	List<Schedule> findStartingBetween(@Param("from") LocalDateTime from, @Param("to") LocalDateTime to);
+
 	long deleteByFamilyId(Long familyId);
 
 }

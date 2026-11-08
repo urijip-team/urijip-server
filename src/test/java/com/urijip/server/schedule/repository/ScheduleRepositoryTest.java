@@ -70,6 +70,23 @@ class ScheduleRepositoryTest {
 	}
 
 	@Test
+	void findStartingBetweenReturnsSchedulesOfAllFamiliesStartingThatDay() {
+		User dad = saveUser("dad@example.com");
+		Family other = saveFamily("Q7W8E9", dad);
+		Schedule morning = save(family, "병원", at(10, 2, 9), at(10, 2, 10), List.of(mom.getId()));
+		Schedule otherFamily = save(other, "회식", at(10, 2, 19), at(10, 2, 21), List.of());
+		save(family, "어제 시작", at(10, 1, 23), at(10, 2, 1), List.of());
+		save(family, "다음 날", at(10, 3, 0), at(10, 3, 1), List.of());
+		entityManager.clear();
+
+		List<Schedule> found = scheduleRepository.findStartingBetween(at(10, 2, 0), at(10, 3, 0));
+
+		assertThat(found).extracting(Schedule::getId).containsExactly(morning.getId(), otherFamily.getId());
+		assertThat(found.getFirst().getParticipantIds()).containsExactly(mom.getId());
+		assertThat(found.getFirst().getFamily().getId()).isEqualTo(family.getId());
+	}
+
+	@Test
 	void findOverlappingIncludesSchedulesCrossingMonthBoundary() {
 		Schedule fromSeptember = save(family, "추석", at(9, 30, 0), at(10, 1, 0), List.of());
 		Schedule toNovember = save(family, "출장", at(10, 31, 9), at(11, 2, 18), List.of());

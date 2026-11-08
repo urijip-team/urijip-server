@@ -163,6 +163,18 @@ class DeviceTokenRepositoryTest {
 	}
 
 	@Test
+	void findFcmTokensByUserRoleAndStatusExcludingSkipsGivenUsers() {
+		User dad = saveUser("dad@example.com", "김아빠");
+		User kid = saveUser("kid@example.com", "김첫째");
+		deviceTokenRepository.save(new DeviceToken(mom, "mom-phone", Platform.ANDROID));
+		deviceTokenRepository.save(new DeviceToken(dad, "dad-phone", Platform.IOS));
+		deviceTokenRepository.saveAndFlush(new DeviceToken(kid, "kid-phone", Platform.ANDROID));
+
+		assertThat(deviceTokenRepository.findFcmTokensByUserRoleAndStatusExcluding(Role.USER, UserStatus.ACTIVE,
+				List.of(dad.getId(), kid.getId()))).containsExactly("mom-phone");
+	}
+
+	@Test
 	void deleteByFcmTokensDeletesOnlyThoseTokens() {
 		deviceTokenRepository.save(new DeviceToken(mom, "gone-1", Platform.ANDROID));
 		deviceTokenRepository.save(new DeviceToken(mom, "gone-2", Platform.IOS));

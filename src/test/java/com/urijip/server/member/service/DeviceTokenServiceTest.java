@@ -132,7 +132,16 @@ class DeviceTokenServiceTest {
 		deviceTokenService.register(dad.getId(), new DeviceTokenRequest("dad-phone", Platform.IOS));
 		dad.changeStatus(UserStatus.SUSPENDED);
 
-		assertThat(deviceTokenService.getActiveUserTokens()).containsExactly("mom-phone");
+		assertThat(deviceTokenService.getActiveUserTokens(List.of())).containsExactly("mom-phone");
+	}
+
+	@Test
+	void getActiveUserTokensSkipsExcludedUsers() {
+		User dad = saveUser("dad@example.com", "김아빠");
+		deviceTokenService.register(mom.getId(), new DeviceTokenRequest("mom-phone", Platform.ANDROID));
+		deviceTokenService.register(dad.getId(), new DeviceTokenRequest("dad-phone", Platform.IOS));
+
+		assertThat(deviceTokenService.getActiveUserTokens(List.of(mom.getId()))).containsExactly("dad-phone");
 	}
 
 	@Test

@@ -39,10 +39,14 @@ public class DeviceTokenService {
 		return deviceTokenRepository.findFcmTokensByUserIds(userIds);
 	}
 
-	// 전체 푸시를 받을 기기 토큰. 관리자와 정지·탈퇴한 회원은 뺀다.
+	// 전체 푸시를 받을 기기 토큰. 관리자와 정지·탈퇴한 회원, excludedUserIds(알림을 끈 회원)는 뺀다.
 	@Transactional(readOnly = true)
-	public List<String> getActiveUserTokens() {
-		return deviceTokenRepository.findFcmTokensByUserRoleAndStatus(Role.USER, UserStatus.ACTIVE);
+	public List<String> getActiveUserTokens(Collection<Long> excludedUserIds) {
+		if (excludedUserIds.isEmpty()) {
+			return deviceTokenRepository.findFcmTokensByUserRoleAndStatus(Role.USER, UserStatus.ACTIVE);
+		}
+		return deviceTokenRepository.findFcmTokensByUserRoleAndStatusExcluding(Role.USER, UserStatus.ACTIVE,
+				excludedUserIds);
 	}
 
 	// FCM이 다시 쓸 수 없다고 알려 준 토큰을 지운다. 누구의 토큰인지는 따지지 않는다.
