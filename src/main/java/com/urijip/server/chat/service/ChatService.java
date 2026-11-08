@@ -6,14 +6,18 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 import com.urijip.server.chat.dto.request.ChatMessagePageRequest;
+import com.urijip.server.chat.dto.request.ChatReadRequest;
 import com.urijip.server.chat.dto.request.ChatSendRequest;
 import com.urijip.server.chat.dto.response.ChatMessageResponse;
+import com.urijip.server.chat.dto.response.ChatReadResponse;
 import com.urijip.server.chat.entity.ChatMessage;
 import com.urijip.server.chat.repository.ChatMessageRepository;
 import com.urijip.server.family.dto.response.FamilyMemberResponse;
 import com.urijip.server.family.dto.response.MemberReadState;
 import com.urijip.server.family.service.FamilyDeletedEvent;
 import com.urijip.server.family.service.FamilyService;
+import com.urijip.server.global.exception.BusinessException;
+import com.urijip.server.global.exception.ErrorCode;
 import com.urijip.server.global.push.PushMessage;
 import com.urijip.server.global.push.PushType;
 import com.urijip.server.global.response.CursorResponse;
@@ -64,6 +68,20 @@ public class ChatService {
 				message.getCreatedAt());
 		eventPublisher.publishEvent(new ChatMessageSentEvent(familyId, ChatMessageResponse.of(message, null,
 				unreadCount)));
+	}
+
+	// STOMP /pub/chat/read. 멤버가 아니면 FAMILY_NOT_MEMBER, 그 가족의 메시지가 아니면 CHAT_MESSAGE_NOT_FOUND.
+	// 마지막 읽은 메시지가 앞으로 움직였을 때만 가족에게 알린다.
+	@Transactional
+	public void markRead(Long userId, ChatReadRequest request) {
+		familyService.validateMember(request.familyId(), userId);
+		if (!chatMessageRepository.existsByIdAndFamilyId(request.messageId(), request.familyId())) {
+			throw new BusinessException(ErrorCode.CHAT_MESSAGE_NOT_FOUND);
+		}
+		familyService.markRead(request.familyId(), userId, request.messageId())
+				.ifPresent(progress -> eventPublisher.publishEvent(new ChatReadEvent(request.familyId(),
+						new ChatReadResponse(userId, progress.previousLastReadMessageId(),
+								progress.lastReadMessageId()))));
 	}
 
 	// 최신순. size개보다 하나 더 읽어 다음 페이지가 있는지 판단한다.
