@@ -3,6 +3,7 @@ package com.urijip.server.notification.service;
 import java.util.List;
 import java.util.Set;
 
+import com.urijip.server.global.push.PushMessage;
 import com.urijip.server.global.push.PushSender;
 import com.urijip.server.member.service.DeviceTokenService;
 import lombok.RequiredArgsConstructor;
@@ -27,15 +28,18 @@ public class PushDispatcher {
 	@TransactionalEventListener(fallbackExecution = true)
 	public void onPushRequested(PushRequestedEvent event) {
 		try {
-			List<String> tokens = deviceTokenService.getTokens(event.userIds());
-			if (tokens.isEmpty()) {
-				return;
-			}
-			Set<String> invalid = pushSender.send(tokens, event.message());
-			deviceTokenService.deleteTokens(invalid);
+			dispatch(deviceTokenService.getTokens(event.userIds()), event.message());
 		} catch (RuntimeException e) {
 			log.error("Push dispatch failed: type={}, users={}", event.message().type(), event.userIds().size(), e);
 		}
+	}
+
+	private void dispatch(List<String> tokens, PushMessage message) {
+		if (tokens.isEmpty()) {
+			return;
+		}
+		Set<String> invalid = pushSender.send(tokens, message);
+		deviceTokenService.deleteTokens(invalid);
 	}
 
 }
