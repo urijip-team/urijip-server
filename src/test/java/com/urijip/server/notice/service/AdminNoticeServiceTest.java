@@ -2,8 +2,12 @@ package com.urijip.server.notice.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.tuple;
 
 import com.urijip.server.TestcontainersConfiguration;
+import com.urijip.server.adminlog.entity.AdminAction;
+import com.urijip.server.adminlog.entity.AdminLog;
+import com.urijip.server.adminlog.repository.AdminLogRepository;
 import com.urijip.server.global.exception.BusinessException;
 import com.urijip.server.global.exception.ErrorCode;
 import com.urijip.server.member.entity.Role;
@@ -38,6 +42,9 @@ class AdminNoticeServiceTest {
 
 	private User admin;
 
+	@Autowired
+	private AdminLogRepository adminLogRepository;
+
 	@BeforeEach
 	void setUp() {
 		admin = userRepository.save(User.builder()
@@ -60,6 +67,16 @@ class AdminNoticeServiceTest {
 		assertThat(response.createdAt().getOffset().getId()).isEqualTo("+09:00");
 		Notice saved = noticeRepository.findById(response.id()).orElseThrow();
 		assertThat(saved.getCreatedBy().getId()).isEqualTo(admin.getId());
+	}
+
+	@Test
+	void createRecordsAdminLogWithTitle() {
+		AdminNoticeResponse response = adminNoticeService.create(admin.getId(),
+				new AdminNoticeCreateRequest("서버 점검 안내", "내용"));
+
+		assertThat(adminLogRepository.findAll())
+				.extracting(AdminLog::getAction, AdminLog::getTargetId, AdminLog::getDetail)
+				.containsExactly(tuple(AdminAction.CREATE_NOTICE, response.id(), "서버 점검 안내"));
 	}
 
 	@Test

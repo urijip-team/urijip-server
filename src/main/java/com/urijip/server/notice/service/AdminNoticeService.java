@@ -1,5 +1,8 @@
 package com.urijip.server.notice.service;
 
+import com.urijip.server.adminlog.entity.AdminAction;
+import com.urijip.server.adminlog.entity.AdminLogTargetType;
+import com.urijip.server.adminlog.service.AdminLogService;
 import com.urijip.server.global.exception.BusinessException;
 import com.urijip.server.global.exception.ErrorCode;
 import com.urijip.server.member.service.UserService;
@@ -18,11 +21,15 @@ public class AdminNoticeService {
 
 	private final NoticeRepository noticeRepository;
 	private final UserService userService;
+	private final AdminLogService adminLogService;
 
 	@Transactional
 	public AdminNoticeResponse create(Long adminId, AdminNoticeCreateRequest request) {
-		Notice notice = new Notice(userService.getUser(adminId), request.title(), request.content());
-		return AdminNoticeResponse.from(noticeRepository.save(notice));
+		Notice notice = noticeRepository.save(new Notice(userService.getUser(adminId), request.title(),
+				request.content()));
+		adminLogService.record(adminId, AdminAction.CREATE_NOTICE, AdminLogTargetType.NOTICE, notice.getId(),
+				notice.getTitle());
+		return AdminNoticeResponse.from(notice);
 	}
 
 	@Transactional
