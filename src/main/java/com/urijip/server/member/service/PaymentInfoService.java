@@ -1,5 +1,7 @@
 package com.urijip.server.member.service;
 
+import java.util.Optional;
+
 import com.urijip.server.family.service.FamilyService;
 import com.urijip.server.global.exception.BusinessException;
 import com.urijip.server.global.exception.ErrorCode;
@@ -48,6 +50,12 @@ public class PaymentInfoService {
 	public AccountNumberResponse getAccountNumber(Long userId, Long targetUserId) {
 		PaymentInfo paymentInfo = getAccessiblePaymentInfo(userId, targetUserId);
 		return new AccountNumberResponse(aesEncryptor.decrypt(paymentInfo.getAccountNumberEnc()));
+	}
+
+	// 권한 검사 없이 찾는다. 다른 도메인이 자기 규칙으로 접근을 검사한 뒤에 쓴다. 등록하지 않았으면 비어 있다.
+	@Transactional(readOnly = true)
+	public Optional<PaymentInfoResponse> findPaymentInfo(Long userId) {
+		return paymentInfoRepository.findById(userId).map(PaymentInfoResponse::from);
 	}
 
 	private PaymentInfo getAccessiblePaymentInfo(Long userId, Long targetUserId) {
