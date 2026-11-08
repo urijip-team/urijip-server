@@ -43,7 +43,7 @@ public class AdminFamilyService {
 
 	// 정지된 가족은 초대 코드로 참여할 수 없다(FamilyService.join).
 	@Transactional
-	public AdminFamilyResponse changeStatus(Long familyId, AdminFamilyStatusRequest request) {
+	public AdminFamilyResponse changeStatus(Long familyId, Long adminId, AdminFamilyStatusRequest request) {
 		Family family = familyRepository.findById(familyId)
 				.orElseThrow(() -> new BusinessException(ErrorCode.FAMILY_NOT_FOUND));
 

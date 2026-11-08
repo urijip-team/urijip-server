@@ -34,6 +34,8 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 class AdminFamilyServiceTest {
 
+	private static final Long ADMIN_ID = 100L;
+
 	@Autowired
 	private AdminFamilyService adminFamilyService;
 
@@ -102,14 +104,14 @@ class AdminFamilyServiceTest {
 
 	@Test
 	void changeStatusSuspendsAndReactivates() {
-		AdminFamilyResponse suspended = adminFamilyService.changeStatus(kims.id(),
+		AdminFamilyResponse suspended = adminFamilyService.changeStatus(kims.id(), ADMIN_ID,
 				new AdminFamilyStatusRequest(FamilyStatus.SUSPENDED));
 		assertThat(suspended.status()).isEqualTo(FamilyStatus.SUSPENDED);
 		assertThat(suspended.memberCount()).isEqualTo(2);
 		assertThat(familyRepository.findById(kims.id()).orElseThrow().getStatus())
 				.isEqualTo(FamilyStatus.SUSPENDED);
 
-		AdminFamilyResponse active = adminFamilyService.changeStatus(kims.id(),
+		AdminFamilyResponse active = adminFamilyService.changeStatus(kims.id(), ADMIN_ID,
 				new AdminFamilyStatusRequest(FamilyStatus.ACTIVE));
 		assertThat(active.status()).isEqualTo(FamilyStatus.ACTIVE);
 	}
@@ -117,7 +119,7 @@ class AdminFamilyServiceTest {
 	@Test
 	void suspendedFamilyCannotBeJoined() {
 		User daughter = saveUser("daughter@example.com", "김딸");
-		adminFamilyService.changeStatus(kims.id(), new AdminFamilyStatusRequest(FamilyStatus.SUSPENDED));
+		adminFamilyService.changeStatus(kims.id(), ADMIN_ID, new AdminFamilyStatusRequest(FamilyStatus.SUSPENDED));
 
 		assertThatThrownBy(() -> familyService.join(daughter.getId(), new FamilyJoinRequest(kims.inviteCode())))
 				.isInstanceOf(BusinessException.class)
@@ -127,7 +129,7 @@ class AdminFamilyServiceTest {
 
 	@Test
 	void changeStatusOfUnknownFamilyThrowsNotFound() {
-		assertThatThrownBy(() -> adminFamilyService.changeStatus(999_999L,
+		assertThatThrownBy(() -> adminFamilyService.changeStatus(999_999L, ADMIN_ID,
 				new AdminFamilyStatusRequest(FamilyStatus.SUSPENDED)))
 				.isInstanceOf(BusinessException.class)
 				.extracting("errorCode")

@@ -107,7 +107,7 @@ class AdminFamilyControllerTest {
 
 	@Test
 	void changeStatusReturnsFamily() {
-		given(adminFamilyService.changeStatus(3L, new AdminFamilyStatusRequest(FamilyStatus.SUSPENDED)))
+		given(adminFamilyService.changeStatus(3L, 100L, new AdminFamilyStatusRequest(FamilyStatus.SUSPENDED)))
 				.willReturn(KIMS);
 
 		MvcTestResult result = changeStatus("""
@@ -125,12 +125,12 @@ class AdminFamilyControllerTest {
 		MvcTestResult result = changeStatus(body);
 
 		assertThat(result).hasStatus(HttpStatus.BAD_REQUEST);
-		then(adminFamilyService).should(never()).changeStatus(any(), any());
+		then(adminFamilyService).should(never()).changeStatus(any(), any(), any());
 	}
 
 	@Test
 	void changeStatusOfUnknownFamilyReturnsNotFound() {
-		given(adminFamilyService.changeStatus(any(), any()))
+		given(adminFamilyService.changeStatus(any(), any(), any()))
 				.willThrow(new BusinessException(ErrorCode.FAMILY_NOT_FOUND));
 
 		MvcTestResult result = changeStatus("""
@@ -152,7 +152,7 @@ class AdminFamilyControllerTest {
 				.exchange();
 
 		assertThat(result).hasStatus(HttpStatus.FORBIDDEN);
-		then(adminFamilyService).should(never()).changeStatus(any(), any());
+		then(adminFamilyService).should(never()).changeStatus(any(), any(), any());
 	}
 
 	private MvcTestResult changeStatus(String body) {

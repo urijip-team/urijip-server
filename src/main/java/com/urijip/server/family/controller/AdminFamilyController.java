@@ -8,6 +8,7 @@ import com.urijip.server.global.response.ApiResponse;
 import com.urijip.server.global.response.PageResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -29,9 +30,9 @@ public class AdminFamilyController {
 	}
 
 	@PatchMapping("/{familyId}/status")
-	public ApiResponse<AdminFamilyResponse> changeStatus(@PathVariable Long familyId,
-			@Valid @RequestBody AdminFamilyStatusRequest request) {
-		return ApiResponse.success(adminFamilyService.changeStatus(familyId, request));
+	public ApiResponse<AdminFamilyResponse> changeStatus(@AuthenticationPrincipal Long adminId,
+			@PathVariable Long familyId, @Valid @RequestBody AdminFamilyStatusRequest request) {
+		return ApiResponse.success(adminFamilyService.changeStatus(familyId, adminId, request));
 	}
 
 }
