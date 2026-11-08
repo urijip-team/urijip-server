@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 import com.urijip.server.TestcontainersConfiguration;
 import com.urijip.server.global.exception.BusinessException;
@@ -105,6 +106,22 @@ class DeviceTokenServiceTest {
 				.extracting("errorCode")
 				.isEqualTo(ErrorCode.USER_NOT_FOUND);
 		assertThat(deviceTokenRepository.count()).isZero();
+	}
+
+	@Test
+	void getTokensReturnsTokensOfAllGivenUsers() {
+		User dad = saveUser("dad@example.com", "김아빠");
+		deviceTokenService.register(mom.getId(), new DeviceTokenRequest("mom-phone", Platform.ANDROID));
+		deviceTokenService.register(dad.getId(), new DeviceTokenRequest("dad-phone", Platform.IOS));
+
+		assertThat(deviceTokenService.getTokens(List.of(mom.getId(), dad.getId())))
+				.containsExactlyInAnyOrder("mom-phone", "dad-phone");
+		assertThat(deviceTokenService.getTokens(List.of(dad.getId()))).containsExactly("dad-phone");
+	}
+
+	@Test
+	void getTokensOfNoUsersIsEmpty() {
+		assertThat(deviceTokenService.getTokens(List.of())).isEmpty();
 	}
 
 	private User saveUser(String email, String name) {
