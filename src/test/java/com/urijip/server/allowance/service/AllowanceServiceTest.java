@@ -265,6 +265,20 @@ class AllowanceServiceTest {
 	}
 
 	@Test
+	void rejectingPushesToRequester() {
+		Long requestId = request(kid, mom, 30000, null).requestId();
+
+		allowanceService.changeStatus(requestId, mom.getId(), new AllowanceStatusRequest(AllowanceStatus.REJECTED));
+
+		assertThat(events.stream(PushRequestedEvent.class)).last().satisfies(event -> {
+			assertThat(event.userIds()).isEqualTo(Set.of(kid.getId()));
+			assertThat(event.message().title()).isEqualTo("용돈 요청 거절");
+			assertThat(event.message().body()).isEqualTo("김엄마님이 용돈 요청을 거절했어요.");
+			assertThat(event.message().data()).isEqualTo(Map.of("requestId", requestId.toString()));
+		});
+	}
+
+	@Test
 	void failedStatusChangePushesNothing() {
 		Long requestId = request(kid, mom, 30000, null).requestId();
 

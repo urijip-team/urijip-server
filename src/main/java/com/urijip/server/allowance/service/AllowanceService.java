@@ -115,9 +115,12 @@ public class AllowanceService {
 	// 처리할 때는 가족을 나갔을 수도 있어 호칭 대신 이름을 쓴다.
 	private void pushResult(AllowanceRequest allowance) {
 		String receiverName = allowance.getReceiver().getName();
+		Long requesterId = allowance.getRequester().getId();
 		if (allowance.getStatus() == AllowanceStatus.SENT) {
-			push(allowance.getRequester().getId(), "용돈 도착", String.format(Locale.ROOT,
+			push(requesterId, "용돈 도착", String.format(Locale.ROOT,
 					"%s님이 용돈 %,d원을 보냈어요.", receiverName, allowance.getAmount()), allowance);
+		} else {
+			push(requesterId, "용돈 요청 거절", receiverName + "님이 용돈 요청을 거절했어요.", allowance);
 		}
 	}
 
