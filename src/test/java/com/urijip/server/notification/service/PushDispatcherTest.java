@@ -193,6 +193,17 @@ class PushDispatcherTest {
 	}
 
 	@Test
+	void broadcastSkipsUsersWhoTurnedNoticeOff() {
+		given(pushSender.send(any(), any())).willReturn(Set.of());
+		notificationSettingService.update(dad.getId(), new NotificationSettingUpdateRequest(null, null, null, false));
+
+		notificationService.sendToAll(MESSAGE);
+
+		then(pushSender).should(timeout(3000)).send(
+				argThat(tokens -> tokens.contains("mom-phone") && !tokens.contains("dad-phone")), eq(MESSAGE));
+	}
+
+	@Test
 	void broadcastSendsNothingWhenTransactionRollsBack() {
 		transactionTemplate.executeWithoutResult(status -> {
 			notificationService.sendToAll(MESSAGE);
