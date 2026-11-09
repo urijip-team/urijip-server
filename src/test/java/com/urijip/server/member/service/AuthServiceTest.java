@@ -60,6 +60,9 @@ class AuthServiceTest {
 	private AuthService authService;
 
 	@Autowired
+	private UserStatusService userStatusService;
+
+	@Autowired
 	private FamilyService familyService;
 
 	@Autowired
@@ -510,6 +513,19 @@ class AuthServiceTest {
 		authService.withdraw(momId);
 
 		assertThat(userRepository.findById(momId).orElseThrow().getStatus()).isEqualTo(UserStatus.WITHDRAWN);
+	}
+
+	@Test
+	void withdrawBlocksAlreadyIssuedTokensRightAway() {
+		Long momId = signupMom().id();
+		userStatusService.validateActive(momId);
+
+		authService.withdraw(momId);
+
+		assertThatThrownBy(() -> userStatusService.validateActive(momId))
+				.isInstanceOf(BusinessException.class)
+				.extracting("errorCode")
+				.isEqualTo(ErrorCode.INVALID_TOKEN);
 	}
 
 	@Test

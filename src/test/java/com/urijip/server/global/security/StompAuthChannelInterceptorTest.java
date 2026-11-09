@@ -30,8 +30,10 @@ class StompAuthChannelInterceptorTest {
 
 	private final FamilyMembershipChecker familyMembershipChecker = mock(FamilyMembershipChecker.class);
 
+	private final UserStatusChecker userStatusChecker = mock(UserStatusChecker.class);
+
 	private final StompAuthChannelInterceptor interceptor = new StompAuthChannelInterceptor(jwtProvider,
-			familyMembershipChecker);
+			familyMembershipChecker, userStatusChecker);
 
 	private final MessageChannel channel = mock(MessageChannel.class);
 
@@ -48,6 +50,42 @@ class StompAuthChannelInterceptorTest {
 			assertThat(user.getName()).isEqualTo("1");
 			assertThat(user.getAuthorities()).containsExactly(new SimpleGrantedAuthority("ROLE_USER"));
 		});
+	}
+
+	@Test
+	void connectBySuspendedUserIsRejected() {
+		given(jwtProvider.parseAccessToken("good")).willReturn(new AccessTokenClaims(9L, "USER"));
+		willThrow(new BusinessException(ErrorCode.USER_SUSPENDED)).given(userStatusChecker).validateActive(9L);
+		StompHeaderAccessor accessor = accessor(StompCommand.CONNECT);
+		accessor.addNativeHeader("Authorization", "Bearer good");
+
+		assertThatThrownBy(() -> interceptor.preSend(message(accessor), channel))
+				.isInstanceOf(BusinessException.class)
+				.extracting("errorCode").isEqualTo(ErrorCode.USER_SUSPENDED);
+		assertThat(accessor.getUser()).isNull();
+	}
+
+	@Test
+	void sendAfterSuspensionIsRejected() {
+		willThrow(new BusinessException(ErrorCode.USER_SUSPENDED)).given(userStatusChecker).validateActive(9L);
+		StompHeaderAccessor accessor = accessor(StompCommand.SEND);
+		accessor.setDestination("/pub/chat");
+		accessor.setUser(new UsernamePasswordAuthenticationToken(9L, null, List.of()));
+
+		assertThatThrownBy(() -> interceptor.preSend(message(accessor), channel))
+				.isInstanceOf(BusinessException.class)
+				.extracting("errorCode").isEqualTo(ErrorCode.USER_SUSPENDED);
+	}
+
+	@Test
+	void sendByActiveUserPasses() {
+		StompHeaderAccessor accessor = accessor(StompCommand.SEND);
+		accessor.setDestination("/pub/chat");
+		accessor.setUser(new UsernamePasswordAuthenticationToken(1L, null, List.of()));
+
+		interceptor.preSend(message(accessor), channel);
+
+		then(userStatusChecker).should().validateActive(1L);
 	}
 
 	@ParameterizedTest

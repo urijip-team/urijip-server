@@ -31,6 +31,7 @@ public class AdminUserService {
 	private final FamilyService familyService;
 	private final AdminLogService adminLogService;
 	private final ReportService reportService;
+	private final UserStatusService userStatusService;
 
 	@Transactional(readOnly = true)
 	public PageResponse<AdminUserResponse> search(AdminUserSearchRequest request) {
@@ -58,6 +59,8 @@ public class AdminUserService {
 
 		UserStatus before = user.getStatus();
 		user.changeStatus(request.status());
+		// 이미 발급된 토큰도 다음 요청부터 막히게 기억해 둔 상태를 지운다.
+		userStatusService.evict(userId);
 		adminLogService.record(adminId, AdminAction.CHANGE_USER_STATUS, AdminLogTargetType.USER, userId,
 				before + " -> " + request.status());
 

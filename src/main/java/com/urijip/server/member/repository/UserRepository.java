@@ -21,6 +21,9 @@ public interface UserRepository extends JpaRepository<User, Long> {
 
 	long countByRoleAndStatusNot(Role role, UserStatus status);
 
+	@Query("select u.status from User u where u.id = :userId")
+	Optional<UserStatus> findStatusById(@Param("userId") Long userId);
+
 	// [from, to)에 가입한 회원 수를 날짜(서울 시간)별로 센다. 가입이 없는 날은 빠진다. 탈퇴한 회원도 가입 수에 넣는다.
 	@Query("""
 			select cast(u.createdAt as LocalDate) as day, count(u) as count

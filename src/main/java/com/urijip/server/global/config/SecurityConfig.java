@@ -5,7 +5,9 @@ import com.urijip.server.global.security.JwtAuthenticationEntryPoint;
 import com.urijip.server.global.security.JwtAuthenticationFilter;
 import com.urijip.server.global.security.JwtProvider;
 import com.urijip.server.global.security.SecurityErrorResponseWriter;
+import com.urijip.server.global.security.UserStatusChecker;
 import jakarta.servlet.DispatcherType;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
@@ -35,7 +37,7 @@ public class SecurityConfig {
 
 	@Bean
 	public SecurityFilterChain securityFilterChain(HttpSecurity http, JwtProvider jwtProvider,
-			ObjectMapper objectMapper) throws Exception {
+			ObjectProvider<UserStatusChecker> userStatusChecker, ObjectMapper objectMapper) throws Exception {
 		SecurityErrorResponseWriter responseWriter = new SecurityErrorResponseWriter(objectMapper);
 
 		return http
@@ -53,7 +55,7 @@ public class SecurityConfig {
 				.exceptionHandling(handling -> handling
 						.authenticationEntryPoint(new JwtAuthenticationEntryPoint(responseWriter))
 						.accessDeniedHandler(new JwtAccessDeniedHandler(responseWriter)))
-				.addFilterBefore(new JwtAuthenticationFilter(jwtProvider),
+				.addFilterBefore(new JwtAuthenticationFilter(jwtProvider, userStatusChecker.getIfAvailable()),
 						UsernamePasswordAuthenticationFilter.class)
 				.build();
 	}
