@@ -125,4 +125,14 @@ class ChatMessageRepositoryTest {
 		assertThat(found.getContent()).isEqualTo("families/1/chat/a.jpg");
 	}
 
+	@Test
+	void findImageKeysByFamilyIdReturnsOnlyImagesOfThatFamily() {
+		chatMessageRepository.save(ChatMessage.image(kims, mom, "families/1/chat/a.jpg"));
+		chatMessageRepository.save(ChatMessage.text(kims, mom, "글"));
+		chatMessageRepository.saveAndFlush(ChatMessage.image(parks, mom, "families/2/chat/b.jpg"));
+
+		assertThat(chatMessageRepository.findImageKeysByFamilyId(kims.getId()))
+				.containsExactly("families/1/chat/a.jpg");
+	}
+
 }
