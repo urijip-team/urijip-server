@@ -59,13 +59,17 @@ URL, 요청·응답 필드, 테이블·컬럼 이름은 API 명세서와 ERD를 
 
 - `application.yaml`은 공통 설정이다. 환경마다 달라지는 값은 `application-local.yaml`, `application-prod.yaml`에 둔다.
 - 프로파일을 지정하지 않으면 `local`이다. 테스트와 CI도 `local`로 돈다.
-- `prod`는 `ddl-auto: validate`이고 Swagger를 끈다. 운영 서버는 `SPRING_PROFILES_ACTIVE=prod`로 실행한다.
+- `prod`는 Swagger를 끈다. 운영 서버는 `SPRING_PROFILES_ACTIVE=prod`로 실행한다.
 - 설정 클래스는 `global/config`에 관심사별로 하나씩 둔다. `@EnableJpaAuditing` 같은 `@Enable...`을 `UrijipServerApplication`에 붙이지 않는다. `@WebMvcTest`가 깨진다.
 
 ## 데이터베이스
 
 - 접속 정보는 `DB_URL`, `DB_USERNAME`, `DB_PASSWORD` 환경변수로 주입하고, 없으면 로컬 Compose 값을 쓴다.
-- `local`의 `ddl-auto: update`는 초기 개발용이다. 운영 배포 전에 마이그레이션 도구로 바꾼다.
+- 스키마는 Flyway가 `src/main/resources/db/migration`의 SQL로 만든다. 모든 환경에서 Hibernate는 `ddl-auto: validate`로 엔티티와 맞는지만 본다. 테스트도 빈 MySQL에 마이그레이션을 적용한 뒤 검증하므로, SQL을 빠뜨리면 테스트가 실패한다.
+- 엔티티를 바꾸면 같은 커밋에 `V{다음 번호}__{설명}.sql`을 추가한다. 이미 머지된 마이그레이션 파일은 고치지 않는다(적용된 DB와 체크섬이 달라져 서버가 뜨지 않는다).
+- enum은 MySQL `enum` 컬럼이다. 값을 추가하면 `ALTER TABLE ... MODIFY ...`로 컬럼 정의도 바꾼다.
+- Flyway 전에 Hibernate가 테이블을 만든 DB는 `baseline-on-migrate`로 V1을 적용한 것으로 보고 V2부터 적용한다.
+- `bootRun`은 `spring-boot-docker-compose`가 `DB_URL`을 무시하고 compose의 `urijip` DB에 연결한다. 다른 DB를 쓰려면 `--spring.docker.compose.enabled=false`를 함께 준다.
 - `created_at`이 있는 엔티티는 `global/entity/BaseTimeEntity`를 상속한다. 시간을 직접 넣지 않는다.
 - 가족에 딸린 테이블(`family_id` FK)을 만들면 `FamilyDeletedEvent`를 받아 그 가족의 행을 지운다. 마지막 멤버가 나가 가족이 삭제될 때 FK 때문에 실패하지 않게 하기 위해서다. 예: `ScheduleService.onFamilyDeleted`.
 - 종류에 따라 다른 테이블을 가리키는 id(예: `reports.target_id`, `target_type`으로 구분)에는 FK를 두지 않는다. 대상이 지워져도 신고 같은 기록은 남고, 그런 행을 쓰는 쪽에서 대상이 없을 수 있다고 보고 처리한다.
