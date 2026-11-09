@@ -37,19 +37,21 @@ public class AdminNoticeService {
 		adminLogService.record(adminId, AdminAction.CREATE_NOTICE, AdminLogTargetType.NOTICE, notice.getId(),
 				notice.getTitle());
 		if (request.pushRequested()) {
-			notificationService.sendToAll(new PushMessage(PushType.NOTICE, "공지사항", notice.getTitle(),
-					Map.of("noticeId", notice.getId().toString())));
-			notice.markPushed();
+			pushToAll(notice);
 		}
 		return AdminNoticeResponse.from(notice);
 	}
 
+	// push가 true면 수정한 공지의 제목으로 다시 전체 푸시한다(명세서: 작성·수정 시 push: true면 전체 푸시).
 	@Transactional
 	public AdminNoticeResponse update(Long noticeId, Long adminId, AdminNoticeUpdateRequest request) {
 		Notice notice = getNotice(noticeId);
 		notice.update(request.title(), request.content());
 		adminLogService.record(adminId, AdminAction.UPDATE_NOTICE, AdminLogTargetType.NOTICE, noticeId,
 				notice.getTitle());
+		if (request.pushRequested()) {
+			pushToAll(notice);
+		}
 		return AdminNoticeResponse.from(notice);
 	}
 
@@ -60,6 +62,12 @@ public class AdminNoticeService {
 		// 공지가 지워져도 기록에서 무엇을 지웠는지 알 수 있게 제목을 남긴다.
 		adminLogService.record(adminId, AdminAction.DELETE_NOTICE, AdminLogTargetType.NOTICE, noticeId,
 				notice.getTitle());
+	}
+
+	private void pushToAll(Notice notice) {
+		notificationService.sendToAll(new PushMessage(PushType.NOTICE, "공지사항", notice.getTitle(),
+				Map.of("noticeId", notice.getId().toString())));
+		notice.markPushed();
 	}
 
 	private Notice getNotice(Long noticeId) {

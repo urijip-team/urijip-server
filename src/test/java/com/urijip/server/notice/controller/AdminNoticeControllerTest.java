@@ -75,6 +75,16 @@ class AdminNoticeControllerTest {
 		then(adminNoticeService).should().create(100L, new AdminNoticeCreateRequest("제목", "내용", null));
 	}
 
+	@Test
+	void updatePassesPushFlag() {
+		given(adminNoticeService.update(3L, 100L, new AdminNoticeUpdateRequest("점검 연기", null, true))).willReturn(NOTICE);
+
+		MvcTestResult result = update("{\"title\": \"점검 연기\", \"push\": true}", admin());
+
+		assertThat(result).hasStatusOk();
+		then(adminNoticeService).should().update(3L, 100L, new AdminNoticeUpdateRequest("점검 연기", null, true));
+	}
+
 	@ParameterizedTest
 	@ValueSource(strings = {
 			"{\"content\": \"내용\"}",
@@ -124,7 +134,7 @@ class AdminNoticeControllerTest {
 
 	@Test
 	void updateReturnsUpdatedNotice() {
-		given(adminNoticeService.update(3L, 100L, new AdminNoticeUpdateRequest(null, "새벽 3시로 바뀌었습니다.")))
+		given(adminNoticeService.update(3L, 100L, new AdminNoticeUpdateRequest(null, "새벽 3시로 바뀌었습니다.", null)))
 				.willReturn(new AdminNoticeResponse(3L, "서버 점검 안내", "새벽 3시로 바뀌었습니다.", false, NOTICE.createdBy(),
 						NOTICE.createdAt()));
 
@@ -154,7 +164,7 @@ class AdminNoticeControllerTest {
 
 	@Test
 	void updateUnknownNoticeReturnsNotFound() {
-		given(adminNoticeService.update(3L, 100L, new AdminNoticeUpdateRequest("제목", null)))
+		given(adminNoticeService.update(3L, 100L, new AdminNoticeUpdateRequest("제목", null, null)))
 				.willThrow(new BusinessException(ErrorCode.NOTICE_NOT_FOUND));
 
 		MvcTestResult result = update("{\"title\": \"제목\"}", admin());

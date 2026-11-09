@@ -113,6 +113,30 @@ class AdminNoticeServiceTest {
 	}
 
 	@Test
+	void updateWithPushSendsUpdatedTitleToAll() {
+		Notice notice = noticeRepository.save(new Notice(admin, "서버 점검 안내", "내일 새벽 2시에 점검합니다."));
+
+		AdminNoticeResponse response = adminNoticeService.update(notice.getId(), admin.getId(),
+				new AdminNoticeUpdateRequest("점검 시간 변경", null, true));
+
+		assertThat(response.isPushed()).isTrue();
+		assertThat(events.stream(BroadcastPushRequestedEvent.class)).singleElement().satisfies(event -> {
+			assertThat(event.message().body()).isEqualTo("점검 시간 변경");
+			assertThat(event.message().data()).isEqualTo(Map.of("noticeId", notice.getId().toString()));
+		});
+	}
+
+	@Test
+	void updateWithoutPushSendsNothing() {
+		Notice notice = noticeRepository.save(new Notice(admin, "서버 점검 안내", "내용"));
+
+		adminNoticeService.update(notice.getId(), admin.getId(), new AdminNoticeUpdateRequest("새 제목", null, null));
+
+		assertThat(events.stream(BroadcastPushRequestedEvent.class)).isEmpty();
+		assertThat(notice.isPushed()).isFalse();
+	}
+
+	@Test
 	void createByUnknownAdminFails() {
 		assertThatThrownBy(() -> adminNoticeService.create(-1L, new AdminNoticeCreateRequest("제목", "내용", null)))
 				.isInstanceOfSatisfying(BusinessException.class,
@@ -125,7 +149,7 @@ class AdminNoticeServiceTest {
 		Notice notice = noticeRepository.save(new Notice(admin, "서버 점검 안내", "내일 새벽 2시에 점검합니다."));
 
 		AdminNoticeResponse response = adminNoticeService.update(notice.getId(), admin.getId(),
-				new AdminNoticeUpdateRequest(null, "내일 새벽 3시로 바뀌었습니다."));
+				new AdminNoticeUpdateRequest(null, "내일 새벽 3시로 바뀌었습니다.", null));
 
 		assertThat(response.title()).isEqualTo("서버 점검 안내");
 		assertThat(response.content()).isEqualTo("내일 새벽 3시로 바뀌었습니다.");
@@ -136,7 +160,7 @@ class AdminNoticeServiceTest {
 	void updateRecordsAdminLogWithNewTitle() {
 		Notice notice = noticeRepository.save(new Notice(admin, "서버 점검 안내", "내용"));
 
-		adminNoticeService.update(notice.getId(), admin.getId(), new AdminNoticeUpdateRequest("점검 시간 변경", null));
+		adminNoticeService.update(notice.getId(), admin.getId(), new AdminNoticeUpdateRequest("점검 시간 변경", null, null));
 
 		assertThat(adminLogRepository.findAll())
 				.extracting(AdminLog::getAction, AdminLog::getTargetId, AdminLog::getDetail)
@@ -145,7 +169,7 @@ class AdminNoticeServiceTest {
 
 	@Test
 	void updateUnknownNoticeFails() {
-		assertThatThrownBy(() -> adminNoticeService.update(-1L, admin.getId(), new AdminNoticeUpdateRequest("제목", null)))
+		assertThatThrownBy(() -> adminNoticeService.update(-1L, admin.getId(), new AdminNoticeUpdateRequest("제목", null, null)))
 				.isInstanceOfSatisfying(BusinessException.class,
 						e -> assertThat(e.getErrorCode()).isEqualTo(ErrorCode.NOTICE_NOT_FOUND));
 	}
