@@ -35,6 +35,7 @@ public class AuthService {
 
 	private final UserRepository userRepository;
 	private final RefreshTokenRepository refreshTokenRepository;
+	private final UserStatusService userStatusService;
 	private final DeviceTokenRepository deviceTokenRepository;
 	private final PaymentInfoRepository paymentInfoRepository;
 	private final PasswordEncoder passwordEncoder;
@@ -117,6 +118,7 @@ public class AuthService {
 		paymentInfoRepository.deleteById(userId);
 		locationService.deleteLocation(userId);
 		user.withdraw();
+		userStatusService.evict(userId);
 	}
 
 	private User findByCredentials(LoginRequest request) {

@@ -44,6 +44,9 @@ import org.springframework.transaction.annotation.Transactional;
 class AdminUserServiceTest {
 
 	@Autowired
+	private UserStatusService userStatusService;
+
+	@Autowired
 	private ReportRepository reportRepository;
 
 	@Autowired
@@ -181,6 +184,18 @@ class AdminUserServiceTest {
 		AdminUserDetailResponse active = adminUserService.changeStatus(mom.getId(), admin.getId(),
 				new AdminUserStatusRequest(UserStatus.ACTIVE));
 		assertThat(active.status()).isEqualTo(UserStatus.ACTIVE);
+	}
+
+	@Test
+	void suspendingBlocksAlreadyIssuedTokensRightAway() {
+		userStatusService.validateActive(mom.getId());
+
+		adminUserService.changeStatus(mom.getId(), admin.getId(), new AdminUserStatusRequest(UserStatus.SUSPENDED));
+
+		assertThatThrownBy(() -> userStatusService.validateActive(mom.getId()))
+				.isInstanceOf(BusinessException.class)
+				.extracting("errorCode")
+				.isEqualTo(ErrorCode.USER_SUSPENDED);
 	}
 
 	@Test
