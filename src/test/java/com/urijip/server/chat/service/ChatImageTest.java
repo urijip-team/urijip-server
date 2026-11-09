@@ -26,6 +26,8 @@ import com.urijip.server.member.entity.User;
 import com.urijip.server.member.repository.UserRepository;
 import com.urijip.server.notification.service.PushRequestedEvent;
 import com.urijip.server.photo.TestImages;
+import com.urijip.server.photo.service.PhotoFilesDeletedEvent;
+import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -64,6 +66,9 @@ class ChatImageTest {
 
 	@Autowired
 	private ApplicationEvents events;
+
+	@Autowired
+	private EntityManager entityManager;
 
 	private final HttpClient httpClient = HttpClient.newHttpClient();
 
@@ -134,6 +139,23 @@ class ChatImageTest {
 		assertThatThrownBy(() -> chatService.sendImage(familyId, kid.getId(), null))
 				.isInstanceOfSatisfying(BusinessException.class,
 						e -> assertThat(e.getErrorCode()).isEqualTo(ErrorCode.INVALID_INPUT));
+	}
+
+	@Test
+	void deletingFamilyRequestsDeletionOfChatImages() {
+		ChatMessageResponse response = chatService.sendImage(familyId, kid.getId(), TestImages.jpeg(10, 10));
+		String key = chatMessageRepository.findById(response.messageId()).orElseThrow().getContent();
+		// 메시지는 벌크 삭제되므로, 읽어 둔 엔티티가 남지 않게 트랜잭션 경계를 흉내 낸다.
+		entityManager.flush();
+		entityManager.clear();
+
+		familyService.leaveFamily(kid.getId());
+		familyService.leaveFamily(mom.getId());
+
+		assertThat(chatMessageRepository.count()).isZero();
+		// 앨범 사진 쪽도 (빈) 삭제 요청을 보내므로 채팅 사진이 든 요청을 찾는다.
+		assertThat(events.stream(PhotoFilesDeletedEvent.class))
+				.anySatisfy(event -> assertThat(event.keys()).containsExactly(key));
 	}
 
 	private List<String> objectKeys() {

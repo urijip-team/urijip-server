@@ -33,6 +33,7 @@ import com.urijip.server.notification.service.PresenceService;
 import com.urijip.server.photo.service.ImageProcessor;
 import com.urijip.server.photo.service.ImageProcessor.ProcessedImage;
 import com.urijip.server.photo.service.PhotoFileCleaner;
+import com.urijip.server.photo.service.PhotoFilesDeletedEvent;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.event.EventListener;
@@ -136,9 +137,14 @@ public class ChatService {
 		return new CursorResponse<>(content, nextCursor, hasNext);
 	}
 
+	// 사진 메시지의 S3 파일은 커밋 뒤에 지운다(PhotoFileCleaner).
 	@EventListener
 	public void onFamilyDeleted(FamilyDeletedEvent event) {
+		List<String> imageKeys = chatMessageRepository.findImageKeysByFamilyId(event.familyId());
 		chatMessageRepository.deleteByFamilyId(event.familyId());
+		if (!imageKeys.isEmpty()) {
+			eventPublisher.publishEvent(new PhotoFilesDeletedEvent(imageKeys));
+		}
 	}
 
 	// 회원이 보낸 메시지를 저장하고 가족에게 실시간으로 보낸다. 보낸 사람은 그때까지의 메시지를 모두 본 것으로 하고,
