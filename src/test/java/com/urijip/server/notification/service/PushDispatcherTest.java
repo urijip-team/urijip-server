@@ -111,7 +111,7 @@ class PushDispatcherTest {
 	@Test
 	void skipsReceiversWhoTurnedTypeOff() {
 		given(pushSender.send(any(), any())).willReturn(Set.of());
-		notificationSettingService.update(mom.getId(), new NotificationSettingUpdateRequest(false, null, null, null));
+		notificationSettingService.update(mom.getId(), new NotificationSettingUpdateRequest(false, null, null, null, null));
 		PushMessage chat = PushMessage.of(PushType.CHAT, "우리집", "김아빠: 저녁 먹자");
 
 		notificationService.send(List.of(mom.getId(), dad.getId()), chat);
@@ -121,7 +121,7 @@ class PushDispatcherTest {
 
 	@Test
 	void sendsNothingWhenAllReceiversTurnedTypeOff() {
-		notificationSettingService.update(mom.getId(), new NotificationSettingUpdateRequest(false, null, null, null));
+		notificationSettingService.update(mom.getId(), new NotificationSettingUpdateRequest(false, null, null, null, null));
 
 		notificationService.send(List.of(mom.getId()), PushMessage.of(PushType.CHAT, "우리집", "김아빠: 저녁 먹자"));
 
@@ -195,7 +195,7 @@ class PushDispatcherTest {
 	@Test
 	void broadcastSkipsUsersWhoTurnedNoticeOff() {
 		given(pushSender.send(any(), any())).willReturn(Set.of());
-		notificationSettingService.update(dad.getId(), new NotificationSettingUpdateRequest(null, null, null, false));
+		notificationSettingService.update(dad.getId(), new NotificationSettingUpdateRequest(null, null, null, false, null));
 
 		notificationService.sendToAll(MESSAGE);
 

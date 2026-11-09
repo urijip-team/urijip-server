@@ -35,7 +35,7 @@ public class NotificationSettingService {
 	public NotificationSettingResponse update(Long userId, NotificationSettingUpdateRequest request) {
 		NotificationSetting setting = notificationSettingRepository.findById(userId)
 				.orElseGet(() -> notificationSettingRepository.save(new NotificationSetting(userService.getUser(userId))));
-		setting.update(request.chat(), request.schedule(), request.allowance(), request.notice());
+		setting.update(request.chat(), request.schedule(), request.allowance(), request.notice(), request.place());
 		return NotificationSettingResponse.from(setting);
 	}
 
@@ -66,6 +66,7 @@ public class NotificationSettingService {
 			case SCHEDULE -> NotificationSetting::isSchedule;
 			case ALLOWANCE -> NotificationSetting::isAllowance;
 			case NOTICE -> NotificationSetting::isNotice;
+			case PLACE -> NotificationSetting::isPlace;
 			case SOS, INQUIRY -> null;
 		};
 	}

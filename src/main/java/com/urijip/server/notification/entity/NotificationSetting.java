@@ -40,12 +40,16 @@ public class NotificationSetting {
 	@Column(nullable = false)
 	private boolean notice = true;
 
+	// 가족 장소 도착·출발 알림(LOC-05). ERD에 없어 추가했다.
+	@Column(nullable = false)
+	private boolean place = true;
+
 	public NotificationSetting(User user) {
 		this.user = user;
 	}
 
 	// null인 값은 바꾸지 않는다.
-	public void update(Boolean chat, Boolean schedule, Boolean allowance, Boolean notice) {
+	public void update(Boolean chat, Boolean schedule, Boolean allowance, Boolean notice, Boolean place) {
 		if (chat != null) {
 			this.chat = chat;
 		}
@@ -57,6 +61,9 @@ public class NotificationSetting {
 		}
 		if (notice != null) {
 			this.notice = notice;
+		}
+		if (place != null) {
+			this.place = place;
 		}
 	}
 

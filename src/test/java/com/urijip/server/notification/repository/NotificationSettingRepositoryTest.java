@@ -45,10 +45,10 @@ class NotificationSettingRepositoryTest {
 		User mom = saveUser("mom@example.com");
 		User dad = saveUser("dad@example.com");
 		NotificationSetting off = new NotificationSetting(mom);
-		off.update(true, true, true, false);
+		off.update(true, true, true, false, null);
 		notificationSettingRepository.save(off);
 		NotificationSetting chatOff = new NotificationSetting(dad);
-		chatOff.update(false, true, true, true);
+		chatOff.update(false, true, true, true, null);
 		notificationSettingRepository.saveAndFlush(chatOff);
 
 		assertThat(notificationSettingRepository.findUserIdsWithNoticeOff()).containsExactly(mom.getId());
