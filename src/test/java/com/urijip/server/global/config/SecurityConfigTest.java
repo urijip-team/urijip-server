@@ -13,6 +13,7 @@ import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.test.web.servlet.assertj.MockMvcTester;
@@ -32,6 +33,41 @@ class SecurityConfigTest {
 
 	@Autowired
 	private JwtProperties jwtProperties;
+
+	// 로컬 프로파일은 http://localhost:5173을 허용한다(application-local.yaml).
+	@Test
+	void preflightFromAllowedOriginPassesWithoutToken() {
+		MvcTestResult result = mvc.options().uri("/api/test/me")
+				.header(HttpHeaders.ORIGIN, "http://localhost:5173")
+				.header(HttpHeaders.ACCESS_CONTROL_REQUEST_METHOD, "GET")
+				.header(HttpHeaders.ACCESS_CONTROL_REQUEST_HEADERS, "Authorization")
+				.exchange();
+
+		assertThat(result).hasStatusOk();
+		assertThat(result).headers().hasValue(HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN, "http://localhost:5173");
+	}
+
+	@Test
+	void preflightFromOtherOriginIsForbidden() {
+		MvcTestResult result = mvc.options().uri("/api/test/me")
+				.header(HttpHeaders.ORIGIN, "https://evil.example.com")
+				.header(HttpHeaders.ACCESS_CONTROL_REQUEST_METHOD, "GET")
+				.exchange();
+
+		assertThat(result).hasStatus(HttpStatus.FORBIDDEN);
+		assertThat(result).headers().doesNotContainHeader(HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN);
+	}
+
+	@Test
+	void responseToAllowedOriginCarriesCorsHeader() {
+		MvcTestResult result = mvc.get().uri("/api/test/me")
+				.header(HttpHeaders.ORIGIN, "http://localhost:5173")
+				.header("Authorization", "Bearer " + jwtProvider.createAccessToken(1L, "USER"))
+				.exchange();
+
+		assertThat(result).hasStatusOk();
+		assertThat(result).headers().hasValue(HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN, "http://localhost:5173");
+	}
 
 	@Test
 	void requestWithoutTokenIsUnauthorized() {
