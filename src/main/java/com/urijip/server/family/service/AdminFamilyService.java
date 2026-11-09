@@ -3,10 +3,14 @@ package com.urijip.server.family.service;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import com.urijip.server.adminlog.entity.AdminAction;
+import com.urijip.server.adminlog.entity.AdminLogTargetType;
+import com.urijip.server.adminlog.service.AdminLogService;
 import com.urijip.server.family.dto.request.AdminFamilyListRequest;
 import com.urijip.server.family.dto.request.AdminFamilyStatusRequest;
 import com.urijip.server.family.dto.response.AdminFamilyResponse;
 import com.urijip.server.family.entity.Family;
+import com.urijip.server.family.entity.FamilyStatus;
 import com.urijip.server.family.repository.FamilyMemberCount;
 import com.urijip.server.family.repository.FamilyMemberRepository;
 import com.urijip.server.family.repository.FamilyRepository;
@@ -26,6 +30,7 @@ public class AdminFamilyService {
 
 	private final FamilyRepository familyRepository;
 	private final FamilyMemberRepository familyMemberRepository;
+	private final AdminLogService adminLogService;
 
 	@Transactional(readOnly = true)
 	public PageResponse<AdminFamilyResponse> getFamilies(AdminFamilyListRequest request) {
@@ -43,11 +48,14 @@ public class AdminFamilyService {
 
 	// 정지된 가족은 초대 코드로 참여할 수 없다(FamilyService.join).
 	@Transactional
-	public AdminFamilyResponse changeStatus(Long familyId, AdminFamilyStatusRequest request) {
+	public AdminFamilyResponse changeStatus(Long familyId, Long adminId, AdminFamilyStatusRequest request) {
 		Family family = familyRepository.findById(familyId)
 				.orElseThrow(() -> new BusinessException(ErrorCode.FAMILY_NOT_FOUND));
 
+		FamilyStatus before = family.getStatus();
 		family.changeStatus(request.status());
+		adminLogService.record(adminId, AdminAction.CHANGE_FAMILY_STATUS, AdminLogTargetType.FAMILY, familyId,
+				before + " -> " + request.status());
 
 		return AdminFamilyResponse.of(family, familyMemberRepository.countByFamilyId(familyId));
 	}

@@ -9,6 +9,7 @@ import com.urijip.server.member.dto.response.AdminUserResponse;
 import com.urijip.server.member.service.AdminUserService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -35,9 +36,9 @@ public class AdminUserController {
 	}
 
 	@PatchMapping("/{userId}/status")
-	public ApiResponse<AdminUserDetailResponse> changeStatus(@PathVariable Long userId,
-			@Valid @RequestBody AdminUserStatusRequest request) {
-		return ApiResponse.success(adminUserService.changeStatus(userId, request));
+	public ApiResponse<AdminUserDetailResponse> changeStatus(@AuthenticationPrincipal Long adminId,
+			@PathVariable Long userId, @Valid @RequestBody AdminUserStatusRequest request) {
+		return ApiResponse.success(adminUserService.changeStatus(userId, adminId, request));
 	}
 
 }

@@ -33,14 +33,14 @@ public class AdminNoticeController {
 	}
 
 	@PatchMapping("/{noticeId}")
-	public ApiResponse<AdminNoticeResponse> update(@PathVariable Long noticeId,
-			@Valid @RequestBody AdminNoticeUpdateRequest request) {
-		return ApiResponse.success(adminNoticeService.update(noticeId, request));
+	public ApiResponse<AdminNoticeResponse> update(@AuthenticationPrincipal Long adminId,
+			@PathVariable Long noticeId, @Valid @RequestBody AdminNoticeUpdateRequest request) {
+		return ApiResponse.success(adminNoticeService.update(noticeId, adminId, request));
 	}
 
 	@DeleteMapping("/{noticeId}")
-	public ApiResponse<Void> delete(@PathVariable Long noticeId) {
-		adminNoticeService.delete(noticeId);
+	public ApiResponse<Void> delete(@AuthenticationPrincipal Long adminId, @PathVariable Long noticeId) {
+		adminNoticeService.delete(noticeId, adminId);
 		return ApiResponse.success(null);
 	}
 

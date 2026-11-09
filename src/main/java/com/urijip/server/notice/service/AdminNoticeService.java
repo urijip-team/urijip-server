@@ -2,6 +2,9 @@ package com.urijip.server.notice.service;
 
 import java.util.Map;
 
+import com.urijip.server.adminlog.entity.AdminAction;
+import com.urijip.server.adminlog.entity.AdminLogTargetType;
+import com.urijip.server.adminlog.service.AdminLogService;
 import com.urijip.server.global.exception.BusinessException;
 import com.urijip.server.global.exception.ErrorCode;
 import com.urijip.server.global.push.PushMessage;
@@ -23,6 +26,7 @@ public class AdminNoticeService {
 
 	private final NoticeRepository noticeRepository;
 	private final UserService userService;
+	private final AdminLogService adminLogService;
 	private final NotificationService notificationService;
 
 	// push가 true면 활동 중인 모든 회원에게 공지 제목으로 푸시한다.
@@ -30,6 +34,8 @@ public class AdminNoticeService {
 	public AdminNoticeResponse create(Long adminId, AdminNoticeCreateRequest request) {
 		Notice notice = noticeRepository.save(new Notice(userService.getUser(adminId), request.title(),
 				request.content()));
+		adminLogService.record(adminId, AdminAction.CREATE_NOTICE, AdminLogTargetType.NOTICE, notice.getId(),
+				notice.getTitle());
 		if (request.pushRequested()) {
 			notificationService.sendToAll(new PushMessage(PushType.NOTICE, "공지사항", notice.getTitle(),
 					Map.of("noticeId", notice.getId().toString())));
@@ -39,15 +45,21 @@ public class AdminNoticeService {
 	}
 
 	@Transactional
-	public AdminNoticeResponse update(Long noticeId, AdminNoticeUpdateRequest request) {
+	public AdminNoticeResponse update(Long noticeId, Long adminId, AdminNoticeUpdateRequest request) {
 		Notice notice = getNotice(noticeId);
 		notice.update(request.title(), request.content());
+		adminLogService.record(adminId, AdminAction.UPDATE_NOTICE, AdminLogTargetType.NOTICE, noticeId,
+				notice.getTitle());
 		return AdminNoticeResponse.from(notice);
 	}
 
 	@Transactional
-	public void delete(Long noticeId) {
-		noticeRepository.delete(getNotice(noticeId));
+	public void delete(Long noticeId, Long adminId) {
+		Notice notice = getNotice(noticeId);
+		noticeRepository.delete(notice);
+		// 공지가 지워져도 기록에서 무엇을 지웠는지 알 수 있게 제목을 남긴다.
+		adminLogService.record(adminId, AdminAction.DELETE_NOTICE, AdminLogTargetType.NOTICE, noticeId,
+				notice.getTitle());
 	}
 
 	private Notice getNotice(Long noticeId) {

@@ -2,10 +2,14 @@ package com.urijip.server.notice.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.tuple;
 
 import java.util.Map;
 
 import com.urijip.server.TestcontainersConfiguration;
+import com.urijip.server.adminlog.entity.AdminAction;
+import com.urijip.server.adminlog.entity.AdminLog;
+import com.urijip.server.adminlog.repository.AdminLogRepository;
 import com.urijip.server.global.exception.BusinessException;
 import com.urijip.server.global.exception.ErrorCode;
 import com.urijip.server.global.push.PushType;
@@ -48,6 +52,9 @@ class AdminNoticeServiceTest {
 
 	private User admin;
 
+	@Autowired
+	private AdminLogRepository adminLogRepository;
+
 	@BeforeEach
 	void setUp() {
 		admin = userRepository.save(User.builder()
@@ -70,6 +77,16 @@ class AdminNoticeServiceTest {
 		assertThat(response.createdAt().getOffset().getId()).isEqualTo("+09:00");
 		Notice saved = noticeRepository.findById(response.id()).orElseThrow();
 		assertThat(saved.getCreatedBy().getId()).isEqualTo(admin.getId());
+	}
+
+	@Test
+	void createRecordsAdminLogWithTitle() {
+		AdminNoticeResponse response = adminNoticeService.create(admin.getId(),
+				new AdminNoticeCreateRequest("서버 점검 안내", "내용", null));
+
+		assertThat(adminLogRepository.findAll())
+				.extracting(AdminLog::getAction, AdminLog::getTargetId, AdminLog::getDetail)
+				.containsExactly(tuple(AdminAction.CREATE_NOTICE, response.id(), "서버 점검 안내"));
 	}
 
 	@Test
@@ -107,7 +124,7 @@ class AdminNoticeServiceTest {
 	void updateChangesOnlySentFields() {
 		Notice notice = noticeRepository.save(new Notice(admin, "서버 점검 안내", "내일 새벽 2시에 점검합니다."));
 
-		AdminNoticeResponse response = adminNoticeService.update(notice.getId(),
+		AdminNoticeResponse response = adminNoticeService.update(notice.getId(), admin.getId(),
 				new AdminNoticeUpdateRequest(null, "내일 새벽 3시로 바뀌었습니다."));
 
 		assertThat(response.title()).isEqualTo("서버 점검 안내");
@@ -116,8 +133,19 @@ class AdminNoticeServiceTest {
 	}
 
 	@Test
+	void updateRecordsAdminLogWithNewTitle() {
+		Notice notice = noticeRepository.save(new Notice(admin, "서버 점검 안내", "내용"));
+
+		adminNoticeService.update(notice.getId(), admin.getId(), new AdminNoticeUpdateRequest("점검 시간 변경", null));
+
+		assertThat(adminLogRepository.findAll())
+				.extracting(AdminLog::getAction, AdminLog::getTargetId, AdminLog::getDetail)
+				.containsExactly(tuple(AdminAction.UPDATE_NOTICE, notice.getId(), "점검 시간 변경"));
+	}
+
+	@Test
 	void updateUnknownNoticeFails() {
-		assertThatThrownBy(() -> adminNoticeService.update(-1L, new AdminNoticeUpdateRequest("제목", null)))
+		assertThatThrownBy(() -> adminNoticeService.update(-1L, admin.getId(), new AdminNoticeUpdateRequest("제목", null)))
 				.isInstanceOfSatisfying(BusinessException.class,
 						e -> assertThat(e.getErrorCode()).isEqualTo(ErrorCode.NOTICE_NOT_FOUND));
 	}
@@ -127,17 +155,29 @@ class AdminNoticeServiceTest {
 		Notice notice = noticeRepository.save(new Notice(admin, "지울 공지", "내용"));
 		Notice other = noticeRepository.save(new Notice(admin, "남길 공지", "내용"));
 
-		adminNoticeService.delete(notice.getId());
+		adminNoticeService.delete(notice.getId(), admin.getId());
 
 		assertThat(noticeRepository.findById(notice.getId())).isEmpty();
 		assertThat(noticeRepository.findById(other.getId())).isPresent();
 	}
 
 	@Test
+	void deleteRecordsAdminLogWithTitle() {
+		Notice notice = noticeRepository.save(new Notice(admin, "지울 공지", "내용"));
+
+		adminNoticeService.delete(notice.getId(), admin.getId());
+
+		assertThat(adminLogRepository.findAll())
+				.extracting(AdminLog::getAction, AdminLog::getTargetId, AdminLog::getDetail)
+				.containsExactly(tuple(AdminAction.DELETE_NOTICE, notice.getId(), "지울 공지"));
+	}
+
+	@Test
 	void deleteUnknownNoticeFails() {
-		assertThatThrownBy(() -> adminNoticeService.delete(-1L))
+		assertThatThrownBy(() -> adminNoticeService.delete(-1L, admin.getId()))
 				.isInstanceOfSatisfying(BusinessException.class,
 						e -> assertThat(e.getErrorCode()).isEqualTo(ErrorCode.NOTICE_NOT_FOUND));
+		assertThat(adminLogRepository.count()).isZero();
 	}
 
 }

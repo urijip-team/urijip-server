@@ -124,7 +124,7 @@ class AdminNoticeControllerTest {
 
 	@Test
 	void updateReturnsUpdatedNotice() {
-		given(adminNoticeService.update(3L, new AdminNoticeUpdateRequest(null, "새벽 3시로 바뀌었습니다.")))
+		given(adminNoticeService.update(3L, 100L, new AdminNoticeUpdateRequest(null, "새벽 3시로 바뀌었습니다.")))
 				.willReturn(new AdminNoticeResponse(3L, "서버 점검 안내", "새벽 3시로 바뀌었습니다.", false, NOTICE.createdBy(),
 						NOTICE.createdAt()));
 
@@ -142,7 +142,7 @@ class AdminNoticeControllerTest {
 
 		assertThat(result).hasStatus(HttpStatus.BAD_REQUEST);
 		assertThat(result).bodyJson().extractingPath("$.error.code").isEqualTo("INVALID_INPUT");
-		then(adminNoticeService).should(never()).update(any(), any());
+		then(adminNoticeService).should(never()).update(any(), any(), any());
 	}
 
 	@Test
@@ -154,7 +154,7 @@ class AdminNoticeControllerTest {
 
 	@Test
 	void updateUnknownNoticeReturnsNotFound() {
-		given(adminNoticeService.update(3L, new AdminNoticeUpdateRequest("제목", null)))
+		given(adminNoticeService.update(3L, 100L, new AdminNoticeUpdateRequest("제목", null)))
 				.willThrow(new BusinessException(ErrorCode.NOTICE_NOT_FOUND));
 
 		MvcTestResult result = update("{\"title\": \"제목\"}", admin());
@@ -168,7 +168,7 @@ class AdminNoticeControllerTest {
 		MvcTestResult result = update("{\"title\": \"제목\"}", user());
 
 		assertThat(result).hasStatus(HttpStatus.FORBIDDEN);
-		then(adminNoticeService).should(never()).update(any(), any());
+		then(adminNoticeService).should(never()).update(any(), any(), any());
 	}
 
 	@Test
@@ -177,12 +177,12 @@ class AdminNoticeControllerTest {
 
 		assertThat(result).hasStatusOk();
 		assertThat(result).bodyJson().extractingPath("$.success").isEqualTo(true);
-		then(adminNoticeService).should().delete(3L);
+		then(adminNoticeService).should().delete(3L, 100L);
 	}
 
 	@Test
 	void deleteUnknownNoticeReturnsNotFound() {
-		willThrow(new BusinessException(ErrorCode.NOTICE_NOT_FOUND)).given(adminNoticeService).delete(3L);
+		willThrow(new BusinessException(ErrorCode.NOTICE_NOT_FOUND)).given(adminNoticeService).delete(3L, 100L);
 
 		MvcTestResult result = mvc.delete().uri("/admin/notices/3").header("Authorization", admin()).exchange();
 
@@ -195,7 +195,7 @@ class AdminNoticeControllerTest {
 		MvcTestResult result = mvc.delete().uri("/admin/notices/3").header("Authorization", user()).exchange();
 
 		assertThat(result).hasStatus(HttpStatus.FORBIDDEN);
-		then(adminNoticeService).should(never()).delete(any());
+		then(adminNoticeService).should(never()).delete(any(), any());
 	}
 
 	private MvcTestResult update(String body, String authorization) {

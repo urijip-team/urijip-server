@@ -9,6 +9,9 @@ import java.time.ZoneOffset;
 import java.time.temporal.ChronoUnit;
 
 import com.urijip.server.TestcontainersConfiguration;
+import com.urijip.server.adminlog.entity.AdminAction;
+import com.urijip.server.adminlog.entity.AdminLogTargetType;
+import com.urijip.server.adminlog.repository.AdminLogRepository;
 import com.urijip.server.family.dto.request.FamilyCreateRequest;
 import com.urijip.server.family.dto.response.FamilyResponse;
 import com.urijip.server.family.service.FamilyService;
@@ -56,10 +59,17 @@ class AdminUserServiceTest {
 
 	private User dad;
 
+	private User admin;
+
+	@Autowired
+	private AdminLogRepository adminLogRepository;
+
 	@BeforeEach
 	void setUp() {
 		mom = saveUser("mom@example.com", "김엄마");
 		dad = saveUser("dad@example.com", "김아빠");
+		admin = saveUser("admin@example.com", "관리자");
+		makeAdmin(admin);
 	}
 
 	@Test
@@ -80,7 +90,7 @@ class AdminUserServiceTest {
 
 	@Test
 	void searchByKeywordAndStatus() {
-		adminUserService.changeStatus(dad.getId(), new AdminUserStatusRequest(UserStatus.SUSPENDED));
+		adminUserService.changeStatus(dad.getId(), admin.getId(), new AdminUserStatusRequest(UserStatus.SUSPENDED));
 
 		assertThat(search("아빠", null, 0, 20).content()).extracting(AdminUserResponse::id)
 				.containsExactly(dad.getId());
@@ -163,19 +173,40 @@ class AdminUserServiceTest {
 
 	@Test
 	void changeStatusSuspendsAndReactivates() {
-		AdminUserDetailResponse suspended = adminUserService.changeStatus(mom.getId(),
+		AdminUserDetailResponse suspended = adminUserService.changeStatus(mom.getId(), admin.getId(),
 				new AdminUserStatusRequest(UserStatus.SUSPENDED));
 		assertThat(suspended.status()).isEqualTo(UserStatus.SUSPENDED);
 		assertThat(userRepository.findById(mom.getId()).orElseThrow().getStatus()).isEqualTo(UserStatus.SUSPENDED);
 
-		AdminUserDetailResponse active = adminUserService.changeStatus(mom.getId(),
+		AdminUserDetailResponse active = adminUserService.changeStatus(mom.getId(), admin.getId(),
 				new AdminUserStatusRequest(UserStatus.ACTIVE));
 		assertThat(active.status()).isEqualTo(UserStatus.ACTIVE);
 	}
 
 	@Test
+	void changeStatusRecordsAdminLog() {
+		adminUserService.changeStatus(mom.getId(), admin.getId(), new AdminUserStatusRequest(UserStatus.SUSPENDED));
+
+		assertThat(adminLogRepository.findAll()).singleElement().satisfies(log -> {
+			assertThat(log.getAdmin().getId()).isEqualTo(admin.getId());
+			assertThat(log.getAction()).isEqualTo(AdminAction.CHANGE_USER_STATUS);
+			assertThat(log.getTargetType()).isEqualTo(AdminLogTargetType.USER);
+			assertThat(log.getTargetId()).isEqualTo(mom.getId());
+			assertThat(log.getDetail()).isEqualTo("ACTIVE -> SUSPENDED");
+		});
+	}
+
+	@Test
+	void failedChangeStatusRecordsNothing() {
+		assertThatThrownBy(() -> adminUserService.changeStatus(mom.getId(), admin.getId(),
+				new AdminUserStatusRequest(UserStatus.WITHDRAWN))).isInstanceOf(BusinessException.class);
+
+		assertThat(adminLogRepository.count()).isZero();
+	}
+
+	@Test
 	void changeStatusRejectsWithdrawnAsTargetStatus() {
-		assertThatThrownBy(() -> adminUserService.changeStatus(mom.getId(),
+		assertThatThrownBy(() -> adminUserService.changeStatus(mom.getId(), admin.getId(),
 				new AdminUserStatusRequest(UserStatus.WITHDRAWN)))
 				.isInstanceOf(BusinessException.class)
 				.extracting("errorCode")
@@ -187,7 +218,7 @@ class AdminUserServiceTest {
 		mom.withdraw();
 		userRepository.flush();
 
-		assertThatThrownBy(() -> adminUserService.changeStatus(mom.getId(),
+		assertThatThrownBy(() -> adminUserService.changeStatus(mom.getId(), admin.getId(),
 				new AdminUserStatusRequest(UserStatus.ACTIVE)))
 				.isInstanceOf(BusinessException.class)
 				.extracting("errorCode")
@@ -198,7 +229,7 @@ class AdminUserServiceTest {
 	void changeStatusRejectsAdmin() {
 		makeAdmin(dad);
 
-		assertThatThrownBy(() -> adminUserService.changeStatus(dad.getId(),
+		assertThatThrownBy(() -> adminUserService.changeStatus(dad.getId(), admin.getId(),
 				new AdminUserStatusRequest(UserStatus.SUSPENDED)))
 				.isInstanceOf(BusinessException.class)
 				.extracting("errorCode")

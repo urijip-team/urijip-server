@@ -150,7 +150,7 @@ class AdminUserControllerTest {
 
 	@Test
 	void changeStatusReturnsDetail() {
-		given(adminUserService.changeStatus(1L, new AdminUserStatusRequest(UserStatus.SUSPENDED))).willReturn(DETAIL);
+		given(adminUserService.changeStatus(1L, 100L, new AdminUserStatusRequest(UserStatus.SUSPENDED))).willReturn(DETAIL);
 
 		MvcTestResult result = changeStatus("""
 				{"status": "SUSPENDED"}
@@ -166,12 +166,12 @@ class AdminUserControllerTest {
 		MvcTestResult result = changeStatus(body);
 
 		assertThat(result).hasStatus(HttpStatus.BAD_REQUEST);
-		then(adminUserService).should(never()).changeStatus(any(), any());
+		then(adminUserService).should(never()).changeStatus(any(), any(), any());
 	}
 
 	@Test
 	void changeStatusOfWithdrawnUserReturnsConflict() {
-		given(adminUserService.changeStatus(any(), any())).willThrow(new BusinessException(ErrorCode.USER_WITHDRAWN));
+		given(adminUserService.changeStatus(any(), any(), any())).willThrow(new BusinessException(ErrorCode.USER_WITHDRAWN));
 
 		MvcTestResult result = changeStatus("""
 				{"status": "ACTIVE"}
@@ -192,7 +192,7 @@ class AdminUserControllerTest {
 				.exchange();
 
 		assertThat(result).hasStatus(HttpStatus.FORBIDDEN);
-		then(adminUserService).should(never()).changeStatus(any(), any());
+		then(adminUserService).should(never()).changeStatus(any(), any(), any());
 	}
 
 	private MvcTestResult changeStatus(String body) {

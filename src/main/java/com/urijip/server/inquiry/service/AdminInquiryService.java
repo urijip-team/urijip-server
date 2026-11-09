@@ -3,6 +3,9 @@ package com.urijip.server.inquiry.service;
 import java.util.List;
 import java.util.Map;
 
+import com.urijip.server.adminlog.entity.AdminAction;
+import com.urijip.server.adminlog.entity.AdminLogTargetType;
+import com.urijip.server.adminlog.service.AdminLogService;
 import com.urijip.server.global.exception.BusinessException;
 import com.urijip.server.global.exception.ErrorCode;
 import com.urijip.server.global.push.PushMessage;
@@ -26,6 +29,7 @@ public class AdminInquiryService {
 
 	private final InquiryRepository inquiryRepository;
 	private final UserService userService;
+	private final AdminLogService adminLogService;
 	private final NotificationService notificationService;
 
 	@Transactional(readOnly = true)
@@ -45,6 +49,8 @@ public class AdminInquiryService {
 		}
 
 		inquiry.answer(userService.getUser(adminId), request.answer());
+		adminLogService.record(adminId, AdminAction.ANSWER_INQUIRY, AdminLogTargetType.INQUIRY, inquiryId,
+				inquiry.getTitle());
 		notificationService.send(List.of(inquiry.getUser().getId()), new PushMessage(PushType.INQUIRY, "문의 답변",
 				"'" + inquiry.getTitle() + "' 문의에 답변이 등록됐어요.", Map.of("inquiryId", inquiry.getId().toString())));
 		return AdminInquiryResponse.from(inquiry);

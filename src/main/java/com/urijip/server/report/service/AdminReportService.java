@@ -5,6 +5,9 @@ import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import com.urijip.server.adminlog.entity.AdminAction;
+import com.urijip.server.adminlog.entity.AdminLogTargetType;
+import com.urijip.server.adminlog.service.AdminLogService;
 import com.urijip.server.global.exception.BusinessException;
 import com.urijip.server.global.exception.ErrorCode;
 import com.urijip.server.global.response.PageResponse;
@@ -38,6 +41,7 @@ public class AdminReportService {
 	private final UserService userService;
 	private final AdminUserService adminUserService;
 	private final PhotoService photoService;
+	private final AdminLogService adminLogService;
 
 	// 신고 대상은 종류별로 한 번에 읽어 페이지 크기만큼 쿼리가 늘지 않게 한다.
 	@Transactional(readOnly = true)
@@ -80,11 +84,15 @@ public class AdminReportService {
 				if (report.getTargetType() != ReportTargetType.USER) {
 					throw new BusinessException(ErrorCode.REPORT_ACTION_NOT_ALLOWED);
 				}
-				adminUserService.changeStatus(report.getTargetId(), new AdminUserStatusRequest(UserStatus.SUSPENDED));
+				adminUserService.changeStatus(report.getTargetId(), adminId,
+						new AdminUserStatusRequest(UserStatus.SUSPENDED));
 				completeAllForTarget(report, userService.getUser(adminId));
 			}
 			case REJECT -> report.handle(userService.getUser(adminId), ReportStatus.REJECTED);
 		}
+		// 회원 정지는 회원 상태 변경 기록도 따로 남는다(AdminUserService).
+		adminLogService.record(adminId, AdminAction.HANDLE_REPORT, AdminLogTargetType.REPORT, reportId,
+				request.action().name());
 
 		return toResponse(report);
 	}
