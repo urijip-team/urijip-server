@@ -23,6 +23,7 @@ import com.urijip.server.family.dto.request.FamilyCreateRequest;
 import com.urijip.server.family.dto.request.FamilyJoinRequest;
 import com.urijip.server.family.dto.request.NicknameUpdateRequest;
 import com.urijip.server.family.dto.response.FamilyResponse;
+import com.urijip.server.family.entity.FamilyStatus;
 import com.urijip.server.family.service.FamilyService;
 import com.urijip.server.global.exception.BusinessException;
 import com.urijip.server.global.exception.ErrorCode;
@@ -398,6 +399,15 @@ class AllowanceServiceTest {
 	private AllowanceCreateResponse request(User requester, User receiver, int amount, String reason) {
 		return allowanceService.create(requester.getId(),
 				new AllowanceCreateRequest(familyId, receiver.getId(), amount, reason));
+	}
+
+	@Test
+	void allowanceRequestInSuspendedFamilyIsBlocked() {
+		familyService.getFamily(familyId).changeStatus(FamilyStatus.SUSPENDED);
+
+		assertThatThrownBy(() -> request(kid, mom, 5000, null))
+				.isInstanceOfSatisfying(BusinessException.class,
+						e -> assertThat(e.getErrorCode()).isEqualTo(ErrorCode.FAMILY_SUSPENDED));
 	}
 
 	private User saveUser(String email, String name) {

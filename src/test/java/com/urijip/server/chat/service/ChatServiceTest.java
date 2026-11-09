@@ -22,6 +22,7 @@ import com.urijip.server.family.dto.request.FamilyCreateRequest;
 import com.urijip.server.family.dto.request.FamilyJoinRequest;
 import com.urijip.server.family.dto.request.NicknameUpdateRequest;
 import com.urijip.server.family.dto.response.FamilyResponse;
+import com.urijip.server.family.entity.FamilyStatus;
 import com.urijip.server.family.service.FamilyService;
 import com.urijip.server.global.exception.BusinessException;
 import com.urijip.server.global.exception.ErrorCode;
@@ -380,6 +381,35 @@ class ChatServiceTest {
 				.map(ChatReadEvent::message)
 				.filter(read -> read.userId().equals(user.getId()))
 				.toList();
+	}
+
+	@Test
+	void readingHistoryAndMarkingReadInSuspendedFamilyAreBlocked() {
+		ChatMessageResponse message = chatService.send(kid.getId(), new ChatSendRequest(familyId, "안녕"));
+		familyService.getFamily(familyId).changeStatus(FamilyStatus.SUSPENDED);
+
+		assertThatThrownBy(() -> chatService.getMessages(familyId, mom.getId(), new ChatMessagePageRequest(null, null)))
+				.extracting("errorCode").isEqualTo(ErrorCode.FAMILY_SUSPENDED);
+		assertThatThrownBy(() -> chatService.markRead(mom.getId(), new ChatReadRequest(familyId, message.messageId())))
+				.extracting("errorCode").isEqualTo(ErrorCode.FAMILY_SUSPENDED);
+	}
+
+	@Test
+	void systemMessageStillWorksInSuspendedFamily() {
+		familyService.getFamily(familyId).changeStatus(FamilyStatus.SUSPENDED);
+
+		chatService.sendSystemMessage(familyId, "김첫째님이 SOS를 보냈습니다.");
+
+		assertThat(chatMessageRepository.count()).isEqualTo(1);
+	}
+
+	@Test
+	void chattingInSuspendedFamilyIsBlocked() {
+		familyService.getFamily(familyId).changeStatus(FamilyStatus.SUSPENDED);
+
+		assertThatThrownBy(() -> chatService.send(kid.getId(), new ChatSendRequest(familyId, "안녕")))
+				.isInstanceOfSatisfying(BusinessException.class,
+						e -> assertThat(e.getErrorCode()).isEqualTo(ErrorCode.FAMILY_SUSPENDED));
 	}
 
 	private User saveUser(String email, String name) {
