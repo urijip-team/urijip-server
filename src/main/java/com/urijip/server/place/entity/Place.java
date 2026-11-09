@@ -61,4 +61,22 @@ public class Place extends BaseTimeEntity {
 		this.radiusMeters = radiusMeters;
 	}
 
+	// null인 값은 바꾸지 않는다. 위도·경도는 함께 바꾼다.
+	public void update(String name, BigDecimal latitude, BigDecimal longitude, Integer radiusMeters) {
+		if (name != null) {
+			this.name = name;
+		}
+		if (latitude != null && longitude != null) {
+			this.latitude = latitude;
+			this.longitude = longitude;
+		}
+		if (radiusMeters != null) {
+			this.radiusMeters = radiusMeters;
+		}
+	}
+
+	public boolean belongsTo(Long familyId) {
+		return family.getId().equals(familyId);
+	}
+
 }
