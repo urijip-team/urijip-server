@@ -36,7 +36,7 @@ class NotificationSettingControllerTest {
 	@Test
 	void getReturnsMySettings() {
 		given(notificationSettingService.getSettings(1L))
-				.willReturn(new NotificationSettingResponse(false, true, true, false));
+				.willReturn(new NotificationSettingResponse(false, true, true, false, true));
 
 		MvcTestResult result = mvc.get().uri(URL).header("Authorization", bearer()).exchange();
 
@@ -45,6 +45,7 @@ class NotificationSettingControllerTest {
 		assertThat(result).bodyJson().extractingPath("$.data.schedule").isEqualTo(true);
 		assertThat(result).bodyJson().extractingPath("$.data.allowance").isEqualTo(true);
 		assertThat(result).bodyJson().extractingPath("$.data.notice").isEqualTo(false);
+		assertThat(result).bodyJson().extractingPath("$.data.place").isEqualTo(true);
 	}
 
 	@Test
@@ -54,8 +55,8 @@ class NotificationSettingControllerTest {
 
 	@Test
 	void patchChangesOnlySentFields() {
-		given(notificationSettingService.update(1L, new NotificationSettingUpdateRequest(false, null, null, null)))
-				.willReturn(new NotificationSettingResponse(false, true, true, true));
+		given(notificationSettingService.update(1L, new NotificationSettingUpdateRequest(false, null, null, null, null)))
+				.willReturn(new NotificationSettingResponse(false, true, true, true, true));
 
 		MvcTestResult result = mvc.patch().uri(URL).header("Authorization", bearer())
 				.contentType(MediaType.APPLICATION_JSON)

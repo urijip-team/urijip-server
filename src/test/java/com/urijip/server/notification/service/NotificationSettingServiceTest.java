@@ -59,15 +59,15 @@ class NotificationSettingServiceTest {
 		saveSetting(mom, false, true, false, true);
 
 		assertThat(notificationSettingService.getSettings(mom.getId()))
-				.isEqualTo(new NotificationSettingResponse(false, true, false, true));
+				.isEqualTo(new NotificationSettingResponse(false, true, false, true, true));
 	}
 
 	@Test
 	void firstUpdateCreatesSettingWithOnlySentValuesOff() {
 		NotificationSettingResponse response = notificationSettingService.update(mom.getId(),
-				new NotificationSettingUpdateRequest(false, null, null, null));
+				new NotificationSettingUpdateRequest(false, null, null, null, null));
 
-		assertThat(response).isEqualTo(new NotificationSettingResponse(false, true, true, true));
+		assertThat(response).isEqualTo(new NotificationSettingResponse(false, true, true, true, true));
 		assertThat(notificationSettingRepository.findById(mom.getId())).isPresent();
 		assertThat(notificationSettingRepository.findById(dad.getId())).isEmpty();
 	}
@@ -77,16 +77,16 @@ class NotificationSettingServiceTest {
 		saveSetting(mom, false, true, false, true);
 
 		NotificationSettingResponse response = notificationSettingService.update(mom.getId(),
-				new NotificationSettingUpdateRequest(null, false, true, null));
+				new NotificationSettingUpdateRequest(null, false, true, null, null));
 
-		assertThat(response).isEqualTo(new NotificationSettingResponse(false, false, true, true));
+		assertThat(response).isEqualTo(new NotificationSettingResponse(false, false, true, true, true));
 		assertThat(notificationSettingService.getSettings(mom.getId())).isEqualTo(response);
 	}
 
 	@Test
 	void updateOfUnknownUserFails() {
 		assertThatThrownBy(() -> notificationSettingService.update(-1L,
-				new NotificationSettingUpdateRequest(false, null, null, null)))
+				new NotificationSettingUpdateRequest(false, null, null, null, null)))
 				.isInstanceOfSatisfying(BusinessException.class,
 						e -> assertThat(e.getErrorCode()).isEqualTo(ErrorCode.USER_NOT_FOUND));
 	}
@@ -110,6 +110,14 @@ class NotificationSettingServiceTest {
 		assertThat(notificationSettingService.filterReceivers(receivers, PushType.SCHEDULE)).isEmpty();
 		assertThat(notificationSettingService.filterReceivers(receivers, PushType.ALLOWANCE)).isEmpty();
 		assertThat(notificationSettingService.filterReceivers(receivers, PushType.NOTICE)).isEmpty();
+	}
+
+	@Test
+	void filterReceiversDropsUsersWhoTurnedPlaceAlertsOff() {
+		notificationSettingService.update(mom.getId(), new NotificationSettingUpdateRequest(null, null, null, null, false));
+
+		assertThat(notificationSettingService.filterReceivers(List.of(mom.getId(), dad.getId()), PushType.PLACE))
+				.isEqualTo(Set.of(dad.getId()));
 	}
 
 	@ParameterizedTest
@@ -136,7 +144,7 @@ class NotificationSettingServiceTest {
 
 	private void saveSetting(User user, boolean chat, boolean schedule, boolean allowance, boolean notice) {
 		NotificationSetting setting = new NotificationSetting(user);
-		setting.update(chat, schedule, allowance, notice);
+		setting.update(chat, schedule, allowance, notice, null);
 		notificationSettingRepository.save(setting);
 	}
 
