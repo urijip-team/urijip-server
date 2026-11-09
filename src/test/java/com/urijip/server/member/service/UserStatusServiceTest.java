@@ -44,6 +44,7 @@ class UserStatusServiceTest {
 	void suspendedUserIsRejectedAsSuspended() {
 		mom.changeStatus(UserStatus.SUSPENDED);
 		userRepository.flush();
+		userStatusService.evict(mom.getId());
 
 		assertError(mom.getId(), ErrorCode.USER_SUSPENDED);
 	}
@@ -52,9 +53,22 @@ class UserStatusServiceTest {
 	void withdrawnOrUnknownUserIsRejectedAsInvalidToken() {
 		mom.withdraw();
 		userRepository.flush();
+		userStatusService.evict(mom.getId());
 
 		assertError(mom.getId(), ErrorCode.INVALID_TOKEN);
 		assertError(-1L, ErrorCode.INVALID_TOKEN);
+	}
+
+	@Test
+	void statusIsCachedUntilEvicted() {
+		userStatusService.validateActive(mom.getId());
+		mom.changeStatus(UserStatus.SUSPENDED);
+		userRepository.flush();
+
+		assertThatCode(() -> userStatusService.validateActive(mom.getId())).doesNotThrowAnyException();
+
+		userStatusService.evict(mom.getId());
+		assertError(mom.getId(), ErrorCode.USER_SUSPENDED);
 	}
 
 	private void assertError(Long userId, ErrorCode errorCode) {
