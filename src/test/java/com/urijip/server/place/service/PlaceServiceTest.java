@@ -15,6 +15,7 @@ import com.urijip.server.global.exception.ErrorCode;
 import com.urijip.server.member.entity.User;
 import com.urijip.server.member.repository.UserRepository;
 import com.urijip.server.place.dto.request.PlaceCreateRequest;
+import com.urijip.server.place.dto.request.PlaceUpdateRequest;
 import com.urijip.server.place.dto.response.PlaceResponse;
 import com.urijip.server.place.entity.Place;
 import com.urijip.server.place.repository.PlaceRepository;
@@ -96,6 +97,41 @@ class PlaceServiceTest {
 		}
 
 		assertError(() -> create(mom, "하나 더", null), ErrorCode.PLACE_LIMIT_EXCEEDED);
+	}
+
+	@Test
+	void getPlacesListsFamilyPlacesInOrder() {
+		PlaceResponse home = create(mom, "집", null);
+		PlaceResponse school = create(kid, "학교", 300);
+
+		assertThat(placeService.getPlaces(familyId, kid.getId())).containsExactly(home, school);
+	}
+
+	@Test
+	void getPlacesByStrangerFails() {
+		assertError(() -> placeService.getPlaces(familyId, stranger.getId()), ErrorCode.FAMILY_NOT_MEMBER);
+	}
+
+	@Test
+	void anyMemberCanUpdateOnlySentFields() {
+		PlaceResponse home = create(mom, "집", null);
+
+		PlaceResponse updated = placeService.update(home.id(), kid.getId(),
+				new PlaceUpdateRequest(null, new BigDecimal("35.2"), new BigDecimal("126.9"), 150));
+
+		assertThat(updated.name()).isEqualTo("집");
+		assertThat(updated.latitude()).isEqualTo(35.2);
+		assertThat(updated.longitude()).isEqualTo(126.9);
+		assertThat(updated.radiusMeters()).isEqualTo(150);
+	}
+
+	@Test
+	void updateByStrangerOrOfUnknownPlaceFails() {
+		PlaceResponse home = create(mom, "집", null);
+		PlaceUpdateRequest rename = new PlaceUpdateRequest("새 집", null, null, null);
+
+		assertError(() -> placeService.update(home.id(), stranger.getId(), rename), ErrorCode.FAMILY_NOT_MEMBER);
+		assertError(() -> placeService.update(-1L, mom.getId(), rename), ErrorCode.PLACE_NOT_FOUND);
 	}
 
 	private PlaceResponse create(User user, String name, Integer radius) {

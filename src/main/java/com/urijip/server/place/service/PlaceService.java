@@ -2,12 +2,14 @@ package com.urijip.server.place.service;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.util.List;
 
 import com.urijip.server.family.service.FamilyService;
 import com.urijip.server.global.exception.BusinessException;
 import com.urijip.server.global.exception.ErrorCode;
 import com.urijip.server.member.service.UserService;
 import com.urijip.server.place.dto.request.PlaceCreateRequest;
+import com.urijip.server.place.dto.request.PlaceUpdateRequest;
 import com.urijip.server.place.dto.response.PlaceResponse;
 import com.urijip.server.place.entity.Place;
 import com.urijip.server.place.repository.PlaceRepository;
@@ -37,6 +39,33 @@ public class PlaceService {
 		Place place = placeRepository.save(new Place(familyService.getFamily(familyId), userService.getUser(userId),
 				request.name(), scale(request.latitude()), scale(request.longitude()), request.radiusOrDefault()));
 		return PlaceResponse.from(place);
+	}
+
+	@Transactional(readOnly = true)
+	public List<PlaceResponse> getPlaces(Long familyId, Long userId) {
+		familyService.validateMember(familyId, userId);
+		return placeRepository.findByFamilyIdOrderByIdAsc(familyId).stream().map(PlaceResponse::from).toList();
+	}
+
+	// 같은 가족 멤버면 누구나 바꿀 수 있다.
+	@Transactional
+	public PlaceResponse update(Long placeId, Long userId, PlaceUpdateRequest request) {
+		Place place = getAccessiblePlace(placeId, userId);
+		place.update(request.name(), scaleOrNull(request.latitude()), scaleOrNull(request.longitude()),
+				request.radiusMeters());
+		return PlaceResponse.from(place);
+	}
+
+	// 장소가 없으면 PLACE_NOT_FOUND, 그 가족의 멤버가 아니면 FAMILY_NOT_MEMBER.
+	private Place getAccessiblePlace(Long placeId, Long userId) {
+		Place place = placeRepository.findById(placeId)
+				.orElseThrow(() -> new BusinessException(ErrorCode.PLACE_NOT_FOUND));
+		familyService.validateMember(place.getFamily().getId(), userId);
+		return place;
+	}
+
+	private BigDecimal scaleOrNull(BigDecimal value) {
+		return value == null ? null : scale(value);
 	}
 
 	private BigDecimal scale(BigDecimal value) {
