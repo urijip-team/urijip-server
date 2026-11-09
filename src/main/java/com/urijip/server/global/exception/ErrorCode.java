@@ -19,6 +19,7 @@ public enum ErrorCode {
 	LOGIN_FAILED(HttpStatus.UNAUTHORIZED, "이메일 또는 비밀번호가 올바르지 않습니다"),
 	ACCESS_DENIED(HttpStatus.FORBIDDEN, "접근 권한이 없습니다"),
 	FAMILY_NOT_MEMBER(HttpStatus.FORBIDDEN, "해당 가족의 멤버가 아닙니다"),
+	FAMILY_SUSPENDED(HttpStatus.FORBIDDEN, "관리자가 정지한 가족입니다. SOS와 위치 공유만 쓸 수 있습니다"),
 	NOT_FAMILY_OWNER(HttpStatus.FORBIDDEN, "방장 권한이 필요합니다"),
 	NOT_PHOTO_UPLOADER(HttpStatus.FORBIDDEN, "사진을 올린 사람만 삭제할 수 있습니다"),
 	NOT_COMMENT_AUTHOR(HttpStatus.FORBIDDEN, "댓글을 쓴 사람만 삭제할 수 있습니다"),

@@ -965,6 +965,29 @@ class FamilyServiceTest {
 						e -> assertThat(e.getErrorCode()).isEqualTo(ErrorCode.FAMILY_NOT_MEMBER));
 	}
 
+	@Test
+	void validateActiveMemberRejectsSuspendedFamily() {
+		FamilyResponse family = familyService.create(mom.getId(), new FamilyCreateRequest("김씨네"));
+		familyService.validateActiveMember(family.id(), mom.getId());
+
+		familyService.getFamily(family.id()).changeStatus(FamilyStatus.SUSPENDED);
+
+		assertThatThrownBy(() -> familyService.validateActiveMember(family.id(), mom.getId()))
+				.isInstanceOfSatisfying(BusinessException.class,
+						e -> assertThat(e.getErrorCode()).isEqualTo(ErrorCode.FAMILY_SUSPENDED));
+		assertThatCode(() -> familyService.validateMember(family.id(), mom.getId())).doesNotThrowAnyException();
+	}
+
+	@Test
+	void validateActiveMemberChecksMembershipFirst() {
+		User stranger = saveUser("stranger@example.com", "남");
+		FamilyResponse family = familyService.create(mom.getId(), new FamilyCreateRequest("김씨네"));
+
+		assertThatThrownBy(() -> familyService.validateActiveMember(family.id(), stranger.getId()))
+				.isInstanceOfSatisfying(BusinessException.class,
+						e -> assertThat(e.getErrorCode()).isEqualTo(ErrorCode.FAMILY_NOT_MEMBER));
+	}
+
 	private User saveUser(String email, String name) {
 		return userRepository.saveAndFlush(User.builder()
 				.email(email)
