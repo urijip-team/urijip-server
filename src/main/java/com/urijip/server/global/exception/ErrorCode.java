@@ -38,6 +38,8 @@ public enum ErrorCode {
 	INQUIRY_NOT_FOUND(HttpStatus.NOT_FOUND, "존재하지 않는 문의입니다"),
 	NOTICE_NOT_FOUND(HttpStatus.NOT_FOUND, "존재하지 않는 공지입니다"),
 	CHAT_MESSAGE_NOT_FOUND(HttpStatus.NOT_FOUND, "존재하지 않는 메시지입니다"),
+	PLACE_NOT_FOUND(HttpStatus.NOT_FOUND, "존재하지 않는 장소입니다"),
+	PLACE_LIMIT_EXCEEDED(HttpStatus.BAD_REQUEST, "장소는 가족당 10개까지 등록할 수 있습니다"),
 	ALLOWANCE_NOT_FOUND(HttpStatus.NOT_FOUND, "존재하지 않는 용돈 요청입니다"),
 	SOS_NOT_FOUND(HttpStatus.NOT_FOUND, "존재하지 않는 SOS입니다"),
 	PAYMENT_INFO_NOT_FOUND(HttpStatus.NOT_FOUND, "등록된 송금 정보가 없습니다"),

@@ -27,6 +27,14 @@ public class Place extends BaseTimeEntity {
 
 	public static final int MAX_NAME_LENGTH = 30;
 
+	public static final int MAX_PLACES_PER_FAMILY = 10;
+
+	public static final int MIN_RADIUS_METERS = 50;
+
+	public static final int MAX_RADIUS_METERS = 500;
+
+	public static final int DEFAULT_RADIUS_METERS = 100;
+
 	@Id
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
 	private Long id;
