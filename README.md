@@ -68,6 +68,7 @@ cd urijip-server
 | `S3_BUCKET` | 사진 버킷 (비공개) | 필수 |
 | `AWS_REGION` | S3 리전 | 선택, 기본 `ap-northeast-2` |
 | `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` | S3 자격 증명 | IAM 역할을 쓰면 불필요 |
+| `CORS_ALLOWED_ORIGINS` | 관리자 웹 주소(쉼표로 여러 개) | 관리자 웹을 쓰면 필수. 없으면 브라우저 요청을 모두 막는다 |
 | `FIREBASE_CREDENTIALS_PATH` | Firebase 서비스 계정 키 파일 경로 | 선택. 없으면 푸시를 보내지 않고 로그만 남긴다 |
 
 ## 배포

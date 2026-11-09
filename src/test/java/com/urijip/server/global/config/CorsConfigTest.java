@@ -6,10 +6,13 @@ import java.util.List;
 
 import com.urijip.server.global.security.CorsProperties;
 import org.junit.jupiter.api.Test;
+import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.web.cors.CorsConfiguration;
 
 class CorsConfigTest {
+
+	private final ApplicationContextRunner runner = new ApplicationContextRunner().withUserConfiguration(CorsConfig.class);
 
 	@Test
 	void allowsConfiguredOriginsWithJwtHeadersAndNoCredentials() {
@@ -32,6 +35,16 @@ class CorsConfigTest {
 	@Test
 	void blankEntriesFromEnvironmentAreDropped() {
 		assertThat(new CorsProperties(List.of(" https://a.com ", "")).allowedOrigins()).containsExactly("https://a.com");
+	}
+
+	// 운영은 환경변수 하나(CORS_ALLOWED_ORIGINS)에 쉼표로 여러 출처를 준다. 비어 있으면 아무것도 허용하지 않는다.
+	@Test
+	void bindsCommaSeparatedOriginsFromOneProperty() {
+		runner.withPropertyValues("cors.allowed-origins=https://admin.urijip.com, https://staging-admin.urijip.com")
+				.run(context -> assertThat(context.getBean(CorsProperties.class).allowedOrigins())
+						.containsExactly("https://admin.urijip.com", "https://staging-admin.urijip.com"));
+		runner.withPropertyValues("cors.allowed-origins=")
+				.run(context -> assertThat(context.getBean(CorsProperties.class).allowedOrigins()).isEmpty());
 	}
 
 	private CorsConfiguration configurationFor(CorsProperties properties) {
