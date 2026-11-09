@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
+import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.never;
 
 import java.math.BigDecimal;
@@ -11,8 +12,11 @@ import java.time.OffsetDateTime;
 import java.util.List;
 
 import com.urijip.server.global.config.SecurityConfig;
+import com.urijip.server.global.exception.BusinessException;
+import com.urijip.server.global.exception.ErrorCode;
 import com.urijip.server.global.security.JwtProvider;
 import com.urijip.server.place.dto.request.PlaceCreateRequest;
+import com.urijip.server.place.dto.request.PlaceUpdateRequest;
 import com.urijip.server.place.dto.response.PlaceResponse;
 import com.urijip.server.place.service.PlaceService;
 import org.junit.jupiter.api.Test;
@@ -85,6 +89,55 @@ class PlaceControllerTest {
 		assertThat(result).hasStatus(HttpStatus.BAD_REQUEST);
 		assertThat(result).bodyJson().extractingPath("$.error.code").isEqualTo("INVALID_INPUT");
 		then(placeService).should(never()).create(any(), any(), any());
+	}
+
+	@Test
+	void patchChangesSentFields() {
+		given(placeService.update(5L, 2L, new PlaceUpdateRequest("우리 집", null, null, 150))).willReturn(HOME);
+
+		MvcTestResult result = patch("""
+				{"name": "우리 집", "radiusMeters": 150}
+				""");
+
+		assertThat(result).hasStatusOk();
+		assertThat(result).bodyJson().extractingPath("$.data.id").isEqualTo(5);
+	}
+
+	@ParameterizedTest
+	@ValueSource(strings = {
+			"{\"name\": \" \"}",
+			"{\"latitude\": 35.1}",
+			"{\"longitude\": 126.8}",
+			"{\"radiusMeters\": 10}"
+	})
+	void patchWithInvalidBodyReturnsBadRequest(String body) {
+		MvcTestResult result = patch(body);
+
+		assertThat(result).hasStatus(HttpStatus.BAD_REQUEST);
+		then(placeService).should(never()).update(any(), any(), any());
+	}
+
+	@Test
+	void deleteReturnsOk() {
+		MvcTestResult result = mvc.delete().uri("/api/places/5").header("Authorization", bearer()).exchange();
+
+		assertThat(result).hasStatusOk();
+		then(placeService).should().delete(5L, 2L);
+	}
+
+	@Test
+	void deleteOfUnknownPlaceReturnsNotFound() {
+		willThrow(new BusinessException(ErrorCode.PLACE_NOT_FOUND)).given(placeService).delete(9L, 2L);
+
+		MvcTestResult result = mvc.delete().uri("/api/places/9").header("Authorization", bearer()).exchange();
+
+		assertThat(result).hasStatus(HttpStatus.NOT_FOUND);
+		assertThat(result).bodyJson().extractingPath("$.error.code").isEqualTo("PLACE_NOT_FOUND");
+	}
+
+	private MvcTestResult patch(String body) {
+		return mvc.patch().uri("/api/places/5").header("Authorization", bearer())
+				.contentType(MediaType.APPLICATION_JSON).content(body).exchange();
 	}
 
 	private MvcTestResult post(String body) {
