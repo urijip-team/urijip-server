@@ -13,6 +13,7 @@ import java.util.List;
 import com.urijip.server.TestcontainersConfiguration;
 import com.urijip.server.family.dto.request.FamilyCreateRequest;
 import com.urijip.server.family.dto.request.FamilyJoinRequest;
+import com.urijip.server.family.entity.FamilyStatus;
 import com.urijip.server.family.service.FamilyService;
 import com.urijip.server.global.exception.BusinessException;
 import com.urijip.server.global.exception.ErrorCode;
@@ -317,6 +318,15 @@ class ScheduleServiceTest {
 	private void setBirthday(User user, LocalDate birthday) {
 		ReflectionTestUtils.setField(user, "birthday", birthday);
 		userRepository.flush();
+	}
+
+	@Test
+	void schedulesOfSuspendedFamilyAreBlocked() {
+		familyService.getFamily(familyId).changeStatus(FamilyStatus.SUSPENDED);
+
+		assertThatThrownBy(() -> scheduleService.getMonthly(familyId, mom.getId(), OCTOBER))
+				.isInstanceOfSatisfying(BusinessException.class,
+						e -> assertThat(e.getErrorCode()).isEqualTo(ErrorCode.FAMILY_SUSPENDED));
 	}
 
 	private User saveUser(String email, String name) {
