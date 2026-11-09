@@ -979,6 +979,16 @@ class FamilyServiceTest {
 	}
 
 	@Test
+	void suspendedFamilyCannotReissueInviteCode() {
+		FamilyResponse family = familyService.create(mom.getId(), new FamilyCreateRequest("김씨네"));
+		familyService.getFamily(family.id()).changeStatus(FamilyStatus.SUSPENDED);
+
+		assertThatThrownBy(() -> familyService.reissueInviteCode(family.id(), mom.getId()))
+				.isInstanceOfSatisfying(BusinessException.class,
+						e -> assertThat(e.getErrorCode()).isEqualTo(ErrorCode.FAMILY_SUSPENDED));
+	}
+
+	@Test
 	void validateActiveMemberChecksMembershipFirst() {
 		User stranger = saveUser("stranger@example.com", "남");
 		FamilyResponse family = familyService.create(mom.getId(), new FamilyCreateRequest("김씨네"));

@@ -14,6 +14,7 @@ import com.urijip.server.family.dto.request.FamilyCreateRequest;
 import com.urijip.server.family.dto.request.FamilyJoinRequest;
 import com.urijip.server.family.dto.request.NicknameUpdateRequest;
 import com.urijip.server.family.dto.response.FamilyResponse;
+import com.urijip.server.family.entity.FamilyStatus;
 import com.urijip.server.family.service.FamilyService;
 import com.urijip.server.global.exception.BusinessException;
 import com.urijip.server.global.exception.ErrorCode;
@@ -117,6 +118,18 @@ class SosServiceTest {
 		SosCreateResponse second = send(kid);
 
 		assertThat(second.sosId()).isNotEqualTo(first.sosId());
+	}
+
+	// 정지된 가족도 안전 기능인 SOS는 쓸 수 있다.
+	@Test
+	void sosStillWorksInSuspendedFamily() {
+		familyService.getFamily(familyId).changeStatus(FamilyStatus.SUSPENDED);
+
+		SosCreateResponse response = send(kid);
+
+		assertThat(sosAlertRepository.findById(response.sosId())).isPresent();
+		assertThat(events.stream(PushRequestedEvent.class)).hasSize(1);
+		sosService.resolve(response.sosId(), mom.getId());
 	}
 
 	@Test

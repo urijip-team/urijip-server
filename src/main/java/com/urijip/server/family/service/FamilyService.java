@@ -79,6 +79,7 @@ public class FamilyService implements FamilyMembershipChecker {
 	@Transactional
 	public FamilyResponse reissueInviteCode(Long familyId, Long userId) {
 		validateOwner(familyId, userId);
+		validateActive(familyId);
 		Family family = getFamily(familyId);
 
 		family.changeInviteCode(newInviteCode());
