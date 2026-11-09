@@ -115,6 +115,7 @@ URL, 요청·응답 필드, 테이블·컬럼 이름은 API 명세서와 ERD를 
 - `global/config/SecurityConfig`가 경로별 규칙을 정한다. 회원가입·로그인·재발급, 관리자 로그인, Swagger, `/actuator/health`만 열려 있고 나머지는 Access 토큰이 필요하다. 인증 없이 쓰는 API를 추가하면 `PUBLIC_PATHS`에 넣는다.
 - 브라우저(관리자 웹)에서 오는 요청은 `CorsConfig`가 `cors.allowed-origins`(운영은 `CORS_ALLOWED_ORIGINS`)에 있는 출처만 허용한다. 로컬은 `localhost:5173`·`3000`이다. 앱은 브라우저가 아니라 상관없다.
 - 토큰 검사는 `global/security/JwtAuthenticationFilter`가 한다. 컨트롤러는 `@AuthenticationPrincipal Long userId`로 요청한 회원의 id를 받는다.
+- 토큰이 유효해도 정지된 회원은 403 `USER_SUSPENDED`, 탈퇴한 회원은 401 `INVALID_TOKEN`으로 막는다. HTTP는 `JwtAuthenticationFilter`, WebSocket은 `StompAuthChannelInterceptor`(CONNECT·SUBSCRIBE·SEND)가 `UserStatusChecker`(`member/service/UserStatusService`)로 확인한다. 상태는 10초 동안 기억하고, 회원 상태를 바꾸는 코드는 `UserStatusService.evict`를 불러 바로 반영한다.
 - 필터 단계의 401·403은 `GlobalExceptionHandler`를 거치지 않는다. `JwtAuthenticationEntryPoint`와 `JwtAccessDeniedHandler`가 `ApiResponse` 형식으로 응답한다.
 - 인증은 JWT(Access 30분, Refresh 14일), 비밀번호는 BCrypt다. 앱 API는 `/api/...`, 관리자 API는 `/admin/...`(ADMIN만)이다.
 - 관리자가 데이터를 바꾸는 작업(정지, 처리, 답변, 작성·수정·삭제)은 변경을 마친 뒤 같은 트랜잭션에서 `AdminLogService.record`로 `admin_logs`에 남긴다. 컨트롤러는 `@AuthenticationPrincipal Long adminId`를 서비스에 넘긴다. 새 작업 종류는 `AdminAction`에 추가한다.
