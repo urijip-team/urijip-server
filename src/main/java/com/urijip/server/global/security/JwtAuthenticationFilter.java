@@ -23,6 +23,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 	private static final String BEARER_PREFIX = "Bearer ";
 
 	private final JwtProvider jwtProvider;
+	// 컨트롤러만 띄우는 테스트(@WebMvcTest)에는 회원 도메인이 없어 null이다. 그때는 상태를 보지 않는다.
+	private final UserStatusChecker userStatusChecker;
 
 	@Override
 	protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response,
@@ -45,6 +47,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 	private void authenticate(String token, HttpServletRequest request) {
 		try {
 			AccessTokenClaims claims = jwtProvider.parseAccessToken(token);
+			// 토큰이 유효해도 정지(USER_SUSPENDED, 403)·탈퇴(INVALID_TOKEN, 401)한 회원은 막는다.
+			if (userStatusChecker != null) {
+				userStatusChecker.validateActive(claims.userId());
+			}
 			Authentication authentication = new UsernamePasswordAuthenticationToken(claims.userId(), null,
 					List.of(new SimpleGrantedAuthority("ROLE_" + claims.role())));
 			SecurityContextHolder.getContext().setAuthentication(authentication);

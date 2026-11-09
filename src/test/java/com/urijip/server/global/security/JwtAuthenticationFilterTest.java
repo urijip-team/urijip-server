@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import java.time.Duration;
 
+import com.urijip.server.global.exception.BusinessException;
 import com.urijip.server.global.exception.ErrorCode;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -20,7 +21,17 @@ class JwtAuthenticationFilterTest {
 
 	private final JwtProvider jwtProvider = provider(Duration.ofMinutes(30));
 
-	private final JwtAuthenticationFilter filter = new JwtAuthenticationFilter(jwtProvider);
+	// 회원 9는 정지, 10은 탈퇴한 것으로 본다.
+	private final UserStatusChecker userStatusChecker = userId -> {
+		if (userId == 9L) {
+			throw new BusinessException(ErrorCode.USER_SUSPENDED);
+		}
+		if (userId == 10L) {
+			throw new BusinessException(ErrorCode.INVALID_TOKEN);
+		}
+	};
+
+	private final JwtAuthenticationFilter filter = new JwtAuthenticationFilter(jwtProvider, userStatusChecker);
 
 	private final MockHttpServletRequest request = new MockHttpServletRequest();
 
@@ -40,6 +51,34 @@ class JwtAuthenticationFilterTest {
 				.extracting(GrantedAuthority::getAuthority)
 				.containsExactly("ROLE_USER");
 		assertThat(filterChain.getRequest()).isSameAs(request);
+	}
+
+	@Test
+	void validTokenOfSuspendedUserRecordsUserSuspended() throws Exception {
+		doFilter("Bearer " + jwtProvider.createAccessToken(9L, "USER"));
+
+		assertThat(authentication()).isNull();
+		assertThat(request.getAttribute(JwtAuthenticationFilter.ERROR_CODE_ATTRIBUTE))
+				.isEqualTo(ErrorCode.USER_SUSPENDED);
+		assertThat(filterChain.getRequest()).isSameAs(request);
+	}
+
+	@Test
+	void validTokenOfWithdrawnUserRecordsInvalidToken() throws Exception {
+		doFilter("Bearer " + jwtProvider.createAccessToken(10L, "USER"));
+
+		assertThat(authentication()).isNull();
+		assertThat(request.getAttribute(JwtAuthenticationFilter.ERROR_CODE_ATTRIBUTE))
+				.isEqualTo(ErrorCode.INVALID_TOKEN);
+	}
+
+	@Test
+	void withoutCheckerStatusIsNotChecked() throws Exception {
+		request.addHeader("Authorization", "Bearer " + jwtProvider.createAccessToken(9L, "USER"));
+
+		new JwtAuthenticationFilter(jwtProvider, null).doFilter(request, new MockHttpServletResponse(), filterChain);
+
+		assertThat(authentication().getPrincipal()).isEqualTo(9L);
 	}
 
 	@Test

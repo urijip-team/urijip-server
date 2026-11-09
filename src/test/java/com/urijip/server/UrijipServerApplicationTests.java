@@ -2,6 +2,7 @@ package com.urijip.server;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.urijip.server.global.security.UserStatusChecker;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -24,6 +25,12 @@ class UrijipServerApplicationTests {
 	@Test
 	void noDefaultUserDetailsService() {
 		assertThat(context.getBeansOfType(UserDetailsService.class)).isEmpty();
+	}
+
+	// 인증 필터는 이 빈이 있을 때만 정지·탈퇴 회원을 막는다(@WebMvcTest에는 없다).
+	@Test
+	void userStatusCheckerIsAvailableToTheFilter() {
+		assertThat(context.getBeansOfType(UserStatusChecker.class)).hasSize(1);
 	}
 
 }

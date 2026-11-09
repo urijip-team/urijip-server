@@ -1,12 +1,16 @@
 package com.urijip.server.global.config;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.BDDMockito.willThrow;
 
 import java.time.Duration;
 
+import com.urijip.server.global.exception.BusinessException;
+import com.urijip.server.global.exception.ErrorCode;
 import com.urijip.server.global.response.ApiResponse;
 import com.urijip.server.global.security.JwtProperties;
 import com.urijip.server.global.security.JwtProvider;
+import com.urijip.server.global.security.UserStatusChecker;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
@@ -16,6 +20,7 @@ import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.assertj.MockMvcTester;
 import org.springframework.test.web.servlet.assertj.MvcTestResult;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -33,6 +38,9 @@ class SecurityConfigTest {
 
 	@Autowired
 	private JwtProperties jwtProperties;
+
+	@MockitoBean
+	private UserStatusChecker userStatusChecker;
 
 	// 로컬 프로파일은 http://localhost:5173을 허용한다(application-local.yaml).
 	@Test
@@ -67,6 +75,14 @@ class SecurityConfigTest {
 
 		assertThat(result).hasStatusOk();
 		assertThat(result).headers().hasValue(HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN, "http://localhost:5173");
+	}
+
+	@Test
+	void suspendedUserTokenIsForbiddenAsUserSuspended() {
+		willThrow(new BusinessException(ErrorCode.USER_SUSPENDED)).given(userStatusChecker).validateActive(9L);
+
+		assertError(getWithToken("/api/test/me", jwtProvider.createAccessToken(9L, "USER")), HttpStatus.FORBIDDEN,
+				"USER_SUSPENDED");
 	}
 
 	@Test
