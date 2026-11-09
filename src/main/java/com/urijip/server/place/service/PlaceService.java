@@ -13,6 +13,7 @@ import com.urijip.server.place.dto.request.PlaceCreateRequest;
 import com.urijip.server.place.dto.request.PlaceUpdateRequest;
 import com.urijip.server.place.dto.response.PlaceResponse;
 import com.urijip.server.place.entity.Place;
+import com.urijip.server.place.repository.PlacePresenceRepository;
 import com.urijip.server.place.repository.PlaceRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.event.EventListener;
@@ -27,6 +28,7 @@ public class PlaceService {
 	private static final int SCALE = 7;
 
 	private final PlaceRepository placeRepository;
+	private final PlacePresenceRepository placePresenceRepository;
 	private final FamilyService familyService;
 	private final UserService userService;
 
@@ -58,13 +60,17 @@ public class PlaceService {
 		return PlaceResponse.from(place);
 	}
 
+	// 장소 안에 있다는 기록이 장소를 참조하므로 먼저 지운다.
 	@Transactional
 	public void delete(Long placeId, Long userId) {
-		placeRepository.delete(getAccessiblePlace(placeId, userId));
+		Place place = getAccessiblePlace(placeId, userId);
+		placePresenceRepository.deleteByPlaceId(placeId);
+		placeRepository.delete(place);
 	}
 
 	@EventListener
 	public void onFamilyDeleted(FamilyDeletedEvent event) {
+		placePresenceRepository.deleteByFamilyId(event.familyId());
 		placeRepository.deleteByFamilyId(event.familyId());
 	}
 

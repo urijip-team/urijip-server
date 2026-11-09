@@ -18,6 +18,8 @@ import com.urijip.server.place.dto.request.PlaceCreateRequest;
 import com.urijip.server.place.dto.request.PlaceUpdateRequest;
 import com.urijip.server.place.dto.response.PlaceResponse;
 import com.urijip.server.place.entity.Place;
+import com.urijip.server.place.entity.PlacePresence;
+import com.urijip.server.place.repository.PlacePresenceRepository;
 import com.urijip.server.place.repository.PlaceRepository;
 import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.BeforeEach;
@@ -37,6 +39,9 @@ class PlaceServiceTest {
 
 	@Autowired
 	private PlaceRepository placeRepository;
+
+	@Autowired
+	private PlacePresenceRepository placePresenceRepository;
 
 	@Autowired
 	private FamilyService familyService;
@@ -141,8 +146,13 @@ class PlaceServiceTest {
 	@Test
 	void anyMemberCanDelete() {
 		PlaceResponse home = create(mom, "집", null);
+		placePresenceRepository.save(new PlacePresence(placeRepository.getReferenceById(home.id()), kid));
+		// 기록은 벌크 삭제되므로 트랜잭션 경계를 흉내 낸다.
+		entityManager.flush();
+		entityManager.clear();
 
 		placeService.delete(home.id(), kid.getId());
+		entityManager.flush();
 
 		assertThat(placeRepository.findById(home.id())).isEmpty();
 	}
@@ -157,7 +167,8 @@ class PlaceServiceTest {
 
 	@Test
 	void deletingFamilyDeletesItsPlaces() {
-		create(mom, "집", null);
+		PlaceResponse home = create(mom, "집", null);
+		placePresenceRepository.save(new PlacePresence(placeRepository.getReferenceById(home.id()), kid));
 		entityManager.flush();
 		entityManager.clear();
 
@@ -165,6 +176,7 @@ class PlaceServiceTest {
 		familyService.leaveFamily(mom.getId());
 
 		assertThat(placeRepository.count()).isZero();
+		assertThat(placePresenceRepository.count()).isZero();
 	}
 
 	private PlaceResponse create(User user, String name, Integer radius) {
