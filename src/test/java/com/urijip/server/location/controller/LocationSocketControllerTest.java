@@ -104,7 +104,7 @@ class LocationSocketControllerTest {
 
 	@AfterEach
 	void tearDown() {
-		sessions.stream().filter(StompSession::isConnected).forEach(StompSession::disconnect);
+		sessions.forEach(this::disconnectQuietly);
 		stompClient.stop();
 		List<Long> userIds = List.of(mom.getId(), dad.getId(), stranger.getId());
 		for (String sql : List.of("DELETE FROM user_locations WHERE user_id = ?",
@@ -259,6 +259,18 @@ class LocationSocketControllerTest {
 		} catch (TimeoutException | ExecutionException e) {
 			// CONNECT가 거절되면 연결이 끝나지 않는다. ERROR 프레임은 errors로 들어온다.
 			return null;
+		}
+	}
+
+	// 서버가 ERROR 프레임을 보내고 끊은 연결은 isConnected가 잠시 true로 남아 disconnect가 실패할 수 있다.
+	// 여기서 실패하면 아래 행 정리가 건너뛰어져 다음 테스트가 같은 이메일로 회원을 만들다 실패한다.
+	private void disconnectQuietly(StompSession session) {
+		try {
+			if (session.isConnected()) {
+				session.disconnect();
+			}
+		} catch (RuntimeException ignored) {
+			// 이미 끊긴 연결이다.
 		}
 	}
 
