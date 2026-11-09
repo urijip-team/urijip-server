@@ -32,6 +32,7 @@ public class StompAuthChannelInterceptor implements ChannelInterceptor {
 
 	private final JwtProvider jwtProvider;
 	private final FamilyMembershipChecker familyMembershipChecker;
+	private final UserStatusChecker userStatusChecker;
 
 	@Override
 	public Message<?> preSend(Message<?> message, MessageChannel channel) {
@@ -42,7 +43,12 @@ public class StompAuthChannelInterceptor implements ChannelInterceptor {
 		if (StompCommand.CONNECT.equals(accessor.getCommand())) {
 			accessor.setUser(authenticate(accessor.getFirstNativeHeader("Authorization")));
 		} else if (StompCommand.SUBSCRIBE.equals(accessor.getCommand())) {
-			validateSubscription(userIdOf(accessor.getUser()), accessor.getDestination());
+			Long userId = userIdOf(accessor.getUser());
+			userStatusChecker.validateActive(userId);
+			validateSubscription(userId, accessor.getDestination());
+		} else if (StompCommand.SEND.equals(accessor.getCommand())) {
+			// 연결한 뒤에 정지·탈퇴되면 다음 메시지에서 끊는다.
+			userStatusChecker.validateActive(userIdOf(accessor.getUser()));
 		}
 		return message;
 	}
@@ -52,6 +58,7 @@ public class StompAuthChannelInterceptor implements ChannelInterceptor {
 			throw new BusinessException(ErrorCode.INVALID_TOKEN);
 		}
 		AccessTokenClaims claims = jwtProvider.parseAccessToken(header.substring(BEARER_PREFIX.length()));
+		userStatusChecker.validateActive(claims.userId());
 		return new UsernamePasswordAuthenticationToken(claims.userId(), null,
 				List.of(new SimpleGrantedAuthority("ROLE_" + claims.role())));
 	}
