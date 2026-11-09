@@ -19,6 +19,7 @@ import com.urijip.server.place.dto.request.PlaceUpdateRequest;
 import com.urijip.server.place.dto.response.PlaceResponse;
 import com.urijip.server.place.entity.Place;
 import com.urijip.server.place.repository.PlaceRepository;
+import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -42,6 +43,9 @@ class PlaceServiceTest {
 
 	@Autowired
 	private UserRepository userRepository;
+
+	@Autowired
+	private EntityManager entityManager;
 
 	private User mom;
 
@@ -132,6 +136,35 @@ class PlaceServiceTest {
 
 		assertError(() -> placeService.update(home.id(), stranger.getId(), rename), ErrorCode.FAMILY_NOT_MEMBER);
 		assertError(() -> placeService.update(-1L, mom.getId(), rename), ErrorCode.PLACE_NOT_FOUND);
+	}
+
+	@Test
+	void anyMemberCanDelete() {
+		PlaceResponse home = create(mom, "집", null);
+
+		placeService.delete(home.id(), kid.getId());
+
+		assertThat(placeRepository.findById(home.id())).isEmpty();
+	}
+
+	@Test
+	void deleteByStrangerFails() {
+		PlaceResponse home = create(mom, "집", null);
+
+		assertError(() -> placeService.delete(home.id(), stranger.getId()), ErrorCode.FAMILY_NOT_MEMBER);
+		assertThat(placeRepository.findById(home.id())).isPresent();
+	}
+
+	@Test
+	void deletingFamilyDeletesItsPlaces() {
+		create(mom, "집", null);
+		entityManager.flush();
+		entityManager.clear();
+
+		familyService.leaveFamily(kid.getId());
+		familyService.leaveFamily(mom.getId());
+
+		assertThat(placeRepository.count()).isZero();
 	}
 
 	private PlaceResponse create(User user, String name, Integer radius) {

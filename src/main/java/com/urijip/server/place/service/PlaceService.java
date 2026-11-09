@@ -4,6 +4,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.List;
 
+import com.urijip.server.family.service.FamilyDeletedEvent;
 import com.urijip.server.family.service.FamilyService;
 import com.urijip.server.global.exception.BusinessException;
 import com.urijip.server.global.exception.ErrorCode;
@@ -14,6 +15,7 @@ import com.urijip.server.place.dto.response.PlaceResponse;
 import com.urijip.server.place.entity.Place;
 import com.urijip.server.place.repository.PlaceRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -54,6 +56,16 @@ public class PlaceService {
 		place.update(request.name(), scaleOrNull(request.latitude()), scaleOrNull(request.longitude()),
 				request.radiusMeters());
 		return PlaceResponse.from(place);
+	}
+
+	@Transactional
+	public void delete(Long placeId, Long userId) {
+		placeRepository.delete(getAccessiblePlace(placeId, userId));
+	}
+
+	@EventListener
+	public void onFamilyDeleted(FamilyDeletedEvent event) {
+		placeRepository.deleteByFamilyId(event.familyId());
 	}
 
 	// 장소가 없으면 PLACE_NOT_FOUND, 그 가족의 멤버가 아니면 FAMILY_NOT_MEMBER.
