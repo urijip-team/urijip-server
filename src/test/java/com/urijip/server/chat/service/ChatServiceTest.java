@@ -97,6 +97,19 @@ class ChatServiceTest {
 	}
 
 	@Test
+	void getMessagesShowsImageAsSignedUrl() {
+		chatMessageRepository.save(ChatMessage.image(familyService.getFamily(familyId), kid,
+				"families/" + familyId + "/chat/a.jpg"));
+
+		ChatMessageResponse image = chatService.getMessages(familyId, mom.getId(),
+				new ChatMessagePageRequest(null, null)).content().getFirst();
+
+		assertThat(image.type()).isEqualTo(MessageType.IMAGE);
+		assertThat(image.content()).startsWith("http").contains("families/" + familyId + "/chat/a.jpg")
+				.contains("X-Amz-Signature");
+	}
+
+	@Test
 	void sendCountsFamilyExceptSenderAsUnread() {
 		ChatMessageResponse response = chatService.send(kid.getId(), new ChatSendRequest(familyId, "저녁 먹었어?"));
 

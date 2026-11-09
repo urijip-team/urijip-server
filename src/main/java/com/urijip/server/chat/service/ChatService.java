@@ -3,6 +3,8 @@ package com.urijip.server.chat.service;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
+import java.util.function.BiFunction;
 import java.util.stream.Collectors;
 
 import com.urijip.server.chat.dto.request.ChatMessagePageRequest;
@@ -11,8 +13,10 @@ import com.urijip.server.chat.dto.request.ChatSendRequest;
 import com.urijip.server.chat.dto.response.ChatMessageResponse;
 import com.urijip.server.chat.dto.response.ChatReadResponse;
 import com.urijip.server.chat.entity.ChatMessage;
+import com.urijip.server.chat.entity.MessageType;
 import com.urijip.server.chat.repository.ChatMessageRepository;
 import com.urijip.server.family.dto.response.FamilyMemberResponse;
+import com.urijip.server.family.entity.Family;
 import com.urijip.server.family.dto.response.MemberReadState;
 import com.urijip.server.family.service.FamilyDeletedEvent;
 import com.urijip.server.family.service.FamilyService;
@@ -21,44 +25,65 @@ import com.urijip.server.global.exception.ErrorCode;
 import com.urijip.server.global.push.PushMessage;
 import com.urijip.server.global.push.PushType;
 import com.urijip.server.global.response.CursorResponse;
+import com.urijip.server.global.storage.FileStorage;
 import com.urijip.server.member.entity.User;
 import com.urijip.server.member.service.UserService;
 import com.urijip.server.notification.service.NotificationService;
 import com.urijip.server.notification.service.PresenceService;
+import com.urijip.server.photo.service.ImageProcessor;
+import com.urijip.server.photo.service.ImageProcessor.ProcessedImage;
+import com.urijip.server.photo.service.PhotoFileCleaner;
+import com.urijip.server.photo.service.PhotoFilesDeletedEvent;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.event.EventListener;
 import org.springframework.data.domain.Limit;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
+import org.springframework.web.multipart.MultipartFile;
 
 @Service
 @RequiredArgsConstructor
 public class ChatService {
 
 	private final ChatMessageRepository chatMessageRepository;
+	private final FileStorage fileStorage;
 	private final FamilyService familyService;
 	private final UserService userService;
 	private final NotificationService notificationService;
 	private final PresenceService presenceService;
+	private final ImageProcessor imageProcessor;
+	private final PhotoFileCleaner photoFileCleaner;
+	private final TransactionTemplate transactionTemplate;
 	private final ApplicationEventPublisher eventPublisher;
 
 	// STOMP /pub/chat. 본문의 가족에 속하지 않으면 FAMILY_NOT_MEMBER. 저장한 뒤 가족에게 실시간으로 보내고(보낸 사람은 읽음 처리),
 	// 앱이 꺼져 있는(WebSocket에 연결되지 않은) 가족에게는 푸시한다.
 	@Transactional
 	public ChatMessageResponse send(Long userId, ChatSendRequest request) {
-		Map<Long, String> names = displayNames(request.familyId(), userId);
-		User sender = userService.getUser(userId);
+		return deliver(request.familyId(), userId, (family, sender) -> ChatMessage.text(family, sender,
+				request.content()));
+	}
 
-		ChatMessage message = chatMessageRepository.save(
-				ChatMessage.text(familyService.getFamily(request.familyId()), sender, request.content()));
+	// 채팅방 사진 전송. 사진 업로드와 같은 형식·크기 검사를 한다. S3 업로드는 오래 걸릴 수 있어 트랜잭션 밖에서 하고,
+	// 저장이 실패하면 올린 파일을 지운다. 원본만 올린다.
+	public ChatMessageResponse sendImage(Long familyId, Long userId, MultipartFile image) {
+		if (image == null || image.isEmpty()) {
+			throw new BusinessException(ErrorCode.INVALID_INPUT);
+		}
+		familyService.validateMember(familyId, userId);
+		ProcessedImage processed = imageProcessor.process(image);
+		String key = "families/%d/chat/%s.%s".formatted(familyId, UUID.randomUUID(), processed.format().extension());
 
-		ChatMessageResponse response = toResponse(message, names, familyService.getReadStates(request.familyId()));
-		eventPublisher.publishEvent(new ChatMessageSentEvent(request.familyId(), response));
-		// 보낸 사람은 그때까지의 메시지를 모두 본 것으로 한다.
-		publishReadProgress(request.familyId(), userId, message.getId());
-		pushToOffline(response, request.familyId(), userId, names);
-		return response;
+		fileStorage.upload(key, processed.original(), processed.format().contentType());
+		try {
+			return transactionTemplate.execute(status -> deliver(familyId, userId,
+					(family, sender) -> ChatMessage.image(family, sender, key)));
+		} catch (RuntimeException e) {
+			photoFileCleaner.deleteQuietly(List.of(key));
+			throw e;
+		}
 	}
 
 	// 서버가 이벤트를 알리는 메시지. 보낸 사람 없이 저장하고 가족에게 실시간으로 보낸다.
@@ -69,7 +94,7 @@ public class ChatService {
 		int unreadCount = UnreadCounter.count(familyService.getReadStates(familyId), message.getId(), null,
 				message.getCreatedAt());
 		eventPublisher.publishEvent(new ChatMessageSentEvent(familyId, ChatMessageResponse.of(message, null,
-				unreadCount)));
+				message.getContent(), unreadCount)));
 	}
 
 	// STOMP /pub/chat/read. 멤버가 아니면 FAMILY_NOT_MEMBER, 그 가족의 메시지가 아니면 CHAT_MESSAGE_NOT_FOUND.
@@ -112,17 +137,38 @@ public class ChatService {
 		return new CursorResponse<>(content, nextCursor, hasNext);
 	}
 
+	// 사진 메시지의 S3 파일은 커밋 뒤에 지운다(PhotoFileCleaner).
 	@EventListener
 	public void onFamilyDeleted(FamilyDeletedEvent event) {
+		List<String> imageKeys = chatMessageRepository.findImageKeysByFamilyId(event.familyId());
 		chatMessageRepository.deleteByFamilyId(event.familyId());
+		if (!imageKeys.isEmpty()) {
+			eventPublisher.publishEvent(new PhotoFilesDeletedEvent(imageKeys));
+		}
+	}
+
+	// 회원이 보낸 메시지를 저장하고 가족에게 실시간으로 보낸다. 보낸 사람은 그때까지의 메시지를 모두 본 것으로 하고,
+	// 앱이 꺼진 가족에게는 푸시한다.
+	private ChatMessageResponse deliver(Long familyId, Long userId,
+			BiFunction<Family, User, ChatMessage> messageFactory) {
+		Map<Long, String> names = displayNames(familyId, userId);
+		ChatMessage message = chatMessageRepository.save(
+				messageFactory.apply(familyService.getFamily(familyId), userService.getUser(userId)));
+
+		ChatMessageResponse response = toResponse(message, names, familyService.getReadStates(familyId));
+		eventPublisher.publishEvent(new ChatMessageSentEvent(familyId, response));
+		publishReadProgress(familyId, userId, message.getId());
+		pushToOffline(response, familyId, userId, names);
+		return response;
 	}
 
 	private void pushToOffline(ChatMessageResponse message, Long familyId, Long senderId, Map<Long, String> names) {
 		Set<Long> others = names.keySet().stream()
 				.filter(memberId -> !memberId.equals(senderId))
 				.collect(Collectors.toSet());
+		String body = message.type() == MessageType.IMAGE ? "사진을 보냈어요." : message.content();
 		notificationService.send(presenceService.filterOffline(others), new PushMessage(PushType.CHAT,
-				message.senderName(), message.content(),
+				message.senderName(), body,
 				Map.of("familyId", familyId.toString(), "messageId", message.messageId().toString())));
 	}
 
@@ -138,8 +184,14 @@ public class ChatService {
 		User sender = message.getSender();
 		Long senderId = sender == null ? null : sender.getId();
 		String senderName = sender == null ? null : names.getOrDefault(senderId, sender.getName());
-		return ChatMessageResponse.of(message, senderName,
+		return ChatMessageResponse.of(message, senderName, contentOf(message),
 				UnreadCounter.count(readStates, message.getId(), senderId, message.getCreatedAt()));
+	}
+
+	// 사진 메시지는 저장한 S3 key 대신 일정 시간만 유효한 서명 URL을 내보낸다.
+	private String contentOf(ChatMessage message) {
+		return message.getType() == MessageType.IMAGE ? fileStorage.createUrl(message.getContent())
+				: message.getContent();
 	}
 
 }

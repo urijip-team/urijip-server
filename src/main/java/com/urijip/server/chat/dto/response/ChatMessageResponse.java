@@ -11,10 +11,11 @@ import com.urijip.server.global.time.SeoulTime;
 public record ChatMessageResponse(Long messageId, MessageType type, Long senderId, String senderName, String content,
 		OffsetDateTime createdAt, int unreadCount) {
 
-	public static ChatMessageResponse of(ChatMessage message, String senderName, int unreadCount) {
+	// content는 글 메시지면 내용, 사진 메시지면 사진의 서명 URL이다.
+	public static ChatMessageResponse of(ChatMessage message, String senderName, String content, int unreadCount) {
 		Long senderId = message.getSender() == null ? null : message.getSender().getId();
-		return new ChatMessageResponse(message.getId(), message.getType(), senderId, senderName,
-				message.getContent(), SeoulTime.toOffset(message.getCreatedAt()), unreadCount);
+		return new ChatMessageResponse(message.getId(), message.getType(), senderId, senderName, content,
+				SeoulTime.toOffset(message.getCreatedAt()), unreadCount);
 	}
 
 }

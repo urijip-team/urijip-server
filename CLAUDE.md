@@ -77,6 +77,7 @@ URL, 요청·응답 필드, 테이블·컬럼 이름은 API 명세서와 ERD를 
 - 로컬은 `compose.yaml`의 LocalStack이 S3를 대신한다. 버킷은 `docker/localstack/init-s3.sh`가 만든다. LocalStack은 2026.x부터 인증 토큰이 필요해서 `4.14.0`으로 고정했다. 이미지를 바꾸면 토큰 없이 뜨는지 확인한다.
 - 운영은 `S3_BUCKET`(필수), `AWS_REGION`(기본 `ap-northeast-2`)을 주고, 자격 증명은 AWS 기본 방식(IAM 역할이나 `AWS_ACCESS_KEY_ID` 환경변수)을 쓴다.
 - DB 행을 지울 때 S3 파일은 트랜잭션이 커밋된 뒤에 지운다. 예: `PhotoFilesDeletedEvent`.
+- 채팅 사진(`POST /api/families/{id}/messages/images`)은 원본만 `families/{id}/chat/`에 올리고, `chat_messages.content`에 key를 저장한다(type `IMAGE`). 응답과 실시간 메시지의 `content`는 서명 URL이다. 가족이 삭제되면 `PhotoFilesDeletedEvent`로 함께 지운다.
 
 ## 푸시 알림 (FCM)
 
