@@ -3,6 +3,7 @@ package com.urijip.server.chat.service;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.BiFunction;
 import java.util.stream.Collectors;
 
 import com.urijip.server.chat.dto.request.ChatMessagePageRequest;
@@ -14,6 +15,7 @@ import com.urijip.server.chat.entity.ChatMessage;
 import com.urijip.server.chat.entity.MessageType;
 import com.urijip.server.chat.repository.ChatMessageRepository;
 import com.urijip.server.family.dto.response.FamilyMemberResponse;
+import com.urijip.server.family.entity.Family;
 import com.urijip.server.family.dto.response.MemberReadState;
 import com.urijip.server.family.service.FamilyDeletedEvent;
 import com.urijip.server.family.service.FamilyService;
@@ -50,18 +52,8 @@ public class ChatService {
 	// 앱이 꺼져 있는(WebSocket에 연결되지 않은) 가족에게는 푸시한다.
 	@Transactional
 	public ChatMessageResponse send(Long userId, ChatSendRequest request) {
-		Map<Long, String> names = displayNames(request.familyId(), userId);
-		User sender = userService.getUser(userId);
-
-		ChatMessage message = chatMessageRepository.save(
-				ChatMessage.text(familyService.getFamily(request.familyId()), sender, request.content()));
-
-		ChatMessageResponse response = toResponse(message, names, familyService.getReadStates(request.familyId()));
-		eventPublisher.publishEvent(new ChatMessageSentEvent(request.familyId(), response));
-		// 보낸 사람은 그때까지의 메시지를 모두 본 것으로 한다.
-		publishReadProgress(request.familyId(), userId, message.getId());
-		pushToOffline(response, request.familyId(), userId, names);
-		return response;
+		return deliver(request.familyId(), userId, (family, sender) -> ChatMessage.text(family, sender,
+				request.content()));
 	}
 
 	// 서버가 이벤트를 알리는 메시지. 보낸 사람 없이 저장하고 가족에게 실시간으로 보낸다.
@@ -118,6 +110,21 @@ public class ChatService {
 	@EventListener
 	public void onFamilyDeleted(FamilyDeletedEvent event) {
 		chatMessageRepository.deleteByFamilyId(event.familyId());
+	}
+
+	// 회원이 보낸 메시지를 저장하고 가족에게 실시간으로 보낸다. 보낸 사람은 그때까지의 메시지를 모두 본 것으로 하고,
+	// 앱이 꺼진 가족에게는 푸시한다.
+	private ChatMessageResponse deliver(Long familyId, Long userId,
+			BiFunction<Family, User, ChatMessage> messageFactory) {
+		Map<Long, String> names = displayNames(familyId, userId);
+		ChatMessage message = chatMessageRepository.save(
+				messageFactory.apply(familyService.getFamily(familyId), userService.getUser(userId)));
+
+		ChatMessageResponse response = toResponse(message, names, familyService.getReadStates(familyId));
+		eventPublisher.publishEvent(new ChatMessageSentEvent(familyId, response));
+		publishReadProgress(familyId, userId, message.getId());
+		pushToOffline(response, familyId, userId, names);
+		return response;
 	}
 
 	private void pushToOffline(ChatMessageResponse message, Long familyId, Long senderId, Map<Long, String> names) {
