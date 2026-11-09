@@ -9,6 +9,7 @@ import com.urijip.server.TestcontainersConfiguration;
 import com.urijip.server.family.dto.request.FamilyCreateRequest;
 import com.urijip.server.family.dto.request.FamilyJoinRequest;
 import com.urijip.server.family.dto.response.FamilyResponse;
+import com.urijip.server.family.entity.FamilyStatus;
 import com.urijip.server.family.service.FamilyService;
 import com.urijip.server.global.exception.BusinessException;
 import com.urijip.server.global.exception.ErrorCode;
@@ -187,6 +188,15 @@ class PlaceServiceTest {
 	private void assertError(Runnable action, ErrorCode errorCode) {
 		assertThatThrownBy(action::run)
 				.isInstanceOfSatisfying(BusinessException.class, e -> assertThat(e.getErrorCode()).isEqualTo(errorCode));
+	}
+
+	@Test
+	void placesOfSuspendedFamilyAreBlocked() {
+		familyService.getFamily(familyId).changeStatus(FamilyStatus.SUSPENDED);
+
+		assertThatThrownBy(() -> placeService.getPlaces(familyId, mom.getId()))
+				.isInstanceOfSatisfying(BusinessException.class,
+						e -> assertThat(e.getErrorCode()).isEqualTo(ErrorCode.FAMILY_SUSPENDED));
 	}
 
 	private User saveUser(String email, String name) {
