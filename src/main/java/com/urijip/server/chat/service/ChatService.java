@@ -11,6 +11,7 @@ import com.urijip.server.chat.dto.request.ChatSendRequest;
 import com.urijip.server.chat.dto.response.ChatMessageResponse;
 import com.urijip.server.chat.dto.response.ChatReadResponse;
 import com.urijip.server.chat.entity.ChatMessage;
+import com.urijip.server.chat.entity.MessageType;
 import com.urijip.server.chat.repository.ChatMessageRepository;
 import com.urijip.server.family.dto.response.FamilyMemberResponse;
 import com.urijip.server.family.dto.response.MemberReadState;
@@ -21,6 +22,7 @@ import com.urijip.server.global.exception.ErrorCode;
 import com.urijip.server.global.push.PushMessage;
 import com.urijip.server.global.push.PushType;
 import com.urijip.server.global.response.CursorResponse;
+import com.urijip.server.global.storage.FileStorage;
 import com.urijip.server.member.entity.User;
 import com.urijip.server.member.service.UserService;
 import com.urijip.server.notification.service.NotificationService;
@@ -37,6 +39,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class ChatService {
 
 	private final ChatMessageRepository chatMessageRepository;
+	private final FileStorage fileStorage;
 	private final FamilyService familyService;
 	private final UserService userService;
 	private final NotificationService notificationService;
@@ -69,7 +72,7 @@ public class ChatService {
 		int unreadCount = UnreadCounter.count(familyService.getReadStates(familyId), message.getId(), null,
 				message.getCreatedAt());
 		eventPublisher.publishEvent(new ChatMessageSentEvent(familyId, ChatMessageResponse.of(message, null,
-				unreadCount)));
+				message.getContent(), unreadCount)));
 	}
 
 	// STOMP /pub/chat/read. 멤버가 아니면 FAMILY_NOT_MEMBER, 그 가족의 메시지가 아니면 CHAT_MESSAGE_NOT_FOUND.
@@ -138,8 +141,14 @@ public class ChatService {
 		User sender = message.getSender();
 		Long senderId = sender == null ? null : sender.getId();
 		String senderName = sender == null ? null : names.getOrDefault(senderId, sender.getName());
-		return ChatMessageResponse.of(message, senderName,
+		return ChatMessageResponse.of(message, senderName, contentOf(message),
 				UnreadCounter.count(readStates, message.getId(), senderId, message.getCreatedAt()));
+	}
+
+	// 사진 메시지는 저장한 S3 key 대신 일정 시간만 유효한 서명 URL을 내보낸다.
+	private String contentOf(ChatMessage message) {
+		return message.getType() == MessageType.IMAGE ? fileStorage.createUrl(message.getContent())
+				: message.getContent();
 	}
 
 }
