@@ -1,0 +1,10 @@
+# 이미지 빌드에 필요한 것은 gradle 설정과 src뿐이다.
+.git
+.github
+.gradle
+.idea
+.claude
+build
+docker
+*.md
+compose.yaml
