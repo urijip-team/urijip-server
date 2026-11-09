@@ -55,13 +55,36 @@ cd urijip-server
 
 ## 환경변수
 
-지정하지 않으면 로컬 Compose의 MySQL 값을 씁니다.
+로컬(`local`)은 지정하지 않아도 Compose의 MySQL·LocalStack 값을 씁니다. 운영(`prod`)은 아래 값을 줍니다.
 
-| 이름 | 설명 | 기본값 |
+| 이름 | 설명 | 운영 |
 | --- | --- | --- |
-| `DB_URL` | JDBC 접속 주소 | `jdbc:mysql://localhost:3306/urijip` |
-| `DB_USERNAME` | DB 사용자 | `urijip` |
-| `DB_PASSWORD` | DB 비밀번호 | `urijip` |
+| `SPRING_PROFILES_ACTIVE` | 프로파일 | `prod` (이미지 기본값) |
+| `DB_URL` | JDBC 접속 주소 | 필수 |
+| `DB_USERNAME` | DB 사용자 | 필수 |
+| `DB_PASSWORD` | DB 비밀번호 | 필수 |
+| `JWT_SECRET` | JWT 서명 키 (32바이트 이상) | 필수 |
+| `AES_KEY` | 계좌번호 암호화 키 (Base64, 32바이트) | 필수. 바꾸면 저장된 계좌번호를 못 읽는다 |
+| `S3_BUCKET` | 사진 버킷 (비공개) | 필수 |
+| `AWS_REGION` | S3 리전 | 선택, 기본 `ap-northeast-2` |
+| `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` | S3 자격 증명 | IAM 역할을 쓰면 불필요 |
+| `FIREBASE_CREDENTIALS_PATH` | Firebase 서비스 계정 키 파일 경로 | 선택. 없으면 푸시를 보내지 않고 로그만 남긴다 |
+
+## 배포
+
+`main`에 머지되면 GitHub Actions(`.github/workflows/image.yml`)가 이미지를 만들어 `ghcr.io/urijip-team/urijip-server`에 올립니다. 태그는 `latest`와 커밋 SHA입니다.
+
+```bash
+docker run -d -p 8080:8080 \
+  -e DB_URL=jdbc:mysql://<host>:3306/urijip -e DB_USERNAME=... -e DB_PASSWORD=... \
+  -e JWT_SECRET=... -e AES_KEY=... -e S3_BUCKET=... \
+  -v /secure/firebase.json:/secrets/firebase.json:ro -e FIREBASE_CREDENTIALS_PATH=/secrets/firebase.json \
+  ghcr.io/urijip-team/urijip-server:<커밋 SHA>
+```
+
+- 테이블은 서버가 뜰 때 Flyway가 만들거나 바꿉니다.
+- 상태 확인은 `GET /actuator/health`입니다(인증 없음).
+- 이미지는 root가 아닌 사용자로 실행되고, JVM 메모리는 컨테이너 메모리의 75%까지 씁니다.
 
 ## 패키지 구조
 
