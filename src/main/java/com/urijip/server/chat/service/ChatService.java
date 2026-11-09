@@ -3,6 +3,7 @@ package com.urijip.server.chat.service;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 import java.util.function.BiFunction;
 import java.util.stream.Collectors;
 
@@ -29,12 +30,17 @@ import com.urijip.server.member.entity.User;
 import com.urijip.server.member.service.UserService;
 import com.urijip.server.notification.service.NotificationService;
 import com.urijip.server.notification.service.PresenceService;
+import com.urijip.server.photo.service.ImageProcessor;
+import com.urijip.server.photo.service.ImageProcessor.ProcessedImage;
+import com.urijip.server.photo.service.PhotoFileCleaner;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.event.EventListener;
 import org.springframework.data.domain.Limit;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
+import org.springframework.web.multipart.MultipartFile;
 
 @Service
 @RequiredArgsConstructor
@@ -46,6 +52,9 @@ public class ChatService {
 	private final UserService userService;
 	private final NotificationService notificationService;
 	private final PresenceService presenceService;
+	private final ImageProcessor imageProcessor;
+	private final PhotoFileCleaner photoFileCleaner;
+	private final TransactionTemplate transactionTemplate;
 	private final ApplicationEventPublisher eventPublisher;
 
 	// STOMP /pub/chat. 본문의 가족에 속하지 않으면 FAMILY_NOT_MEMBER. 저장한 뒤 가족에게 실시간으로 보내고(보낸 사람은 읽음 처리),
@@ -54,6 +63,26 @@ public class ChatService {
 	public ChatMessageResponse send(Long userId, ChatSendRequest request) {
 		return deliver(request.familyId(), userId, (family, sender) -> ChatMessage.text(family, sender,
 				request.content()));
+	}
+
+	// 채팅방 사진 전송. 사진 업로드와 같은 형식·크기 검사를 한다. S3 업로드는 오래 걸릴 수 있어 트랜잭션 밖에서 하고,
+	// 저장이 실패하면 올린 파일을 지운다. 원본만 올린다.
+	public ChatMessageResponse sendImage(Long familyId, Long userId, MultipartFile image) {
+		if (image == null || image.isEmpty()) {
+			throw new BusinessException(ErrorCode.INVALID_INPUT);
+		}
+		familyService.validateMember(familyId, userId);
+		ProcessedImage processed = imageProcessor.process(image);
+		String key = "families/%d/chat/%s.%s".formatted(familyId, UUID.randomUUID(), processed.format().extension());
+
+		fileStorage.upload(key, processed.original(), processed.format().contentType());
+		try {
+			return transactionTemplate.execute(status -> deliver(familyId, userId,
+					(family, sender) -> ChatMessage.image(family, sender, key)));
+		} catch (RuntimeException e) {
+			photoFileCleaner.deleteQuietly(List.of(key));
+			throw e;
+		}
 	}
 
 	// 서버가 이벤트를 알리는 메시지. 보낸 사람 없이 저장하고 가족에게 실시간으로 보낸다.
@@ -131,8 +160,9 @@ public class ChatService {
 		Set<Long> others = names.keySet().stream()
 				.filter(memberId -> !memberId.equals(senderId))
 				.collect(Collectors.toSet());
+		String body = message.type() == MessageType.IMAGE ? "사진을 보냈어요." : message.content();
 		notificationService.send(presenceService.filterOffline(others), new PushMessage(PushType.CHAT,
-				message.senderName(), message.content(),
+				message.senderName(), body,
 				Map.of("familyId", familyId.toString(), "messageId", message.messageId().toString())));
 	}
 
