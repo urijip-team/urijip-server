@@ -9,6 +9,7 @@ import jakarta.servlet.DispatcherType;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
+import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
@@ -21,7 +22,7 @@ import tools.jackson.databind.ObjectMapper;
 
 @Configuration
 @EnableWebSecurity
-@Import({JwtConfig.class, JwtProvider.class})
+@Import({JwtConfig.class, JwtProvider.class, CorsConfig.class})
 public class SecurityConfig {
 
 	private static final String[] PUBLIC_PATHS = {
@@ -39,6 +40,8 @@ public class SecurityConfig {
 
 		return http
 				.csrf(AbstractHttpConfigurer::disable)
+				// 관리자 웹의 preflight(OPTIONS)는 토큰 없이 오므로 인증보다 먼저 CORS로 처리한다(CorsConfig).
+				.cors(Customizer.withDefaults())
 				.formLogin(AbstractHttpConfigurer::disable)
 				.httpBasic(AbstractHttpConfigurer::disable)
 				.sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
