@@ -36,6 +36,7 @@ public class AuthService {
 	private final UserRepository userRepository;
 	private final RefreshTokenRepository refreshTokenRepository;
 	private final UserStatusService userStatusService;
+	private final LoginAttemptLimiter loginAttemptLimiter;
 	private final DeviceTokenRepository deviceTokenRepository;
 	private final PaymentInfoRepository paymentInfoRepository;
 	private final PasswordEncoder passwordEncoder;
@@ -121,12 +122,16 @@ public class AuthService {
 		userStatusService.evict(userId);
 	}
 
+	// 이메일이 없거나 비밀번호가 틀리면 실패로 센다. 많이 틀려 막힌 동안은 맞는 비밀번호도 거절한다.
 	private User findByCredentials(LoginRequest request) {
+		loginAttemptLimiter.checkAllowed(request.email());
 		User user = userRepository.findByEmail(request.email())
-				.orElseThrow(() -> new BusinessException(ErrorCode.LOGIN_FAILED));
-		if (!passwordEncoder.matches(request.password(), user.getPassword())) {
-			throw new BusinessException(ErrorCode.LOGIN_FAILED);
-		}
+				.filter(found -> passwordEncoder.matches(request.password(), found.getPassword()))
+				.orElseThrow(() -> {
+					loginAttemptLimiter.recordFailure(request.email());
+					return new BusinessException(ErrorCode.LOGIN_FAILED);
+				});
+		loginAttemptLimiter.reset(request.email());
 		return user;
 	}
 
