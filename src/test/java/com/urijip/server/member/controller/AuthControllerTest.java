@@ -146,6 +146,18 @@ class AuthControllerTest {
 	}
 
 	@Test
+	void lockedLoginReturnsTooManyRequests() {
+		given(authService.login(any())).willThrow(new BusinessException(ErrorCode.TOO_MANY_LOGIN_ATTEMPTS));
+
+		MvcTestResult result = login("""
+				{"email": "mom@example.com", "password": "password123"}
+				""");
+
+		assertThat(result).hasStatus(HttpStatus.TOO_MANY_REQUESTS);
+		assertThat(result).bodyJson().extractingPath("$.error.code").isEqualTo("TOO_MANY_LOGIN_ATTEMPTS");
+	}
+
+	@Test
 	void loginWithWrongCredentialsReturnsUnauthorized() {
 		given(authService.login(any())).willThrow(new BusinessException(ErrorCode.LOGIN_FAILED));
 

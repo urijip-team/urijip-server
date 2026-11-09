@@ -43,6 +43,7 @@ import com.urijip.server.member.repository.DeviceTokenRepository;
 import com.urijip.server.member.repository.PaymentInfoRepository;
 import com.urijip.server.member.repository.RefreshTokenRepository;
 import com.urijip.server.member.repository.UserRepository;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -61,6 +62,16 @@ class AuthServiceTest {
 
 	@Autowired
 	private UserStatusService userStatusService;
+
+	@Autowired
+	private LoginAttemptLimiter loginAttemptLimiter;
+
+	// 실패 횟수는 테스트 사이에도 남으므로(메모리), 테스트마다 지운다.
+	@BeforeEach
+	void resetLoginAttempts() {
+		loginAttemptLimiter.reset("mom@example.com");
+		loginAttemptLimiter.reset("dad@example.com");
+	}
 
 	@Autowired
 	private FamilyService familyService;
@@ -212,6 +223,57 @@ class AuthServiceTest {
 				.extracting("errorCode")
 				.isEqualTo(ErrorCode.LOGIN_FAILED);
 		assertThat(refreshTokenRepository.count()).isZero();
+	}
+
+	@Test
+	void fiveWrongPasswordsLockEvenTheRightOne() {
+		signupMom();
+		for (int i = 0; i < LoginAttemptLimiter.MAX_FAILURES; i++) {
+			assertThatThrownBy(() -> authService.login(new LoginRequest("mom@example.com", "wrong-password")))
+					.extracting("errorCode").isEqualTo(ErrorCode.LOGIN_FAILED);
+		}
+
+		assertThatThrownBy(() -> authService.login(new LoginRequest("mom@example.com", "password123")))
+				.isInstanceOf(BusinessException.class)
+				.extracting("errorCode")
+				.isEqualTo(ErrorCode.TOO_MANY_LOGIN_ATTEMPTS);
+		assertThat(refreshTokenRepository.count()).isZero();
+	}
+
+	@Test
+	void successfulLoginClearsEarlierFailures() {
+		signupMom();
+		for (int i = 0; i < LoginAttemptLimiter.MAX_FAILURES - 1; i++) {
+			assertThatThrownBy(() -> authService.login(new LoginRequest("mom@example.com", "wrong-password")))
+					.isInstanceOf(BusinessException.class);
+		}
+		authService.login(new LoginRequest("mom@example.com", "password123"));
+
+		assertThatThrownBy(() -> authService.login(new LoginRequest("mom@example.com", "wrong-password")))
+				.extracting("errorCode").isEqualTo(ErrorCode.LOGIN_FAILED);
+		assertThat(authService.login(new LoginRequest("mom@example.com", "password123")).accessToken()).isNotBlank();
+	}
+
+	@Test
+	void unknownEmailIsLockedTheSameWay() {
+		for (int i = 0; i < LoginAttemptLimiter.MAX_FAILURES; i++) {
+			assertThatThrownBy(() -> authService.login(new LoginRequest("dad@example.com", "password123")))
+					.extracting("errorCode").isEqualTo(ErrorCode.LOGIN_FAILED);
+		}
+
+		assertThatThrownBy(() -> authService.login(new LoginRequest("dad@example.com", "password123")))
+				.extracting("errorCode").isEqualTo(ErrorCode.TOO_MANY_LOGIN_ATTEMPTS);
+	}
+
+	@Test
+	void adminLoginIsLockedAfterFiveWrongPasswords() {
+		for (int i = 0; i < LoginAttemptLimiter.MAX_FAILURES; i++) {
+			assertThatThrownBy(() -> authService.adminLogin(new LoginRequest("mom@example.com", "wrong-password")))
+					.extracting("errorCode").isEqualTo(ErrorCode.LOGIN_FAILED);
+		}
+
+		assertThatThrownBy(() -> authService.adminLogin(new LoginRequest("mom@example.com", "password123")))
+				.extracting("errorCode").isEqualTo(ErrorCode.TOO_MANY_LOGIN_ATTEMPTS);
 	}
 
 	@Test

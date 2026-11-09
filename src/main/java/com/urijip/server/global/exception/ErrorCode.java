@@ -52,6 +52,7 @@ public enum ErrorCode {
 	INQUIRY_ALREADY_ANSWERED(HttpStatus.CONFLICT, "이미 답변한 문의입니다"),
 	SOS_ALREADY_RESOLVED(HttpStatus.CONFLICT, "이미 해제된 SOS입니다"),
 	ALLOWANCE_ALREADY_HANDLED(HttpStatus.CONFLICT, "이미 처리된 용돈 요청입니다"),
+	TOO_MANY_LOGIN_ATTEMPTS(HttpStatus.TOO_MANY_REQUESTS, "로그인 시도가 너무 많습니다. 잠시 뒤에 다시 시도해 주세요"),
 	INTERNAL_SERVER_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "서버 오류가 발생했습니다");
 
 	private final HttpStatus status;
