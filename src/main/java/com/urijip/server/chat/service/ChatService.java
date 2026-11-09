@@ -6,13 +6,18 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 import com.urijip.server.chat.dto.request.ChatMessagePageRequest;
+import com.urijip.server.chat.dto.request.ChatReadRequest;
 import com.urijip.server.chat.dto.request.ChatSendRequest;
 import com.urijip.server.chat.dto.response.ChatMessageResponse;
+import com.urijip.server.chat.dto.response.ChatReadResponse;
 import com.urijip.server.chat.entity.ChatMessage;
 import com.urijip.server.chat.repository.ChatMessageRepository;
 import com.urijip.server.family.dto.response.FamilyMemberResponse;
+import com.urijip.server.family.dto.response.MemberReadState;
 import com.urijip.server.family.service.FamilyDeletedEvent;
 import com.urijip.server.family.service.FamilyService;
+import com.urijip.server.global.exception.BusinessException;
+import com.urijip.server.global.exception.ErrorCode;
 import com.urijip.server.global.push.PushMessage;
 import com.urijip.server.global.push.PushType;
 import com.urijip.server.global.response.CursorResponse;
@@ -38,7 +43,7 @@ public class ChatService {
 	private final PresenceService presenceService;
 	private final ApplicationEventPublisher eventPublisher;
 
-	// STOMP /pub/chat. 본문의 가족에 속하지 않으면 FAMILY_NOT_MEMBER. 저장한 뒤 가족에게 실시간으로 보내고,
+	// STOMP /pub/chat. 본문의 가족에 속하지 않으면 FAMILY_NOT_MEMBER. 저장한 뒤 가족에게 실시간으로 보내고(보낸 사람은 읽음 처리),
 	// 앱이 꺼져 있는(WebSocket에 연결되지 않은) 가족에게는 푸시한다.
 	@Transactional
 	public ChatMessageResponse send(Long userId, ChatSendRequest request) {
@@ -48,8 +53,10 @@ public class ChatService {
 		ChatMessage message = chatMessageRepository.save(
 				ChatMessage.text(familyService.getFamily(request.familyId()), sender, request.content()));
 
-		ChatMessageResponse response = toResponse(message, names);
+		ChatMessageResponse response = toResponse(message, names, familyService.getReadStates(request.familyId()));
 		eventPublisher.publishEvent(new ChatMessageSentEvent(request.familyId(), response));
+		// 보낸 사람은 그때까지의 메시지를 모두 본 것으로 한다.
+		publishReadProgress(request.familyId(), userId, message.getId());
 		pushToOffline(response, request.familyId(), userId, names);
 		return response;
 	}
@@ -59,7 +66,28 @@ public class ChatService {
 	public void sendSystemMessage(Long familyId, String content) {
 		ChatMessage message = chatMessageRepository.save(
 				ChatMessage.system(familyService.getFamily(familyId), content));
-		eventPublisher.publishEvent(new ChatMessageSentEvent(familyId, ChatMessageResponse.of(message, null)));
+		int unreadCount = UnreadCounter.count(familyService.getReadStates(familyId), message.getId(), null,
+				message.getCreatedAt());
+		eventPublisher.publishEvent(new ChatMessageSentEvent(familyId, ChatMessageResponse.of(message, null,
+				unreadCount)));
+	}
+
+	// STOMP /pub/chat/read. 멤버가 아니면 FAMILY_NOT_MEMBER, 그 가족의 메시지가 아니면 CHAT_MESSAGE_NOT_FOUND.
+	// 마지막 읽은 메시지가 앞으로 움직였을 때만 가족에게 알린다.
+	@Transactional
+	public void markRead(Long userId, ChatReadRequest request) {
+		familyService.validateMember(request.familyId(), userId);
+		if (!chatMessageRepository.existsByIdAndFamilyId(request.messageId(), request.familyId())) {
+			throw new BusinessException(ErrorCode.CHAT_MESSAGE_NOT_FOUND);
+		}
+		publishReadProgress(request.familyId(), userId, request.messageId());
+	}
+
+	private void publishReadProgress(Long familyId, Long userId, Long messageId) {
+		familyService.markRead(familyId, userId, messageId)
+				.ifPresent(progress -> eventPublisher.publishEvent(new ChatReadEvent(familyId,
+						new ChatReadResponse(userId, progress.previousLastReadMessageId(),
+								progress.lastReadMessageId()))));
 	}
 
 	// 최신순. size개보다 하나 더 읽어 다음 페이지가 있는지 판단한다.
@@ -67,6 +95,7 @@ public class ChatService {
 	public CursorResponse<ChatMessageResponse> getMessages(Long familyId, Long userId,
 			ChatMessagePageRequest request) {
 		Map<Long, String> names = displayNames(familyId, userId);
+		List<MemberReadState> readStates = familyService.getReadStates(familyId);
 		int size = request.sizeOrDefault();
 		Limit limit = Limit.of(size + 1);
 
@@ -77,7 +106,7 @@ public class ChatService {
 		boolean hasNext = messages.size() > size;
 		List<ChatMessageResponse> content = messages.stream()
 				.limit(size)
-				.map(message -> toResponse(message, names))
+				.map(message -> toResponse(message, names, readStates))
 				.toList();
 		Long nextCursor = hasNext ? content.getLast().messageId() : null;
 		return new CursorResponse<>(content, nextCursor, hasNext);
@@ -104,10 +133,13 @@ public class ChatService {
 						member -> member.nickname() == null ? member.name() : member.nickname()));
 	}
 
-	private ChatMessageResponse toResponse(ChatMessage message, Map<Long, String> names) {
+	private ChatMessageResponse toResponse(ChatMessage message, Map<Long, String> names,
+			List<MemberReadState> readStates) {
 		User sender = message.getSender();
-		String senderName = sender == null ? null : names.getOrDefault(sender.getId(), sender.getName());
-		return ChatMessageResponse.of(message, senderName);
+		Long senderId = sender == null ? null : sender.getId();
+		String senderName = sender == null ? null : names.getOrDefault(senderId, sender.getName());
+		return ChatMessageResponse.of(message, senderName,
+				UnreadCounter.count(readStates, message.getId(), senderId, message.getCreatedAt()));
 	}
 
 }

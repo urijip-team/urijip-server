@@ -80,6 +80,15 @@ class ChatMessageRepositoryTest {
 	}
 
 	@Test
+	void existsByIdAndFamilyIdChecksTheFamily() {
+		ChatMessage message = saveTexts(kims, "안녕").getFirst();
+
+		assertThat(chatMessageRepository.existsByIdAndFamilyId(message.getId(), kims.getId())).isTrue();
+		assertThat(chatMessageRepository.existsByIdAndFamilyId(message.getId(), parks.getId())).isFalse();
+		assertThat(chatMessageRepository.existsByIdAndFamilyId(-1L, kims.getId())).isFalse();
+	}
+
+	@Test
 	void deleteByFamilyIdDeletesOnlyThatFamily() {
 		saveTexts(kims, "1", "2");
 		saveTexts(parks, "3");

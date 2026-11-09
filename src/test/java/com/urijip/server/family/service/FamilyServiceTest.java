@@ -3,6 +3,7 @@ package com.urijip.server.family.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.tuple;
 import static org.mockito.BDDMockito.willReturn;
 
 import java.util.List;
@@ -14,6 +15,8 @@ import com.urijip.server.family.dto.request.FamilyOwnerTransferRequest;
 import com.urijip.server.family.dto.request.NicknameUpdateRequest;
 import com.urijip.server.family.dto.response.FamilyMemberResponse;
 import com.urijip.server.family.dto.response.FamilyResponse;
+import com.urijip.server.family.dto.response.MemberReadState;
+import com.urijip.server.family.dto.response.ReadProgress;
 import com.urijip.server.family.entity.Family;
 import com.urijip.server.family.entity.FamilyRole;
 import com.urijip.server.family.entity.FamilyStatus;
@@ -928,6 +931,38 @@ class FamilyServiceTest {
 		familyRepository.findById(created.id()).orElseThrow().changeStatus(FamilyStatus.SUSPENDED);
 
 		assertThat(familyService.countFamilies()).isEqualTo(before + 1);
+	}
+
+	@Test
+	void getReadStatesListsMembersWithJoinTimeAndLastRead() {
+		User kid = saveUser("kid@example.com", "김첫째");
+		FamilyResponse family = familyService.create(mom.getId(), new FamilyCreateRequest("김씨네"));
+		familyService.join(kid.getId(), new FamilyJoinRequest(family.inviteCode()));
+		familyMemberRepository.findByFamilyIdAndUserId(family.id(), kid.getId()).orElseThrow().markRead(7L);
+
+		assertThat(familyService.getReadStates(family.id()))
+				.extracting(MemberReadState::userId, MemberReadState::lastReadMessageId)
+				.containsExactly(tuple(mom.getId(), null), tuple(kid.getId(), 7L));
+		assertThat(familyService.getReadStates(family.id())).allSatisfy(state -> assertThat(state.joinedAt()).isNotNull());
+	}
+
+	@Test
+	void markReadMovesForwardAndReportsPreviousPosition() {
+		FamilyResponse family = familyService.create(mom.getId(), new FamilyCreateRequest("김씨네"));
+
+		assertThat(familyService.markRead(family.id(), mom.getId(), 5L)).contains(new ReadProgress(null, 5L));
+		assertThat(familyService.markRead(family.id(), mom.getId(), 9L)).contains(new ReadProgress(5L, 9L));
+		assertThat(familyService.markRead(family.id(), mom.getId(), 7L)).isEmpty();
+	}
+
+	@Test
+	void markReadByStrangerFails() {
+		User stranger = saveUser("stranger@example.com", "남");
+		FamilyResponse family = familyService.create(mom.getId(), new FamilyCreateRequest("김씨네"));
+
+		assertThatThrownBy(() -> familyService.markRead(family.id(), stranger.getId(), 5L))
+				.isInstanceOfSatisfying(BusinessException.class,
+						e -> assertThat(e.getErrorCode()).isEqualTo(ErrorCode.FAMILY_NOT_MEMBER));
 	}
 
 	private User saveUser(String email, String name) {

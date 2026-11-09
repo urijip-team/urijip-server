@@ -37,6 +37,7 @@ public enum ErrorCode {
 	REPORT_NOT_FOUND(HttpStatus.NOT_FOUND, "존재하지 않는 신고입니다"),
 	INQUIRY_NOT_FOUND(HttpStatus.NOT_FOUND, "존재하지 않는 문의입니다"),
 	NOTICE_NOT_FOUND(HttpStatus.NOT_FOUND, "존재하지 않는 공지입니다"),
+	CHAT_MESSAGE_NOT_FOUND(HttpStatus.NOT_FOUND, "존재하지 않는 메시지입니다"),
 	ALLOWANCE_NOT_FOUND(HttpStatus.NOT_FOUND, "존재하지 않는 용돈 요청입니다"),
 	SOS_NOT_FOUND(HttpStatus.NOT_FOUND, "존재하지 않는 SOS입니다"),
 	PAYMENT_INFO_NOT_FOUND(HttpStatus.NOT_FOUND, "등록된 송금 정보가 없습니다"),

@@ -2,6 +2,7 @@ package com.urijip.server.chat.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.tuple;
 
 import java.util.List;
 import java.util.Map;
@@ -10,8 +11,10 @@ import java.util.stream.IntStream;
 
 import com.urijip.server.TestcontainersConfiguration;
 import com.urijip.server.chat.dto.request.ChatMessagePageRequest;
+import com.urijip.server.chat.dto.request.ChatReadRequest;
 import com.urijip.server.chat.dto.request.ChatSendRequest;
 import com.urijip.server.chat.dto.response.ChatMessageResponse;
+import com.urijip.server.chat.dto.response.ChatReadResponse;
 import com.urijip.server.chat.entity.ChatMessage;
 import com.urijip.server.chat.entity.MessageType;
 import com.urijip.server.chat.repository.ChatMessageRepository;
@@ -91,6 +94,96 @@ class ChatServiceTest {
 				ChatMessageResponse::senderName, ChatMessageResponse::content)
 				.containsExactly(MessageType.TEXT, kid.getId(), "김첫째", "저녁 먹었어?");
 		assertThat(response.createdAt().getOffset().getId()).isEqualTo("+09:00");
+	}
+
+	@Test
+	void sendCountsFamilyExceptSenderAsUnread() {
+		ChatMessageResponse response = chatService.send(kid.getId(), new ChatSendRequest(familyId, "저녁 먹었어?"));
+
+		assertThat(response.unreadCount()).isEqualTo(1);
+	}
+
+	@Test
+	void getMessagesShowsUnreadCountPerMessage() {
+		ChatMessageResponse first = chatService.send(kid.getId(), new ChatSendRequest(familyId, "첫째"));
+		ChatMessageResponse second = chatService.send(kid.getId(), new ChatSendRequest(familyId, "둘째"));
+		familyService.markRead(familyId, mom.getId(), first.messageId());
+
+		List<ChatMessageResponse> messages = chatService.getMessages(familyId, mom.getId(),
+				new ChatMessagePageRequest(null, null)).content();
+
+		assertThat(messages).extracting(ChatMessageResponse::messageId, ChatMessageResponse::unreadCount)
+				.containsExactly(tuple(second.messageId(), 1), tuple(first.messageId(), 0));
+	}
+
+	@Test
+	void systemMessageCountsWholeFamilyAsUnread() {
+		chatService.sendSystemMessage(familyId, "김첫째님이 SOS를 보냈습니다.");
+
+		assertThat(events.stream(ChatMessageSentEvent.class)).singleElement()
+				.satisfies(event -> assertThat(event.message().unreadCount()).isEqualTo(2));
+	}
+
+	@Test
+	void markReadPublishesProgressAndLowersUnreadCount() {
+		ChatMessageResponse first = chatService.send(kid.getId(), new ChatSendRequest(familyId, "첫째"));
+		ChatMessageResponse second = chatService.send(kid.getId(), new ChatSendRequest(familyId, "둘째"));
+
+		chatService.markRead(mom.getId(), new ChatReadRequest(familyId, first.messageId()));
+		chatService.markRead(mom.getId(), new ChatReadRequest(familyId, second.messageId()));
+
+		assertThat(readEventsOf(mom)).containsExactly(
+				new ChatReadResponse(mom.getId(), null, first.messageId()),
+				new ChatReadResponse(mom.getId(), first.messageId(), second.messageId()));
+		assertThat(events.stream(ChatReadEvent.class)).allSatisfy(event -> assertThat(event.familyId()).isEqualTo(familyId));
+		assertThat(chatService.getMessages(familyId, kid.getId(), new ChatMessagePageRequest(null, null)).content())
+				.allSatisfy(message -> assertThat(message.unreadCount()).isZero());
+	}
+
+	@Test
+	void sendingMarksEarlierMessagesReadBySender() {
+		ChatMessageResponse fromMom = chatService.send(mom.getId(), new ChatSendRequest(familyId, "밥 먹자"));
+
+		ChatMessageResponse reply = chatService.send(kid.getId(), new ChatSendRequest(familyId, "네"));
+
+		assertThat(events.stream(ChatReadEvent.class)).extracting(ChatReadEvent::message).containsExactly(
+				new ChatReadResponse(mom.getId(), null, fromMom.messageId()),
+				new ChatReadResponse(kid.getId(), null, reply.messageId()));
+		assertThat(chatService.getMessages(familyId, mom.getId(), new ChatMessagePageRequest(null, null)).content())
+				.extracting(ChatMessageResponse::messageId, ChatMessageResponse::unreadCount)
+				.containsExactly(tuple(reply.messageId(), 1), tuple(fromMom.messageId(), 0));
+	}
+
+	@Test
+	void markReadOfOlderMessagePublishesNothing() {
+		ChatMessageResponse first = chatService.send(kid.getId(), new ChatSendRequest(familyId, "첫째"));
+		ChatMessageResponse second = chatService.send(kid.getId(), new ChatSendRequest(familyId, "둘째"));
+		chatService.markRead(mom.getId(), new ChatReadRequest(familyId, second.messageId()));
+
+		chatService.markRead(mom.getId(), new ChatReadRequest(familyId, first.messageId()));
+
+		assertThat(readEventsOf(mom)).hasSize(1);
+	}
+
+	@Test
+	void markReadByStrangerFails() {
+		ChatMessageResponse message = chatService.send(kid.getId(), new ChatSendRequest(familyId, "첫째"));
+
+		assertThatThrownBy(() -> chatService.markRead(stranger.getId(), new ChatReadRequest(familyId,
+				message.messageId())))
+				.isInstanceOfSatisfying(BusinessException.class,
+						e -> assertThat(e.getErrorCode()).isEqualTo(ErrorCode.FAMILY_NOT_MEMBER));
+	}
+
+	@Test
+	void markReadOfMessageFromOtherFamilyFails() {
+		FamilyResponse other = familyService.create(stranger.getId(), new FamilyCreateRequest("남의 집"));
+		ChatMessageResponse foreign = chatService.send(stranger.getId(), new ChatSendRequest(other.id(), "안녕"));
+
+		assertThatThrownBy(() -> chatService.markRead(mom.getId(), new ChatReadRequest(familyId,
+				foreign.messageId())))
+				.isInstanceOfSatisfying(BusinessException.class,
+						e -> assertThat(e.getErrorCode()).isEqualTo(ErrorCode.CHAT_MESSAGE_NOT_FOUND));
 	}
 
 	// 테스트에는 WebSocket 연결이 없어 모든 가족이 앱이 꺼진 것으로 보인다.
@@ -266,6 +359,13 @@ class ChatServiceTest {
 	private List<Long> sendMany(int count) {
 		return IntStream.rangeClosed(1, count)
 				.mapToObj(i -> chatService.send(mom.getId(), new ChatSendRequest(familyId, "메시지 " + i)).messageId())
+				.toList();
+	}
+
+	private List<ChatReadResponse> readEventsOf(User user) {
+		return events.stream(ChatReadEvent.class)
+				.map(ChatReadEvent::message)
+				.filter(read -> read.userId().equals(user.getId()))
 				.toList();
 	}
 

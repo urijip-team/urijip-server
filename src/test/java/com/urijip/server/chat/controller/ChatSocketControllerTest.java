@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import java.lang.reflect.Type;
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.BlockingQueue;
@@ -13,8 +14,10 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 import com.urijip.server.TestcontainersConfiguration;
+import com.urijip.server.chat.dto.request.ChatSendRequest;
 import com.urijip.server.chat.entity.ChatMessage;
 import com.urijip.server.chat.repository.ChatMessageRepository;
+import com.urijip.server.chat.service.ChatService;
 import com.urijip.server.family.dto.request.FamilyCreateRequest;
 import com.urijip.server.family.dto.request.FamilyJoinRequest;
 import com.urijip.server.family.dto.response.FamilyResponse;
@@ -59,6 +62,9 @@ class ChatSocketControllerTest {
 
 	@Autowired
 	private ChatMessageRepository chatMessageRepository;
+
+	@Autowired
+	private ChatService chatService;
 
 	@Autowired
 	private UserRepository userRepository;
@@ -124,6 +130,29 @@ class ChatSocketControllerTest {
 		ChatMessage saved = chatMessageRepository.findById(((Number) message.get("messageId")).longValue())
 				.orElseThrow();
 		assertThat(saved.getContent()).isEqualTo("저녁 먹었어?");
+	}
+
+	@Test
+	void readProgressIsDeliveredToFamily() throws Exception {
+		// 구독이 등록되기 전의 읽음 알림은 사라지므로, 읽을 메시지를 넉넉히 만들어 두고 하나씩 더 읽으며 기다린다.
+		// 채팅을 되풀이해 보내면 테스트가 끝난 뒤 늦게 저장된 메시지가 정리를 막는다.
+		List<Long> messageIds = new ArrayList<>();
+		for (int i = 0; i < 30; i++) {
+			messageIds.add(chatService.send(dad.getId(), new ChatSendRequest(familyId, "메시지 " + i)).messageId());
+		}
+		MessageCollector dadReads = new MessageCollector();
+		connect(token(dad), new LinkedBlockingQueue<>()).subscribe("/sub/family/" + familyId + "/read", dadReads);
+		StompSession momSession = connect(token(mom), new LinkedBlockingQueue<>());
+		Iterator<Long> toRead = messageIds.iterator();
+
+		Map<String, Object> read = dadReads.awaitWhileRepeating(() -> {
+			if (toRead.hasNext()) {
+				momSession.send("/pub/chat/read", Map.of("familyId", familyId, "messageId", toRead.next()));
+			}
+		});
+
+		assertThat(read).containsEntry("userId", mom.getId().intValue());
+		assertThat(messageIds).contains(((Number) read.get("lastReadMessageId")).longValue());
 	}
 
 	@Test
