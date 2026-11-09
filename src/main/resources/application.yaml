@@ -9,6 +9,11 @@ spring:
     password: ${DB_PASSWORD:urijip}
   jpa:
     open-in-view: false
+  flyway:
+    # Flyway를 들이기 전에 Hibernate가 테이블을 만든 DB(로컬, 운영)는 V1을 이미 적용한 것으로 보고 다음부터 적용한다.
+    # 빈 DB에는 V1부터 적용한다.
+    baseline-on-migrate: true
+    baseline-version: 1
   servlet:
     multipart:
       # 사진 업로드: 한 장 10MB, 한 번에 최대 10장
