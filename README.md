@@ -73,6 +73,8 @@ cd urijip-server
 
 ## 배포
 
+EC2 + RDS 자동 배포 설정은 [deploy/README.md](deploy/README.md)에 있습니다.
+
 `main`에 머지되면 GitHub Actions(`.github/workflows/image.yml`)가 이미지를 만들어 `ghcr.io/urijip-team/urijip-server`에 올립니다. 태그는 `latest`와 커밋 SHA입니다.
 
 ```bash
