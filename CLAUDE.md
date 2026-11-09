@@ -87,6 +87,7 @@ URL, 요청·응답 필드, 테이블·컬럼 이름은 API 명세서와 ERD를 
 - 지금 보내는 푸시: SOS 발송(보낸 사람을 뺀 가족), 채팅 메시지(앱이 꺼진 가족), 용돈 요청(받는 사람)·완료·거절(요청자), 문의 답변(문의한 회원), `push: true`로 작성한 공지(전체), 일정 알림(참여자, 없으면 가족). 새로 붙이면 서비스 테스트에서 `@RecordApplicationEvents`로 `PushRequestedEvent`를 확인한다.
 - 회원은 `/api/users/me/notification-settings`로 채팅·일정·용돈·공지 알림을 끌 수 있다(`notification_settings`, 행이 없으면 모두 켜짐). `PushDispatcher`가 발송 직전에 끈 회원을 뺀다. SOS와 문의 답변은 끌 수 없다.
 - "앱이 꺼져 있다"는 WebSocket에 연결돼 있지 않다는 뜻이다(`PresenceService`, `SimpUserRegistry`). 이 서버의 연결만 보므로 서버를 여러 대 띄우면 바꿔야 한다.
+- 장소 도착 알림(LOC-05): 가족이 `places`(반경 50~500m, 가족당 10개)를 등록하면, 위치가 바뀔 때(`LocationChangedEvent`) `PlaceAlertService`가 반경 안에 들어오면 도착, 반경+30m 밖으로 나가면 출발로 보고 본인을 뺀 가족에게 `PLACE` 푸시를 보낸다. 지금 안에 있는지는 `place_presences`에 남겨 경계에서 알림이 되풀이되지 않게 한다. 알림 설정의 `place`로 끌 수 있다.
 - 일정 알림은 `ScheduleReminder`가 서울 시간 매일 20시(내일 시작하는 일정)와 8시(오늘 시작하는 일정)에 보낸다. 정해진 시각에 도는 작업은 `@Scheduled`에 `zone = "Asia/Seoul"`을 준다.
 - FCM이 다시 쓸 수 없다고 알려 준 토큰(`UNREGISTERED` 등)은 발송 뒤 지운다.
 - Firebase 서비스 계정 키 파일 경로를 `push.fcm.credentials-path`(운영은 `FIREBASE_CREDENTIALS_PATH`)로 주면 FCM으로 보낸다. 비어 있으면 `LoggingPushSender`가 로그만 남긴다(로컬, 테스트). 경로를 줬는데 파일을 못 읽으면 서버가 뜨지 않는다.
