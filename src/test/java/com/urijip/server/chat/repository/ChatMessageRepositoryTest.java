@@ -114,4 +114,15 @@ class ChatMessageRepositoryTest {
 		assertThat(found.getContent()).isEqualTo("알림");
 	}
 
+	@Test
+	void imageMessageKeepsS3KeyAsContent() {
+		ChatMessage saved = chatMessageRepository.saveAndFlush(
+				ChatMessage.image(kims, mom, "families/1/chat/a.jpg"));
+
+		ChatMessage found = chatMessageRepository.findById(saved.getId()).orElseThrow();
+		assertThat(found.getType()).isEqualTo(MessageType.IMAGE);
+		assertThat(found.getSender().getId()).isEqualTo(mom.getId());
+		assertThat(found.getContent()).isEqualTo("families/1/chat/a.jpg");
+	}
+
 }

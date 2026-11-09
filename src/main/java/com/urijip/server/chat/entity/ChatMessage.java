@@ -55,6 +55,11 @@ public class ChatMessage extends BaseTimeEntity {
 		return new ChatMessage(family, sender, MessageType.TEXT, content);
 	}
 
+	// 사진 메시지의 content는 S3 key다. 응답할 때 서명 URL로 바꾼다.
+	public static ChatMessage image(Family family, User sender, String imageKey) {
+		return new ChatMessage(family, sender, MessageType.IMAGE, imageKey);
+	}
+
 	public static ChatMessage system(Family family, String content) {
 		return new ChatMessage(family, null, MessageType.SYSTEM, content);
 	}
