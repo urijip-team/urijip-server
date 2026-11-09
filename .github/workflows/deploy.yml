@@ -1,0 +1,60 @@
+name: Deploy
+
+# 이미지가 올라가면(Image 워크플로 성공) EC2에 SSH로 접속해 그 커밋의 이미지로 바꿔 띄운다(deploy/deploy.sh).
+# 저장소 변수 DEPLOY_ENABLED가 true일 때만 돈다. 필요한 설정은 deploy/README.md에 있다.
+on:
+  workflow_run:
+    workflows: [Image]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 배포할 이미지 태그(커밋 SHA). 비우면 latest
+        required: false
+
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  packages: read
+
+jobs:
+  deploy:
+    if: >-
+      vars.DEPLOY_ENABLED == 'true' &&
+      (github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success')
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: production
+    env:
+      IMAGE: ghcr.io/${{ github.repository }}:${{ github.event.workflow_run.head_sha || inputs.tag || 'latest' }}
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: SSH 설정
+        env:
+          SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
+          KNOWN_HOSTS: ${{ secrets.EC2_KNOWN_HOSTS }}
+        run: |
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/id_deploy
+          chmod 600 ~/.ssh/id_deploy
+          printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+
+      - name: 배포
+        env:
+          HOST: ${{ secrets.EC2_HOST }}
+          USER: ${{ secrets.EC2_USER }}
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          SSH="ssh -i $HOME/.ssh/id_deploy -o StrictHostKeyChecking=yes $USER@$HOST"
+          # 비공개 패키지를 받으려고 이번 실행 동안만 유효한 토큰으로 로그인한다.
+          echo "$GHCR_TOKEN" | $SSH "docker login ghcr.io -u ${{ github.actor }} --password-stdin"
+          status=0
+          $SSH "bash -s -- $IMAGE" < deploy/deploy.sh || status=$?
+          $SSH "docker logout ghcr.io" || true
+          exit $status
