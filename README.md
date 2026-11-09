@@ -46,8 +46,10 @@ cd urijip-server
 
 | 프로파일 | 용도 | 특징 |
 | --- | --- | --- |
-| `local` (기본값) | 로컬 개발, 테스트, CI | 테이블 자동 생성(`ddl-auto: update`), Swagger 켜짐 |
-| `prod` | 운영 | 스키마 검증만(`ddl-auto: validate`), Swagger 꺼짐 |
+| `local` (기본값) | 로컬 개발, 테스트, CI | Swagger 켜짐 |
+| `prod` | 운영 | Swagger 꺼짐 |
+
+두 프로파일 모두 테이블은 Flyway가 `src/main/resources/db/migration`의 SQL로 만들고, Hibernate는 엔티티와 맞는지 검증만 합니다(`ddl-auto: validate`).
 
 운영 프로파일로 실행하려면 `SPRING_PROFILES_ACTIVE=prod`를 지정합니다.
 
