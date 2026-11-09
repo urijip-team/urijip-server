@@ -117,7 +117,7 @@ URL, 요청·응답 필드, 테이블·컬럼 이름은 API 명세서와 ERD를 
 - 토큰 검사는 `global/security/JwtAuthenticationFilter`가 한다. 컨트롤러는 `@AuthenticationPrincipal Long userId`로 요청한 회원의 id를 받는다.
 - 토큰이 유효해도 정지된 회원은 403 `USER_SUSPENDED`, 탈퇴한 회원은 401 `INVALID_TOKEN`으로 막는다. HTTP는 `JwtAuthenticationFilter`, WebSocket은 `StompAuthChannelInterceptor`(CONNECT·SUBSCRIBE·SEND)가 `UserStatusChecker`(`member/service/UserStatusService`)로 확인한다. 상태는 10초 동안 기억하고, 회원 상태를 바꾸는 코드는 `UserStatusService.evict`를 불러 바로 반영한다.
 - 필터 단계의 401·403은 `GlobalExceptionHandler`를 거치지 않는다. `JwtAuthenticationEntryPoint`와 `JwtAccessDeniedHandler`가 `ApiResponse` 형식으로 응답한다.
-- 인증은 JWT(Access 30분, Refresh 14일), 비밀번호는 BCrypt다. 앱 API는 `/api/...`, 관리자 API는 `/admin/...`(ADMIN만)이다.
+- 인증은 JWT(Access 30분, Refresh 14일), 비밀번호는 BCrypt다. 같은 이메일로 10분 안에 5번 틀리면 10분 동안 로그인(앱·관리자)을 429 `TOO_MANY_LOGIN_ATTEMPTS`로 막는다(`LoginAttemptLimiter`, 서버 메모리). 실패 횟수는 테스트 사이에도 남으므로 로그인 실패를 내는 테스트는 `reset`으로 지운다. 앱 API는 `/api/...`, 관리자 API는 `/admin/...`(ADMIN만)이다.
 - 관리자가 데이터를 바꾸는 작업(정지, 처리, 답변, 작성·수정·삭제)은 변경을 마친 뒤 같은 트랜잭션에서 `AdminLogService.record`로 `admin_logs`에 남긴다. 컨트롤러는 `@AuthenticationPrincipal Long adminId`를 서비스에 넘긴다. 새 작업 종류는 `AdminAction`에 추가한다.
 - 가족에 속한 데이터는 같은 가족 멤버만 조회·수정할 수 있다. `/api/families/{familyId}/...`는 요청자가 그 가족의 멤버인지 검사한다.
 
