@@ -12,6 +12,7 @@ import com.urijip.server.family.dto.request.FamilyCreateRequest;
 import com.urijip.server.family.dto.request.FamilyJoinRequest;
 import com.urijip.server.family.dto.request.NicknameUpdateRequest;
 import com.urijip.server.family.dto.response.FamilyResponse;
+import com.urijip.server.family.entity.FamilyStatus;
 import com.urijip.server.family.service.FamilyService;
 import com.urijip.server.global.push.PushType;
 import com.urijip.server.location.dto.request.LocationSharingRequest;
@@ -147,6 +148,16 @@ class PlaceAlertServiceTest {
 		moveKid("35.1596");
 
 		assertThat(events.stream(PushRequestedEvent.class)).hasSize(1);
+	}
+
+	@Test
+	void suspendedFamilyGetsNoPlaceAlerts() {
+		familyService.getFamily(familyId).changeStatus(FamilyStatus.SUSPENDED);
+
+		moveKid("35.1595");
+
+		assertThat(insidePlaces()).isEmpty();
+		assertThat(events.stream(PushRequestedEvent.class)).isEmpty();
 	}
 
 	private void moveKid(String latitude) {

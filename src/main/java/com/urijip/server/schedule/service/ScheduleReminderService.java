@@ -48,6 +48,10 @@ public class ScheduleReminderService {
 				date.plusDays(1).atStartOfDay());
 		Map<Long, Set<Long>> membersByFamily = new HashMap<>();
 		for (Schedule schedule : schedules) {
+			// 정지된 가족에는 일정 알림을 보내지 않는다.
+			if (schedule.getFamily().isSuspended()) {
+				continue;
+			}
 			Set<Long> members = membersByFamily.computeIfAbsent(schedule.getFamily().getId(), this::memberIds);
 			notificationService.send(receivers(schedule, members), new PushMessage(PushType.SCHEDULE, title,
 					body(schedule), Map.of("scheduleId", schedule.getId().toString(), "date", date.toString())));

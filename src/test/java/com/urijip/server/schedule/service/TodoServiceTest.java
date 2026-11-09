@@ -8,6 +8,7 @@ import java.time.LocalDate;
 import com.urijip.server.TestcontainersConfiguration;
 import com.urijip.server.family.dto.request.FamilyCreateRequest;
 import com.urijip.server.family.dto.request.FamilyJoinRequest;
+import com.urijip.server.family.entity.FamilyStatus;
 import com.urijip.server.family.service.FamilyService;
 import com.urijip.server.global.exception.BusinessException;
 import com.urijip.server.global.exception.ErrorCode;
@@ -220,6 +221,15 @@ class TodoServiceTest {
 
 	private TodoResponse create(String title) {
 		return todoService.create(familyId, mom.getId(), new TodoCreateRequest(title, null, null));
+	}
+
+	@Test
+	void todosOfSuspendedFamilyAreBlocked() {
+		familyService.getFamily(familyId).changeStatus(FamilyStatus.SUSPENDED);
+
+		assertThatThrownBy(() -> todoService.getTodos(familyId, mom.getId(), null))
+				.isInstanceOfSatisfying(BusinessException.class,
+						e -> assertThat(e.getErrorCode()).isEqualTo(ErrorCode.FAMILY_SUSPENDED));
 	}
 
 	private User saveUser(String email, String name) {

@@ -61,6 +61,10 @@ public class Family extends BaseTimeEntity {
 		this.owner = owner;
 	}
 
+	public boolean isSuspended() {
+		return status == FamilyStatus.SUSPENDED;
+	}
+
 	public void changeStatus(FamilyStatus status) {
 		this.status = status;
 	}

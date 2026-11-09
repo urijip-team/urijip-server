@@ -79,6 +79,7 @@ public class FamilyService implements FamilyMembershipChecker {
 	@Transactional
 	public FamilyResponse reissueInviteCode(Long familyId, Long userId) {
 		validateOwner(familyId, userId);
+		validateActive(familyId);
 		Family family = getFamily(familyId);
 
 		family.changeInviteCode(newInviteCode());
@@ -188,6 +189,22 @@ public class FamilyService implements FamilyMembershipChecker {
 	public void validateMember(Long familyId, Long userId) {
 		if (!familyMemberRepository.existsByFamilyIdAndUserId(familyId, userId)) {
 			throw new BusinessException(ErrorCode.FAMILY_NOT_MEMBER);
+		}
+	}
+
+	// 멤버가 아니면 FAMILY_NOT_MEMBER, 관리자가 정지한 가족이면 FAMILY_SUSPENDED.
+	// 정지된 가족에서도 SOS·위치 공유·가족 나가기는 되므로 그 기능은 validateMember를 쓴다.
+	@Transactional(readOnly = true)
+	public void validateActiveMember(Long familyId, Long userId) {
+		validateMember(familyId, userId);
+		validateActive(familyId);
+	}
+
+	// 관리자가 정지한 가족이면 FAMILY_SUSPENDED.
+	@Transactional(readOnly = true)
+	public void validateActive(Long familyId) {
+		if (getFamily(familyId).isSuspended()) {
+			throw new BusinessException(ErrorCode.FAMILY_SUSPENDED);
 		}
 	}
 

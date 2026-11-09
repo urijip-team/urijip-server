@@ -44,6 +44,10 @@ public class PlaceAlertService {
 		if (!location.sharingEnabled() || location.latitude() == null) {
 			return;
 		}
+		// 정지된 가족은 위치 공유는 되지만 장소 알림은 쓰지 않는다.
+		if (familyService.getFamily(event.familyId()).isSuspended()) {
+			return;
+		}
 		Long userId = location.userId();
 		Set<Long> inside = Set.copyOf(placePresenceRepository.findPlaceIdsByUserId(userId));
 

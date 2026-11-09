@@ -12,6 +12,7 @@ import com.urijip.server.TestcontainersConfiguration;
 import com.urijip.server.family.dto.request.FamilyCreateRequest;
 import com.urijip.server.family.dto.request.FamilyJoinRequest;
 import com.urijip.server.family.dto.response.FamilyResponse;
+import com.urijip.server.family.entity.FamilyStatus;
 import com.urijip.server.family.service.FamilyService;
 import com.urijip.server.global.push.PushType;
 import com.urijip.server.global.time.SeoulTime;
@@ -131,6 +132,16 @@ class ScheduleReminderServiceTest {
 
 		assertThat(events.stream(PushRequestedEvent.class)).singleElement()
 				.satisfies(event -> assertThat(event.userIds()).isEqualTo(Set.of(dad.getId())));
+	}
+
+	@Test
+	void suspendedFamilyGetsNoReminders() {
+		create("병원", DAY.atTime(9, 0), false, List.of());
+		familyService.getFamily(familyId).changeStatus(FamilyStatus.SUSPENDED);
+
+		scheduleReminderService.remindToday(DAY);
+
+		assertThat(events.stream(PushRequestedEvent.class)).isEmpty();
 	}
 
 	@Test

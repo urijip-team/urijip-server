@@ -48,6 +48,7 @@ public class AllowanceService {
 	@Transactional
 	public AllowanceCreateResponse create(Long userId, AllowanceCreateRequest request) {
 		Map<Long, String> names = displayNames(request.familyId(), userId);
+		familyService.validateActive(request.familyId());
 		if (userId.equals(request.receiverId())) {
 			throw new BusinessException(ErrorCode.CANNOT_REQUEST_SELF);
 		}

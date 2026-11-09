@@ -32,7 +32,7 @@ public class AlbumService {
 
 	@Transactional
 	public AlbumResponse create(Long familyId, Long userId, AlbumCreateRequest request) {
-		familyService.validateMember(familyId, userId);
+		familyService.validateActiveMember(familyId, userId);
 
 		Album album = albumRepository.save(Album.builder()
 				.family(familyService.getFamily(familyId))
@@ -46,7 +46,7 @@ public class AlbumService {
 	// 최신순. 앨범마다 대표 사진 썸네일과 사진 수를 함께 준다.
 	@Transactional(readOnly = true)
 	public List<AlbumResponse> getAlbums(Long familyId, Long userId) {
-		familyService.validateMember(familyId, userId);
+		familyService.validateActiveMember(familyId, userId);
 
 		List<Album> albums = albumRepository.findByFamilyIdOrderByIdDesc(familyId);
 		Map<Long, Long> photoCounts = photoRepository.countByAlbumIds(albums.stream().map(Album::getId).toList())
@@ -63,7 +63,7 @@ public class AlbumService {
 	public Album getAccessibleAlbum(Long albumId, Long userId) {
 		Album album = albumRepository.findById(albumId)
 				.orElseThrow(() -> new BusinessException(ErrorCode.ALBUM_NOT_FOUND));
-		familyService.validateMember(album.getFamily().getId(), userId);
+		familyService.validateActiveMember(album.getFamily().getId(), userId);
 		return album;
 	}
 

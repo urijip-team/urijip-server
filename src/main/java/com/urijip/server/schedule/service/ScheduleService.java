@@ -35,7 +35,7 @@ public class ScheduleService {
 
 	@Transactional
 	public ScheduleResponse create(Long familyId, Long userId, ScheduleCreateRequest request) {
-		familyService.validateMember(familyId, userId);
+		familyService.validateActiveMember(familyId, userId);
 		List<Long> participantIds = Objects.requireNonNullElse(request.participantIds(), List.of());
 		familyService.validateMembers(familyId, participantIds);
 
@@ -55,7 +55,7 @@ public class ScheduleService {
 
 	@Transactional(readOnly = true)
 	public MonthlyScheduleResponse getMonthly(Long familyId, Long userId, YearMonth month) {
-		familyService.validateMember(familyId, userId);
+		familyService.validateActiveMember(familyId, userId);
 		LocalDateTime from = month.atDay(1).atStartOfDay();
 		LocalDateTime to = month.plusMonths(1).atDay(1).atStartOfDay();
 
@@ -102,7 +102,7 @@ public class ScheduleService {
 	private Schedule getAccessibleSchedule(Long scheduleId, Long userId) {
 		Schedule schedule = scheduleRepository.findById(scheduleId)
 				.orElseThrow(() -> new BusinessException(ErrorCode.SCHEDULE_NOT_FOUND));
-		familyService.validateMember(schedule.getFamily().getId(), userId);
+		familyService.validateActiveMember(schedule.getFamily().getId(), userId);
 		return schedule;
 	}
 

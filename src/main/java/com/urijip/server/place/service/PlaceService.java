@@ -35,7 +35,7 @@ public class PlaceService {
 	// 멤버가 아니면 FAMILY_NOT_MEMBER, 이미 10개면 PLACE_LIMIT_EXCEEDED.
 	@Transactional
 	public PlaceResponse create(Long familyId, Long userId, PlaceCreateRequest request) {
-		familyService.validateMember(familyId, userId);
+		familyService.validateActiveMember(familyId, userId);
 		if (placeRepository.countByFamilyId(familyId) >= Place.MAX_PLACES_PER_FAMILY) {
 			throw new BusinessException(ErrorCode.PLACE_LIMIT_EXCEEDED);
 		}
@@ -47,7 +47,7 @@ public class PlaceService {
 
 	@Transactional(readOnly = true)
 	public List<PlaceResponse> getPlaces(Long familyId, Long userId) {
-		familyService.validateMember(familyId, userId);
+		familyService.validateActiveMember(familyId, userId);
 		return placeRepository.findByFamilyIdOrderByIdAsc(familyId).stream().map(PlaceResponse::from).toList();
 	}
 
@@ -78,7 +78,7 @@ public class PlaceService {
 	private Place getAccessiblePlace(Long placeId, Long userId) {
 		Place place = placeRepository.findById(placeId)
 				.orElseThrow(() -> new BusinessException(ErrorCode.PLACE_NOT_FOUND));
-		familyService.validateMember(place.getFamily().getId(), userId);
+		familyService.validateActiveMember(place.getFamily().getId(), userId);
 		return place;
 	}
 

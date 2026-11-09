@@ -16,6 +16,7 @@ import com.urijip.server.family.dto.request.NicknameUpdateRequest;
 import com.urijip.server.family.dto.response.FamilyMemberResponse;
 import com.urijip.server.family.dto.response.FamilyResponse;
 import com.urijip.server.family.entity.FamilyRole;
+import com.urijip.server.family.entity.FamilyStatus;
 import com.urijip.server.family.service.FamilyService;
 import com.urijip.server.global.config.SecurityConfig;
 import com.urijip.server.global.exception.BusinessException;
@@ -49,7 +50,7 @@ class FamilyControllerTest {
 	@Test
 	void createReturnsCreatedWithFamily() {
 		given(familyService.create(1L, new FamilyCreateRequest("김씨네")))
-				.willReturn(new FamilyResponse(3L, "김씨네", "A3K9P2"));
+				.willReturn(new FamilyResponse(3L, "김씨네", "A3K9P2", FamilyStatus.ACTIVE));
 
 		MvcTestResult result = create(1L, """
 				{"name": "김씨네"}
@@ -130,7 +131,7 @@ class FamilyControllerTest {
 	@Test
 	void joinReturnsOkWithFamily() {
 		given(familyService.join(2L, new FamilyJoinRequest("A3K9P2")))
-				.willReturn(new FamilyResponse(3L, "김씨네", "A3K9P2"));
+				.willReturn(new FamilyResponse(3L, "김씨네", "A3K9P2", FamilyStatus.ACTIVE));
 
 		MvcTestResult result = join(2L, """
 				{"inviteCode": "A3K9P2"}
@@ -206,7 +207,7 @@ class FamilyControllerTest {
 
 	@Test
 	void getMyFamilyReturnsFamilyOfAccessTokenUser() {
-		given(familyService.getMyFamily(2L)).willReturn(new FamilyResponse(3L, "김씨네", "A3K9P2"));
+		given(familyService.getMyFamily(2L)).willReturn(new FamilyResponse(3L, "김씨네", "A3K9P2", FamilyStatus.SUSPENDED));
 
 		MvcTestResult result = getMyFamily(2L);
 
@@ -215,6 +216,7 @@ class FamilyControllerTest {
 		assertThat(result).bodyJson().extractingPath("$.data.id").isEqualTo(3);
 		assertThat(result).bodyJson().extractingPath("$.data.name").isEqualTo("김씨네");
 		assertThat(result).bodyJson().extractingPath("$.data.inviteCode").isEqualTo("A3K9P2");
+		assertThat(result).bodyJson().extractingPath("$.data.status").isEqualTo("SUSPENDED");
 	}
 
 	@Test
@@ -298,7 +300,7 @@ class FamilyControllerTest {
 
 	@Test
 	void reissueInviteCodeReturnsFamilyWithNewCode() {
-		given(familyService.reissueInviteCode(3L, 1L)).willReturn(new FamilyResponse(3L, "김씨네", "B7B7B7"));
+		given(familyService.reissueInviteCode(3L, 1L)).willReturn(new FamilyResponse(3L, "김씨네", "B7B7B7", FamilyStatus.ACTIVE));
 
 		MvcTestResult result = reissueInviteCode(1L, 3L);
 

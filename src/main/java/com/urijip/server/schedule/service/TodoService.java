@@ -28,7 +28,7 @@ public class TodoService {
 
 	@Transactional
 	public TodoResponse create(Long familyId, Long userId, TodoCreateRequest request) {
-		familyService.validateMember(familyId, userId);
+		familyService.validateActiveMember(familyId, userId);
 
 		Todo todo = todoRepository.save(Todo.builder()
 				.family(familyService.getFamily(familyId))
@@ -43,7 +43,7 @@ public class TodoService {
 
 	@Transactional(readOnly = true)
 	public List<TodoResponse> getTodos(Long familyId, Long userId, Boolean done) {
-		familyService.validateMember(familyId, userId);
+		familyService.validateActiveMember(familyId, userId);
 
 		return todoRepository.findByFamily(familyId, done).stream()
 				.map(TodoResponse::from)
@@ -83,7 +83,7 @@ public class TodoService {
 	private Todo getAccessibleTodo(Long todoId, Long userId) {
 		Todo todo = todoRepository.findById(todoId)
 				.orElseThrow(() -> new BusinessException(ErrorCode.TODO_NOT_FOUND));
-		familyService.validateMember(todo.getFamily().getId(), userId);
+		familyService.validateActiveMember(todo.getFamily().getId(), userId);
 		return todo;
 	}
 

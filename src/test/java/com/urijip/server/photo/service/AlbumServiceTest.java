@@ -10,6 +10,7 @@ import com.urijip.server.TestcontainersConfiguration;
 import com.urijip.server.family.dto.request.FamilyCreateRequest;
 import com.urijip.server.family.dto.request.FamilyJoinRequest;
 import com.urijip.server.family.dto.response.FamilyResponse;
+import com.urijip.server.family.entity.FamilyStatus;
 import com.urijip.server.family.service.FamilyService;
 import com.urijip.server.global.exception.BusinessException;
 import com.urijip.server.global.exception.ErrorCode;
@@ -116,6 +117,15 @@ class AlbumServiceTest {
 	private String thumbnailKeyOf(PhotoResponse photo) {
 		String path = java.net.URI.create(photo.thumbnailUrl()).getPath();
 		return path.substring(path.indexOf("families/"));
+	}
+
+	@Test
+	void albumsAndPhotosOfSuspendedFamilyAreBlocked() {
+		familyService.getFamily(family.id()).changeStatus(FamilyStatus.SUSPENDED);
+
+		assertThatThrownBy(() -> albumService.getAlbums(family.id(), mom.getId()))
+				.isInstanceOfSatisfying(BusinessException.class,
+						e -> assertThat(e.getErrorCode()).isEqualTo(ErrorCode.FAMILY_SUSPENDED));
 	}
 
 	private User saveUser(String email, String name) {

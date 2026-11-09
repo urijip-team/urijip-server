@@ -72,7 +72,7 @@ public class ChatService {
 		if (image == null || image.isEmpty()) {
 			throw new BusinessException(ErrorCode.INVALID_INPUT);
 		}
-		familyService.validateMember(familyId, userId);
+		familyService.validateActiveMember(familyId, userId);
 		ProcessedImage processed = imageProcessor.process(image);
 		String key = "families/%d/chat/%s.%s".formatted(familyId, UUID.randomUUID(), processed.format().extension());
 
@@ -101,7 +101,7 @@ public class ChatService {
 	// 마지막 읽은 메시지가 앞으로 움직였을 때만 가족에게 알린다.
 	@Transactional
 	public void markRead(Long userId, ChatReadRequest request) {
-		familyService.validateMember(request.familyId(), userId);
+		familyService.validateActiveMember(request.familyId(), userId);
 		if (!chatMessageRepository.existsByIdAndFamilyId(request.messageId(), request.familyId())) {
 			throw new BusinessException(ErrorCode.CHAT_MESSAGE_NOT_FOUND);
 		}
@@ -120,6 +120,7 @@ public class ChatService {
 	public CursorResponse<ChatMessageResponse> getMessages(Long familyId, Long userId,
 			ChatMessagePageRequest request) {
 		Map<Long, String> names = displayNames(familyId, userId);
+		familyService.validateActive(familyId);
 		List<MemberReadState> readStates = familyService.getReadStates(familyId);
 		int size = request.sizeOrDefault();
 		Limit limit = Limit.of(size + 1);
@@ -152,6 +153,7 @@ public class ChatService {
 	private ChatMessageResponse deliver(Long familyId, Long userId,
 			BiFunction<Family, User, ChatMessage> messageFactory) {
 		Map<Long, String> names = displayNames(familyId, userId);
+		familyService.validateActive(familyId);
 		ChatMessage message = chatMessageRepository.save(
 				messageFactory.apply(familyService.getFamily(familyId), userService.getUser(userId)));
 
