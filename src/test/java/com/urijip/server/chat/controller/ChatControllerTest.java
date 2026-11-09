@@ -2,7 +2,10 @@ package com.urijip.server.chat.controller;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.then;
+import static org.mockito.Mockito.never;
 
 import java.time.OffsetDateTime;
 import java.util.List;
@@ -16,11 +19,13 @@ import com.urijip.server.global.exception.BusinessException;
 import com.urijip.server.global.exception.ErrorCode;
 import com.urijip.server.global.response.CursorResponse;
 import com.urijip.server.global.security.JwtProvider;
+import com.urijip.server.photo.TestImages;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpStatus;
+import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.assertj.MockMvcTester;
 import org.springframework.test.web.servlet.assertj.MvcTestResult;
@@ -102,6 +107,33 @@ class ChatControllerTest {
 
 	private String bearer(Long userId) {
 		return "Bearer " + jwtProvider.createAccessToken(userId, "USER");
+	}
+
+	@Test
+	void sendImageReturnsCreatedMessage() {
+		ChatMessageResponse image = new ChatMessageResponse(1025L, MessageType.IMAGE, 2L, "첫째",
+				"https://s3/families/3/chat/a.jpg?sig", OffsetDateTime.parse("2026-10-02T18:31:00+09:00"), 1);
+		given(chatService.sendImage(eq(3L), eq(2L), any())).willReturn(image);
+
+		MvcTestResult result = mvc.post().uri("/api/families/3/messages/images").multipart()
+				.file(new MockMultipartFile("image", "a.jpg", "image/jpeg", TestImages.image("jpeg", 10, 10)))
+				.header("Authorization", "Bearer " + jwtProvider.createAccessToken(2L, "USER"))
+				.exchange();
+
+		assertThat(result).hasStatus(HttpStatus.CREATED);
+		assertThat(result).bodyJson().extractingPath("$.data.type").isEqualTo("IMAGE");
+		assertThat(result).bodyJson().extractingPath("$.data.content").isEqualTo("https://s3/families/3/chat/a.jpg?sig");
+	}
+
+	@Test
+	void sendImageWithoutImagePartReturnsBadRequest() {
+		MvcTestResult result = mvc.post().uri("/api/families/3/messages/images").multipart()
+				.file(new MockMultipartFile("files", "a.jpg", "image/jpeg", TestImages.image("jpeg", 10, 10)))
+				.header("Authorization", "Bearer " + jwtProvider.createAccessToken(2L, "USER"))
+				.exchange();
+
+		assertThat(result).hasStatus(HttpStatus.BAD_REQUEST);
+		then(chatService).should(never()).sendImage(any(), any(), any());
 	}
 
 }
