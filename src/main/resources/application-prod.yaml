@@ -43,3 +43,9 @@ management:
     health:
       probes:
         add-additional-paths: true
+
+# 컨테이너 로그(콘솔)를 JSON으로 남긴다. Alloy가 Docker에서 읽어 Loki로 보낸다.
+logging:
+  structured:
+    format:
+      console: logstash
