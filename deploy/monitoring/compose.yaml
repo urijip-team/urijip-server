@@ -15,6 +15,26 @@ services:
     volumes:
       - './prometheus.yml:/etc/prometheus/prometheus.yml:ro'
       - 'prometheus-data:/prometheus'
+  loki:
+    image: 'grafana/loki:3.5.3'
+    command: ['-config.file=/etc/loki/loki.yaml']
+    restart: unless-stopped
+    mem_limit: 300m
+    volumes:
+      - './loki.yaml:/etc/loki/loki.yaml:ro'
+      - 'loki-data:/loki'
+  alloy:
+    # Docker에서 urijip-server 컨테이너의 로그(JSON)를 읽어 Loki로 보낸다.
+    image: 'grafana/alloy:v1.10.0'
+    command: ['run', '--storage.path=/var/lib/alloy/data', '/etc/alloy/config.alloy']
+    restart: unless-stopped
+    mem_limit: 200m
+    volumes:
+      - './config.alloy:/etc/alloy/config.alloy:ro'
+      - '/var/run/docker.sock:/var/run/docker.sock:ro'
+      - 'alloy-data:/var/lib/alloy/data'
+    depends_on:
+      - loki
 
 # deploy.sh가 만드는 네트워크. 서버 컨테이너가 urijip-server라는 이름으로 보인다.
 networks:
@@ -24,3 +44,5 @@ networks:
 
 volumes:
   prometheus-data:
+  loki-data:
+  alloy-data:
