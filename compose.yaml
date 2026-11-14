@@ -21,5 +21,20 @@ services:
     volumes:
       - './docker/localstack/init-s3.sh:/etc/localstack/init/ready.d/init-s3.sh:ro'
 
+  # 아래는 모니터링(지표·로그). bootRun은 띄우지 않으므로 필요할 때 따로 띄운다.
+  #   docker compose --profile monitoring up -d
+  prometheus:
+    image: 'prom/prometheus:v3.5.0'
+    profiles: ['monitoring']
+    ports:
+      - '9090:9090'
+    # bootRun으로 호스트에서 도는 서버(8080)에 접속하기 위해. Docker Desktop이 아닌 Linux에서도 되게 한다.
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'
+    volumes:
+      - './docker/monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro'
+      - 'prometheus-data:/prometheus'
+
 volumes:
   mysql-data:
+  prometheus-data:
