@@ -1,0 +1,39 @@
+// 서버가 남기는 JSON 로그 파일(logs/urijip-server.log)을 읽어 Loki로 보낸다.
+local.file_match "urijip" {
+	path_targets = [{"__path__" = "/var/log/urijip/*.log", "app" = "urijip-server"}]
+}
+
+loki.source.file "urijip" {
+	targets    = local.file_match.urijip.targets
+	forward_to = [loki.process.urijip.receiver]
+}
+
+// 로그 레벨은 라벨로 만들어 빠르게 거른다. traceId 같은 값은 종류가 많아 라벨로 두지 않고,
+// 그라파나에서 `| json | traceId="..."`로 찾는다.
+loki.process "urijip" {
+	stage.json {
+		expressions = {
+			level     = "level",
+			timestamp = "\"@timestamp\"",
+		}
+	}
+
+	stage.labels {
+		values = {
+			level = "",
+		}
+	}
+
+	stage.timestamp {
+		source = "timestamp"
+		format = "RFC3339Nano"
+	}
+
+	forward_to = [loki.write.local.receiver]
+}
+
+loki.write "local" {
+	endpoint {
+		url = "http://loki:3100/loki/api/v1/push"
+	}
+}
