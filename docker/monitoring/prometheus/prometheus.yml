@@ -1,0 +1,9 @@
+global:
+  scrape_interval: 15s
+
+scrape_configs:
+  # bootRun으로 띄운 서버. 지표는 local 프로파일에서만 열린다(application-local.yaml).
+  - job_name: urijip-server
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ['host.docker.internal:8080']

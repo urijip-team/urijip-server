@@ -22,3 +22,19 @@ storage:
 # 관리자 웹 개발 서버(Vite 5173, CRA 3000)
 cors:
   allowed-origins: http://localhost:5173, http://localhost:3000
+
+# 프로메테우스가 지표를 가져가는 /actuator/prometheus를 연다(compose.yaml의 monitoring 프로파일).
+# 운영은 지표를 외부에 드러내지 않도록 열지 않는다.
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, prometheus
+
+# 콘솔은 사람이 읽는 형식 그대로 두고, 파일에는 JSON으로 남긴다. Alloy가 이 파일을 읽어 Loki로 보낸다.
+logging:
+  file:
+    name: logs/urijip-server.log
+  structured:
+    format:
+      file: logstash
