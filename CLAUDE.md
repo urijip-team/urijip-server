@@ -76,6 +76,15 @@ URL, 요청·응답 필드, 테이블·컬럼 이름은 API 명세서와 ERD를 
 - 종류에 따라 다른 테이블을 가리키는 id(예: `reports.target_id`, `target_type`으로 구분)에는 FK를 두지 않는다. 대상이 지워져도 신고 같은 기록은 남고, 그런 행을 쓰는 쪽에서 대상이 없을 수 있다고 보고 처리한다.
 - 행이 많을 수 있는 테이블은 `@Modifying` JPQL로 한 번에 지운다. 예: `ChatMessageRepository.deleteByFamilyId`. 벌크 삭제는 영속성 컨텍스트를 거치지 않아서, 같은 트랜잭션에서 읽어 둔 엔티티가 지워진 행을 가리킨 채 남는다. 테스트에서 저장과 삭제를 한 트랜잭션에 몰아 쓰면 flush 때 실패하므로, 그 사이에 `EntityManager`의 `flush()`·`clear()`로 트랜잭션 경계를 흉내 낸다.
 
+## 모니터링
+
+- 지표는 Micrometer가 `/actuator/prometheus`로 내보낸다(`micrometer-registry-prometheus`). 모든 지표에 `application` 태그가 붙고, `http.server.requests`는 p95를 계산할 수 있게 히스토그램이다(`application.yaml`).
+- `/actuator/prometheus`는 `local`에서만 연다(`application-local.yaml`의 `management.endpoints.web.exposure`). `PUBLIC_PATHS`에 있으므로 운영에서 열려면 외부에서 접근하지 못하게 먼저 막는다.
+- 로그에는 요청마다 `traceId`·`spanId`가 붙는다(Micrometer Tracing + Brave). 스팬을 외부로 내보내지는 않는다.
+- `local`은 `logs/urijip-server.log`에 JSON(`logstash` 형식)으로도 남긴다. 테스트는 `build.gradle`에서 `build/test-logs/`로 돌린다.
+- 프로메테우스·Loki·Alloy·그라파나는 `compose.yaml`의 `monitoring` 프로파일이다. 설정은 `docker/monitoring/`에 있고, 그라파나 데이터소스와 대시보드는 프로비저닝 파일로 만든다. 대시보드를 그라파나에서 고쳤으면 JSON을 내보내 `docker/monitoring/grafana/dashboards/`에 덮어쓴다.
+- 테스트는 지표 내보내기가 꺼져 있다. 지표를 확인하는 테스트는 `@AutoConfigureMetrics`를 붙인다. 예: `MonitoringTest`.
+
 ## 파일 저장 (S3)
 
 - 사진 같은 파일은 `global/storage/FileStorage`로 S3에 올리고 지운다. 버킷은 비공개다. DB에는 URL이 아닌 S3 key를 저장하고, 응답할 때 `FileStorage.createUrl`로 일정 시간(`storage.s3.url-expiration`, 1시간)만 유효한 서명 URL을 만든다.
