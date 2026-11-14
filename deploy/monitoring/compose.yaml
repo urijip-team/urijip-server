@@ -1,6 +1,9 @@
 # EC2에서 서버(deploy.sh가 띄운 urijip-server 컨테이너)의 지표와 로그를 모은다.
+# 그라파나 데이터소스·대시보드는 로컬과 같은 파일(docker/monitoring/grafana)을 쓴다.
 #
-#   docker compose up -d
+#   docker compose --env-file /etc/urijip/monitoring.env up -d
+#
+# 그라파나는 EC2 안(127.0.0.1:3000)에만 열린다. SSH 터널로 접속한다(deploy/README.md).
 name: urijip-monitoring
 
 services:
@@ -35,6 +38,22 @@ services:
       - 'alloy-data:/var/lib/alloy/data'
     depends_on:
       - loki
+  grafana:
+    image: 'grafana/grafana:12.1.0'
+    restart: unless-stopped
+    mem_limit: 300m
+    ports:
+      - '127.0.0.1:3000:3000'
+    environment:
+      - 'GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:?/etc/urijip/monitoring.env에 GRAFANA_ADMIN_PASSWORD를 넣는다}'
+      - 'GF_USERS_ALLOW_SIGN_UP=false'
+    volumes:
+      - '../../docker/monitoring/grafana/provisioning:/etc/grafana/provisioning:ro'
+      - '../../docker/monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro'
+      - 'grafana-data:/var/lib/grafana'
+    depends_on:
+      - prometheus
+      - loki
 
 # deploy.sh가 만드는 네트워크. 서버 컨테이너가 urijip-server라는 이름으로 보인다.
 networks:
@@ -46,3 +65,4 @@ volumes:
   prometheus-data:
   loki-data:
   alloy-data:
+  grafana-data:
