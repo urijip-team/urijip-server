@@ -33,6 +33,25 @@ cd urijip-server
 
 서버를 띄운 뒤 <http://localhost:8080/swagger-ui.html>에서 Swagger UI를 봅니다. 운영 프로파일에서는 꺼져 있습니다.
 
+## 모니터링 (로컬)
+
+프로메테우스(지표), Loki(로그), 그라파나(화면)를 `compose.yaml`의 `monitoring` 프로파일로 띄웁니다. `bootRun`은 이 컨테이너들을 띄우지 않으므로 필요할 때 따로 실행합니다.
+
+```bash
+docker compose --profile monitoring up -d   # 모니터링 켜기
+./gradlew bootRun
+docker compose --profile monitoring stop    # 끄기
+```
+
+| 주소 | 내용 |
+| --- | --- |
+| <http://localhost:3001> | 그라파나. `urijip` 폴더의 `urijip-server` 대시보드(요청 수, 5xx 비율, 응답 시간 p95, JVM 힙, DB 커넥션, 로그) |
+| <http://localhost:9090> | 프로메테우스. 서버의 `/actuator/prometheus`를 15초마다 가져갑니다 |
+
+- 서버는 로그를 콘솔과 `logs/urijip-server.log`(JSON)에 남기고, Alloy가 이 파일을 Loki로 보냅니다.
+- 요청마다 `traceId`가 붙습니다. 대시보드 위의 검색 칸에 `traceId`를 넣으면 그 요청의 로그만 모아 볼 수 있습니다.
+- 운영 프로파일은 `/actuator/prometheus`를 열지 않습니다.
+
 ## 빌드와 테스트
 
 ```bash
