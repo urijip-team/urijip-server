@@ -32,7 +32,7 @@ public class SecurityConfig {
 			"/admin/auth/login",
 			"/ws",
 			"/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**",
-			"/actuator/health", "/actuator/prometheus"
+			"/actuator/health", "/actuator/prometheus", "/livez", "/readyz"
 	};
 
 	@Bean
