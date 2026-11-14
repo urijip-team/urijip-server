@@ -30,3 +30,11 @@ management:
     web:
       exposure:
         include: health, prometheus
+
+# 콘솔은 사람이 읽는 형식 그대로 두고, 파일에는 JSON으로 남긴다. Alloy가 이 파일을 읽어 Loki로 보낸다.
+logging:
+  file:
+    name: logs/urijip-server.log
+  structured:
+    format:
+      file: logstash
