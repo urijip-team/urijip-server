@@ -31,4 +31,10 @@ class MonitoringTest {
 		assertThat(result).bodyText().contains("jvm_memory_used_bytes");
 	}
 
+	@Test
+	void metricsAreTaggedWithApplicationName() {
+		assertThat(mvc.get().uri("/actuator/prometheus").exchange())
+				.bodyText().contains("application=\"urijip-server\"");
+	}
+
 }
