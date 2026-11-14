@@ -36,3 +36,7 @@ management:
     # 그라파나에서 서버를 구분할 때 쓴다.
     tags:
       application: ${spring.application.name}
+    # 응답 시간 p95·p99를 프로메테우스에서 계산할 수 있게 히스토그램으로 내보낸다.
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true

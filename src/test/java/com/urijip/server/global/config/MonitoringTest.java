@@ -37,4 +37,13 @@ class MonitoringTest {
 				.bodyText().contains("application=\"urijip-server\"");
 	}
 
+	// p95 응답 시간을 계산하려면 요청 지표가 히스토그램 버킷으로 나와야 한다.
+	@Test
+	void httpRequestsAreExportedAsHistogram() {
+		mvc.get().uri("/actuator/health").exchange();
+
+		assertThat(mvc.get().uri("/actuator/prometheus").exchange())
+				.bodyText().contains("http_server_requests_seconds_bucket");
+	}
+
 }
