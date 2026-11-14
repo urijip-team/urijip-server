@@ -22,3 +22,11 @@ storage:
 # 관리자 웹 개발 서버(Vite 5173, CRA 3000)
 cors:
   allowed-origins: http://localhost:5173, http://localhost:3000
+
+# 프로메테우스가 지표를 가져가는 /actuator/prometheus를 연다(compose.yaml의 monitoring 프로파일).
+# 운영은 지표를 외부에 드러내지 않도록 열지 않는다.
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, prometheus
