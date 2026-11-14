@@ -28,3 +28,24 @@ springdoc:
     enabled: false
   swagger-ui:
     enabled: false
+
+# 지표(/actuator/*)는 8081에서만 연다. 컨테이너는 8080만 호스트에 내보내므로 로드 밸런서로는 지표에 닿지 않고,
+# 같은 Docker 네트워크의 프로메테우스만 urijip-server:8081로 가져간다(deploy/monitoring).
+# 로드 밸런서와 deploy.sh의 상태 확인은 8080의 /readyz를 쓴다.
+management:
+  server:
+    port: 8081
+  endpoints:
+    web:
+      exposure:
+        include: health, prometheus
+  endpoint:
+    health:
+      probes:
+        add-additional-paths: true
+
+# 컨테이너 로그(콘솔)를 JSON으로 남긴다. Alloy가 Docker에서 읽어 Loki로 보낸다.
+logging:
+  structured:
+    format:
+      console: logstash

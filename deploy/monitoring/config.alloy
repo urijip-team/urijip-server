@@ -1,0 +1,56 @@
+// Docker에서 urijip-server 컨테이너의 로그를 읽어 Loki로 보낸다.
+// 라벨(app, level)은 로컬(docker/monitoring/alloy)과 같아야 대시보드가 그대로 동작한다.
+discovery.docker "containers" {
+	host = "unix:///var/run/docker.sock"
+}
+
+discovery.relabel "urijip" {
+	targets = discovery.docker.containers.targets
+
+	rule {
+		source_labels = ["__meta_docker_container_name"]
+		regex         = "/urijip-server"
+		action        = "keep"
+	}
+
+	rule {
+		target_label = "app"
+		replacement  = "urijip-server"
+	}
+}
+
+loki.source.docker "urijip" {
+	host       = "unix:///var/run/docker.sock"
+	targets    = discovery.relabel.urijip.output
+	forward_to = [loki.process.urijip.receiver]
+}
+
+// 서버는 운영에서 콘솔에 JSON(logstash 형식)으로 남긴다(application-prod.yaml).
+// traceId 같은 값은 종류가 많아 라벨로 두지 않고, 그라파나에서 `| json | traceId="..."`로 찾는다.
+loki.process "urijip" {
+	stage.json {
+		expressions = {
+			level     = "level",
+			timestamp = "\"@timestamp\"",
+		}
+	}
+
+	stage.labels {
+		values = {
+			level = "",
+		}
+	}
+
+	stage.timestamp {
+		source = "timestamp"
+		format = "RFC3339Nano"
+	}
+
+	forward_to = [loki.write.local.receiver]
+}
+
+loki.write "local" {
+	endpoint {
+		url = "http://loki:3100/loki/api/v1/push"
+	}
+}

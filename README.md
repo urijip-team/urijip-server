@@ -50,7 +50,7 @@ docker compose --profile monitoring stop    # 끄기
 
 - 서버는 로그를 콘솔과 `logs/urijip-server.log`(JSON)에 남기고, Alloy가 이 파일을 Loki로 보냅니다.
 - 요청마다 `traceId`가 붙습니다. 대시보드 위의 검색 칸에 `traceId`를 넣으면 그 요청의 로그만 모아 볼 수 있습니다.
-- 운영 프로파일은 `/actuator/prometheus`를 열지 않습니다.
+- 운영은 지표를 관리 포트(8081)로만 내보내고, EC2에서 같은 구성을 띄웁니다([deploy/README.md](deploy/README.md#6-모니터링)).
 
 ## 빌드와 테스트
 
@@ -105,7 +105,7 @@ docker run -d -p 8080:8080 \
 ```
 
 - 테이블은 서버가 뜰 때 Flyway가 만들거나 바꿉니다.
-- 상태 확인은 `GET /actuator/health`입니다(인증 없음).
+- 상태 확인은 `GET /readyz`입니다(인증 없음). `/actuator/*`는 관리 포트 8081에만 있으며, 8081은 호스트에 내보내지 않습니다.
 - 이미지는 root가 아닌 사용자로 실행되고, JVM 메모리는 컨테이너 메모리의 75%까지 씁니다.
 
 ## 패키지 구조

@@ -79,7 +79,9 @@ URL, 요청·응답 필드, 테이블·컬럼 이름은 API 명세서와 ERD를 
 ## 모니터링
 
 - 지표는 Micrometer가 `/actuator/prometheus`로 내보낸다(`micrometer-registry-prometheus`). 모든 지표에 `application` 태그가 붙고, `http.server.requests`는 p95를 계산할 수 있게 히스토그램이다(`application.yaml`).
-- `/actuator/prometheus`는 `local`에서만 연다(`application-local.yaml`의 `management.endpoints.web.exposure`). `PUBLIC_PATHS`에 있으므로 운영에서 열려면 외부에서 접근하지 못하게 먼저 막는다.
+- `local`은 `/actuator/prometheus`를 서버 포트(8080)에서 연다(`application-local.yaml`).
+- `prod`는 `/actuator/*`를 관리 포트 8081로 옮기고(`management.server.port`), 8080에는 `/readyz`·`/livez`만 남긴다. 8081은 호스트에 내보내지 않으므로 `PUBLIC_PATHS`에 있어도 외부에서 닿지 않는다. 로드 밸런서와 `deploy.sh`의 상태 확인은 `/readyz`다. 이 구성은 `ManagementPortTest`가 확인한다.
+- 운영 모니터링은 EC2의 `deploy/monitoring/compose.yaml`이다. 서버 컨테이너와 같은 `urijip` 네트워크에서 프로메테우스가 `urijip-server:8081`을, Alloy가 Docker의 컨테이너 로그(`prod`는 콘솔이 JSON)를 가져간다. 대시보드는 로컬과 같은 파일을 쓰므로 라벨(`job`·`app`·`level`)을 로컬과 맞춘다. 저장소 변수 `MONITORING_ENABLED`가 true면 Deploy 워크플로가 배포 뒤 함께 갱신한다.
 - 로그에는 요청마다 `traceId`·`spanId`가 붙는다(Micrometer Tracing + Brave). 스팬을 외부로 내보내지는 않는다.
 - `local`은 `logs/urijip-server.log`에 JSON(`logstash` 형식)으로도 남긴다. 테스트는 `build.gradle`에서 `build/test-logs/`로 돌린다.
 - 프로메테우스·Loki·Alloy·그라파나는 `compose.yaml`의 `monitoring` 프로파일이다. 설정은 `docker/monitoring/`에 있고, 그라파나 데이터소스와 대시보드는 프로비저닝 파일로 만든다. 대시보드를 그라파나에서 고쳤으면 JSON을 내보내 `docker/monitoring/grafana/dashboards/`에 덮어쓴다.
@@ -121,7 +123,7 @@ URL, 요청·응답 필드, 테이블·컬럼 이름은 API 명세서와 ERD를 
 
 ## 보안
 
-- `global/config/SecurityConfig`가 경로별 규칙을 정한다. 회원가입·로그인·재발급, 관리자 로그인, Swagger, `/actuator/health`만 열려 있고 나머지는 Access 토큰이 필요하다. 인증 없이 쓰는 API를 추가하면 `PUBLIC_PATHS`에 넣는다.
+- `global/config/SecurityConfig`가 경로별 규칙을 정한다. 회원가입·로그인·재발급, 관리자 로그인, Swagger, 상태 확인(`/actuator/health`, `/readyz`, `/livez`), `/actuator/prometheus`만 열려 있고 나머지는 Access 토큰이 필요하다. 인증 없이 쓰는 API를 추가하면 `PUBLIC_PATHS`에 넣는다.
 - 브라우저(관리자 웹)에서 오는 요청은 `CorsConfig`가 `cors.allowed-origins`(운영은 `CORS_ALLOWED_ORIGINS`)에 있는 출처만 허용한다. 로컬은 `localhost:5173`·`3000`이다. 앱은 브라우저가 아니라 상관없다.
 - 토큰 검사는 `global/security/JwtAuthenticationFilter`가 한다. 컨트롤러는 `@AuthenticationPrincipal Long userId`로 요청한 회원의 id를 받는다.
 - 토큰이 유효해도 정지된 회원은 403 `USER_SUSPENDED`, 탈퇴한 회원은 401 `INVALID_TOKEN`으로 막는다. HTTP는 `JwtAuthenticationFilter`, WebSocket은 `StompAuthChannelInterceptor`(CONNECT·SUBSCRIBE·SEND)가 `UserStatusChecker`(`member/service/UserStatusService`)로 확인한다. 상태는 10초 동안 기억하고, 회원 상태를 바꾸는 코드는 `UserStatusService.evict`를 불러 바로 반영한다.

@@ -58,3 +58,15 @@ jobs:
           $SSH "bash -s -- $IMAGE" < deploy/deploy.sh || status=$?
           $SSH "docker logout ghcr.io" || true
           exit $status
+
+      # 저장소 변수 MONITORING_ENABLED가 true면 EC2의 모니터링(deploy/monitoring)도 이번 커밋의 설정으로 다시 띄운다.
+      # 설정 파일을 덮어쓰면 실행 중인 컨테이너는 예전 파일을 계속 보므로 --force-recreate로 다시 만든다(데이터는 볼륨에 남는다).
+      - name: 모니터링 갱신
+        if: vars.MONITORING_ENABLED == 'true'
+        env:
+          HOST: ${{ secrets.EC2_HOST }}
+          USER: ${{ secrets.EC2_USER }}
+        run: |
+          SSH="ssh -i $HOME/.ssh/id_deploy -o StrictHostKeyChecking=yes $USER@$HOST"
+          tar czf - deploy/monitoring docker/monitoring/grafana | $SSH "mkdir -p ~/urijip-monitoring && tar xzf - -C ~/urijip-monitoring"
+          $SSH "cd ~/urijip-monitoring/deploy/monitoring && docker compose --env-file /etc/urijip/monitoring.env up -d --force-recreate --remove-orphans"

@@ -1,0 +1,10 @@
+global:
+  scrape_interval: 15s
+
+scrape_configs:
+  # 운영 서버는 지표를 관리 포트(8081)로만 내보낸다(application-prod.yaml).
+  # job 이름은 로컬과 같아야 대시보드가 그대로 동작한다.
+  - job_name: urijip-server
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ['urijip-server:8081']
