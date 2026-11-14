@@ -1,0 +1,26 @@
+# EC2에서 서버(deploy.sh가 띄운 urijip-server 컨테이너)의 지표와 로그를 모은다.
+#
+#   docker compose up -d
+name: urijip-monitoring
+
+services:
+  prometheus:
+    image: 'prom/prometheus:v3.5.0'
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=15d'
+    restart: unless-stopped
+    mem_limit: 300m
+    volumes:
+      - './prometheus.yml:/etc/prometheus/prometheus.yml:ro'
+      - 'prometheus-data:/prometheus'
+
+# deploy.sh가 만드는 네트워크. 서버 컨테이너가 urijip-server라는 이름으로 보인다.
+networks:
+  default:
+    name: urijip
+    external: true
+
+volumes:
+  prometheus-data:
