@@ -7,24 +7,30 @@
 #   CONTAINER   컨테이너 이름. 기본 urijip-server
 #   PORT        호스트 포트. 기본 8080
 #   SKIP_PULL   1이면 이미지를 받지 않는다(이미 있는 이미지로 시험할 때)
+#   NETWORK     Docker 네트워크. 모니터링(deploy/monitoring)의 프로메테우스·Alloy와 같은 네트워크다. 기본 urijip
 set -euo pipefail
 
 IMAGE=${1:?사용법: deploy.sh <이미지>}
 CONFIG_DIR=${CONFIG_DIR:-/etc/urijip}
 NAME=${CONTAINER:-urijip-server}
 PORT=${PORT:-8080}
-HEALTH_URL="http://localhost:${PORT}/actuator/health"
+NETWORK=${NETWORK:-urijip}
+# 운영은 /actuator/*를 관리 포트(8081)로 옮기고, 서버 포트에는 /readyz만 남긴다(application-prod.yaml).
+HEALTH_URL="http://localhost:${PORT}/readyz"
 
 if [ "${SKIP_PULL:-0}" != 1 ]; then
 	docker pull "$IMAGE"
 fi
+
+docker network inspect "$NETWORK" >/dev/null 2>&1 || docker network create "$NETWORK" >/dev/null
 
 PREVIOUS=$(docker inspect --format '{{.Config.Image}}' "$NAME" 2>/dev/null || true)
 
 start() {
 	docker rm -f "$NAME" >/dev/null 2>&1 || true
 	# firebase.json은 컨테이너의 /secrets/firebase.json으로 보인다(FIREBASE_CREDENTIALS_PATH=/secrets/firebase.json).
-	docker run -d --name "$NAME" --restart unless-stopped -p "${PORT}:8080" \
+	# 호스트에는 8080만 내보낸다. 지표 포트(8081)는 같은 네트워크의 프로메테우스만 쓴다.
+	docker run -d --name "$NAME" --restart unless-stopped --network "$NETWORK" -p "${PORT}:8080" \
 		--env-file "${CONFIG_DIR}/urijip.env" -v "${CONFIG_DIR}:/secrets:ro" "$1" >/dev/null
 }
 
