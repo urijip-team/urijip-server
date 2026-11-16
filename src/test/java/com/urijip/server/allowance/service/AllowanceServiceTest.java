@@ -410,6 +410,18 @@ class AllowanceServiceTest {
 						e -> assertThat(e.getErrorCode()).isEqualTo(ErrorCode.FAMILY_SUSPENDED));
 	}
 
+	@Test
+	void changeStatusInSuspendedFamilyIsBlocked() {
+		Long requestId = request(kid, mom, 30000, null).requestId();
+		familyService.getFamily(familyId).changeStatus(FamilyStatus.SUSPENDED);
+
+		assertThatThrownBy(() -> allowanceService.changeStatus(requestId, mom.getId(),
+				new AllowanceStatusRequest(AllowanceStatus.SENT)))
+				.isInstanceOfSatisfying(BusinessException.class,
+						e -> assertThat(e.getErrorCode()).isEqualTo(ErrorCode.FAMILY_SUSPENDED));
+		assertThat(allowanceRequestRepository.findById(requestId).orElseThrow().isHandled()).isFalse();
+	}
+
 	private User saveUser(String email, String name) {
 		return userRepository.save(User.builder()
 				.email(email)

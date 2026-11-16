@@ -76,7 +76,7 @@ public class AllowanceService {
 				paymentInfoService.findPaymentInfo(allowance.getRequester().getId()).orElse(null));
 	}
 
-	// 받는 사람만 한 번 처리할 수 있다. 처리 결과를 요청자에게 푸시한다.
+	// 받는 사람만 한 번 처리할 수 있다. 정지된 가족의 요청은 처리할 수 없다. 처리 결과를 요청자에게 푸시한다.
 	@Transactional
 	public AllowanceResponse changeStatus(Long requestId, Long userId, AllowanceStatusRequest request) {
 		if (request.status() == AllowanceStatus.REQUESTED) {
@@ -86,6 +86,7 @@ public class AllowanceService {
 		if (!allowance.isReceiver(userId)) {
 			throw new BusinessException(ErrorCode.NOT_ALLOWANCE_RECEIVER);
 		}
+		familyService.validateActive(allowance.getFamily().getId());
 		if (allowance.isHandled()) {
 			throw new BusinessException(ErrorCode.ALLOWANCE_ALREADY_HANDLED);
 		}
