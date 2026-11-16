@@ -12,6 +12,8 @@ import com.urijip.server.member.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 /**
  * 인증 필터와 STOMP 인터셉터가 요청마다 부른다. 요청마다 DB를 보지 않도록 상태를 CACHE_TTL 동안 기억한다.
@@ -38,9 +40,18 @@ public class UserStatusService implements UserStatusChecker {
 		}
 	}
 
-	// 회원 상태를 바꾼 쪽이 부른다.
+	// 회원 상태를 바꾼 쪽이 부른다. 트랜잭션 안이면 커밋 뒤에 한 번 더 지운다.
+	// 지운 뒤 커밋 전에 들어온 요청이 커밋 전 상태를 다시 기억해 둘 수 있어서다.
 	public void evict(Long userId) {
 		cache.remove(userId);
+		if (TransactionSynchronizationManager.isSynchronizationActive()) {
+			TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+				@Override
+				public void afterCommit() {
+					cache.remove(userId);
+				}
+			});
+		}
 	}
 
 	private UserStatus statusOf(Long userId) {
