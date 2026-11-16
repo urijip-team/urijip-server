@@ -28,8 +28,10 @@ public class FcmPushSender implements PushSender {
 	static final int MAX_TOKENS_PER_REQUEST = 500;
 
 	// 이 오류가 난 토큰은 앱이 지워졌거나 다른 프로젝트의 것이라 다시 보내도 실패한다.
+	// INVALID_ARGUMENT는 넣지 않는다. 메시지가 잘못됐을 때(크기 초과 등)도 모든 토큰에 이 오류가 와서,
+	// 토큰을 지우면 정상 기기까지 푸시를 못 받게 된다.
 	private static final Set<MessagingErrorCode> INVALID_TOKEN_ERRORS = Set.of(MessagingErrorCode.UNREGISTERED,
-			MessagingErrorCode.INVALID_ARGUMENT, MessagingErrorCode.SENDER_ID_MISMATCH);
+			MessagingErrorCode.SENDER_ID_MISMATCH);
 
 	private final FirebaseMessaging firebaseMessaging;
 
