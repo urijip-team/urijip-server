@@ -42,8 +42,17 @@ class FcmPushSenderTest {
 				failure(MessagingErrorCode.INVALID_ARGUMENT), failure(MessagingErrorCode.SENDER_ID_MISMATCH));
 		given(firebaseMessaging.sendEachForMulticast(any(MulticastMessage.class))).willReturn(response);
 
-		assertThat(sender.send(List.of("gone", "busy", "ok", "broken", "other-project"), MESSAGE))
-				.containsExactlyInAnyOrder("gone", "broken", "other-project");
+		assertThat(sender.send(List.of("gone", "busy", "ok", "bad-message", "other-project"), MESSAGE))
+				.containsExactlyInAnyOrder("gone", "other-project");
+	}
+
+	@Test
+	void invalidArgumentDoesNotMarkTokensInvalid() throws Exception {
+		BatchResponse response = batch(failure(MessagingErrorCode.INVALID_ARGUMENT),
+				failure(MessagingErrorCode.INVALID_ARGUMENT));
+		given(firebaseMessaging.sendEachForMulticast(any(MulticastMessage.class))).willReturn(response);
+
+		assertThat(sender.send(List.of("a", "b"), MESSAGE)).isEmpty();
 	}
 
 	@Test

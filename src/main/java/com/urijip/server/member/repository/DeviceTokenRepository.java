@@ -20,8 +20,9 @@ public interface DeviceTokenRepository extends JpaRepository<DeviceToken, Long> 
 
 	long deleteByUserId(Long userId);
 
-	@Query("select t.fcmToken from DeviceToken t where t.user.id in :userIds")
-	List<String> findFcmTokensByUserIds(@Param("userIds") Collection<Long> userIds);
+	@Query("select t.fcmToken from DeviceToken t where t.user.id in :userIds and t.user.status = :status")
+	List<String> findFcmTokensByUserIdsAndStatus(@Param("userIds") Collection<Long> userIds,
+			@Param("status") UserStatus status);
 
 	@Query("select t.fcmToken from DeviceToken t where t.user.role = :role and t.user.status = :status")
 	List<String> findFcmTokensByUserRoleAndStatus(@Param("role") Role role, @Param("status") UserStatus status);

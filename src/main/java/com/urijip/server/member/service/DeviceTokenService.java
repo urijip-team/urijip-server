@@ -31,12 +31,13 @@ public class DeviceTokenService {
 	}
 
 	// 푸시를 받을 회원들의 기기 토큰. 한 회원이 기기를 여러 대 쓰면 토큰도 여러 개다.
+	// 정지된 회원은 뺀다. API로 막힌 회원에게 채팅 내용 같은 가족 소식이 푸시로 새지 않게 하려고.
 	@Transactional(readOnly = true)
 	public List<String> getTokens(Collection<Long> userIds) {
 		if (userIds.isEmpty()) {
 			return List.of();
 		}
-		return deviceTokenRepository.findFcmTokensByUserIds(userIds);
+		return deviceTokenRepository.findFcmTokensByUserIdsAndStatus(userIds, UserStatus.ACTIVE);
 	}
 
 	// 전체 푸시를 받을 기기 토큰. 관리자와 정지·탈퇴한 회원, excludedUserIds(알림을 끈 회원)는 뺀다.
