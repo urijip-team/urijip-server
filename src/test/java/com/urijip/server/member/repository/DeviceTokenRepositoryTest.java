@@ -136,15 +136,19 @@ class DeviceTokenRepositoryTest {
 	}
 
 	@Test
-	void findFcmTokensByUserIdsReturnsTokensOfThoseUsers() {
+	void findFcmTokensByUserIdsAndStatusReturnsTokensOfThoseUsers() {
 		User dad = saveUser("dad@example.com", "김아빠");
 		User kid = saveUser("kid@example.com", "김첫째");
+		User grandma = saveUser("grandma@example.com", "김할머니");
+		grandma.changeStatus(UserStatus.SUSPENDED);
 		deviceTokenRepository.save(new DeviceToken(mom, "mom-phone", Platform.ANDROID));
 		deviceTokenRepository.save(new DeviceToken(mom, "mom-tablet", Platform.IOS));
 		deviceTokenRepository.save(new DeviceToken(dad, "dad-phone", Platform.IOS));
+		deviceTokenRepository.save(new DeviceToken(grandma, "grandma-phone", Platform.IOS));
 		deviceTokenRepository.saveAndFlush(new DeviceToken(kid, "kid-phone", Platform.ANDROID));
 
-		assertThat(deviceTokenRepository.findFcmTokensByUserIds(List.of(mom.getId(), dad.getId())))
+		assertThat(deviceTokenRepository.findFcmTokensByUserIdsAndStatus(
+				List.of(mom.getId(), dad.getId(), grandma.getId()), UserStatus.ACTIVE))
 				.containsExactlyInAnyOrder("mom-phone", "mom-tablet", "dad-phone");
 	}
 

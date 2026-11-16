@@ -121,6 +121,16 @@ class DeviceTokenServiceTest {
 	}
 
 	@Test
+	void getTokensSkipsSuspendedUsers() {
+		User dad = saveUser("dad@example.com", "김아빠");
+		deviceTokenService.register(mom.getId(), new DeviceTokenRequest("mom-phone", Platform.ANDROID));
+		deviceTokenService.register(dad.getId(), new DeviceTokenRequest("dad-phone", Platform.IOS));
+		dad.changeStatus(UserStatus.SUSPENDED);
+
+		assertThat(deviceTokenService.getTokens(List.of(mom.getId(), dad.getId()))).containsExactly("mom-phone");
+	}
+
+	@Test
 	void getTokensOfNoUsersIsEmpty() {
 		assertThat(deviceTokenService.getTokens(List.of())).isEmpty();
 	}
