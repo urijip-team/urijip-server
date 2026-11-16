@@ -135,6 +135,17 @@ class ScheduleReminderServiceTest {
 	}
 
 	@Test
+	void scheduleWhoseParticipantsAllLeftGoesToWholeFamily() {
+		create("병원", DAY.atTime(9, 0), false, List.of(kid.getId()));
+		familyService.leaveFamily(kid.getId());
+
+		scheduleReminderService.remindToday(DAY);
+
+		assertThat(events.stream(PushRequestedEvent.class)).singleElement()
+				.satisfies(event -> assertThat(event.userIds()).isEqualTo(Set.of(mom.getId(), dad.getId())));
+	}
+
+	@Test
 	void suspendedFamilyGetsNoReminders() {
 		create("병원", DAY.atTime(9, 0), false, List.of());
 		familyService.getFamily(familyId).changeStatus(FamilyStatus.SUSPENDED);

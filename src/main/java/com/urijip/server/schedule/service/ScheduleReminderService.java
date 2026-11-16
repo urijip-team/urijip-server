@@ -58,12 +58,11 @@ public class ScheduleReminderService {
 		}
 	}
 
-	// 가족을 나간 참여자는 뺀다.
+	// 가족을 나간 참여자는 뺀다. 남은 참여자가 없으면 참여자가 없는 일정처럼 가족 모두에게 보낸다.
 	private Set<Long> receivers(Schedule schedule, Set<Long> members) {
-		if (schedule.getParticipantIds().isEmpty()) {
-			return members;
-		}
-		return schedule.getParticipantIds().stream().filter(members::contains).collect(Collectors.toSet());
+		Set<Long> participants = schedule.getParticipantIds().stream().filter(members::contains)
+				.collect(Collectors.toSet());
+		return participants.isEmpty() ? members : participants;
 	}
 
 	private String body(Schedule schedule) {
